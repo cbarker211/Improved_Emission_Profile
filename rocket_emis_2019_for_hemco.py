@@ -997,14 +997,14 @@ if __name__ == "__main__":
     #Define paths dependent on resolution and levels.
     if grid_res == '4x5':
         if levels == 72:
-            gcdir = '/home/ucfacb0/Scratch/v2021-06/StateMet/'
+            gcdir = '/home/ucfacb0/uptrop/GC/run_12.9.3_72L/methane_fluxes/merra2_4x5_og/StateMet/'
         if levels == 47:
-            gcdir = '/home/ucfacb0/Scratch/v2021-06/StateMet/'
+            gcdir = ''
     if grid_res == '2x2.5':
         if levels == 72:
-            gcdir = '/home/ucfacb0/Scratch/v2021-06/StateMet/'
+            gcdir = '/home/ucfacb0/uptrop/GC/run_12.9.3_72L/methane_fluxes/merra2_2x25_og/StateMet'
         if levels == 47:
-            gcdir = '/home/ucfacb0/Scratch/v2021-06/StateMet/'
+            gcdir = ''
 
         
     # Go through process of gridding and saving rocket emissions:
