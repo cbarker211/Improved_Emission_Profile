@@ -7,7 +7,6 @@
    '''
 
 # Import relevant packages:
-import glob
 import argparse
 import sys
 import os
@@ -15,12 +14,9 @@ from os import path
 import netCDF4 as nc4
 from netCDF4 import Dataset
 import numpy as np
-import math
 
-import pdb
-
-sys.path.append('/home/ucfacb0/python/packages/GCPy')
-from gcpy.grid import make_grid_LL
+#sys.path.append('/home/ucfacb0/python/packages/GCPy')
+#from gcpy.grid import make_grid_LL
 
 class RocketData:
     '''Read rocket launch and re-entry emissions'''
@@ -109,7 +105,7 @@ class RocketData:
         # Read database of propellant mass per rocket type:
         # Define database filename:
         #rocket_prop_mass_file = './rocket_propellant_mass_dataset.nc'
-        propellant_mass_file = './rocket_type_propellant_mass_2019_database.nc'
+        propellant_mass_file = './Databases/rocket_type_propellant_mass_2019_database.nc'
 
         # Get data:
         fh = Dataset(propellant_mass_file, mode='r')
@@ -168,7 +164,7 @@ class OutputEmis:
 
         # Grid:
         # Make grid at input resolution:
-        grid = make_grid_LL(res)
+        grid = self.make_grid_LL(res)
 
         # Define lats and lons:        
         self.nlon = len(grid['lon'])
@@ -299,6 +295,75 @@ class OutputEmis:
                     self.save_netcdf()
 
             #print('Month emissions (tonnes): ',month_emis)
+            
+    def make_grid_LL(self, llres, in_extent=[-180, 180, -90, 90], out_extent=[]):
+        """
+        Creates a lat/lon grid description.
+
+        Args:
+            llres: str
+                lat/lon resolution in 'latxlon' format (e.g. '4x5')
+
+        Keyword Args (optional):
+            in_extent: list[float, float, float, float]
+                Describes minimum and maximum latitude and longitude of initial grid
+                in the format [minlon, maxlon, minlat, maxlat]
+                Default value: [-180, 180, -90, 90]
+            out_extent: list[float, float, float, float]
+                Describes minimum and maximum latitude and longitude of target grid
+                in the format [minlon, maxlon, minlat, maxlat]. Needed when intending
+                to use grid to trim extent of input data
+                Default value: [] (assumes value of in_extent)
+
+        Returns:
+            llgrid: dict
+                dict grid description of format {'lat'   : lat midpoints,
+                                                'lon'   : lon midpoints,
+                                                'lat_b' : lat edges,
+                                                'lon_b' : lon edges}
+        """
+
+        # get initial bounds of grid
+        [minlon, maxlon, minlat, maxlat] = in_extent
+        [dlat, dlon] = list(map(float, llres.split('x')))
+        lon_b = np.linspace(minlon - dlon / 2, maxlon - dlon /
+                            2, int((maxlon - minlon) / dlon) + 1)
+        lat_b = np.linspace(minlat - dlat / 2, maxlat + dlat / 2,
+                            int((maxlat - minlat) / dlat) + 2)
+        if minlat <= -90:
+            lat_b = lat_b.clip(-90, None)
+        if maxlat >= 90:
+            lat_b = lat_b.clip(None, 90)
+        lat = (lat_b[1:] + lat_b[:-1]) / 2
+        lon = (lon_b[1:] + lon_b[:-1]) / 2
+
+        # trim grid bounds when your desired extent is not the same as your
+        # initial grid extent
+        if out_extent == []:
+            out_extent = in_extent
+        if out_extent != in_extent:
+            [minlon, maxlon, minlat, maxlat] = out_extent
+            minlon_ind = np.nonzero(lon >= minlon)
+            maxlon_ind = np.nonzero(lon <= maxlon)
+            lon_inds = np.intersect1d(minlon_ind, maxlon_ind)
+            lon = lon[lon_inds]
+            # make sure to get edges of grid correctly
+            lon_inds = np.append(lon_inds, np.max(lon_inds) + 1)
+            lon_b = lon_b[lon_inds]
+
+            minlat_ind = np.nonzero(lat >= minlat)
+            maxlat_ind = np.nonzero(lat <= maxlat)
+            lat_inds = np.intersect1d(minlat_ind, maxlat_ind)
+            lat = lat[lat_inds]
+            # make sure to get edges of grid correctly
+            lat_inds = np.append(lat_inds, np.max(lat_inds) + 1)
+            lat_b = lat_b[lat_inds]
+
+        llgrid = {'lat': lat,
+                'lon': lon,
+                'lat_b': lat_b,
+                'lon_b': lon_b}
+        return llgrid
 
     def read_gc_box_height(self):
 
@@ -942,10 +1007,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Define rocket emissions data directories:
-    datadir = '/home/ucfacb0/Emission_Inventory/Improved_Emission_Profile/'
+    datadir = './Databases/'
     launch_path = path.join(datadir, 'launches-28Aug2020.nc4')
     reentry_path = path.join(datadir, 'reentries-21Aug2020.nc4')
-    outdir = '/home/ucfacb0/Emission_Inventory/Improved_Emission_Profile/'    
+    outdir = './Output/'    
 
     # Read rocket emissions:
     rocket_data = RocketData(launch_path, reentry_path)
@@ -963,7 +1028,8 @@ if __name__ == "__main__":
     # 46-47 for the 47-layer model, 65-72 for the 72-layer model (equivalent to 60-80 km).
     # This means greater smoothing for the 47-layer model.
     
-    levels = int(args.levels)
+    #levels = int(args.levels)
+    levels = 72
     if levels==47:
         booster_level = 44
         reentry_levs = [46-1,47-1]    # Convert to python indices
@@ -974,7 +1040,8 @@ if __name__ == "__main__":
     ''' Define resolutions and set timings '''
     
     # Define grid and file resolutions:
-    grid_res = args.grid_res
+    #grid_res = args.grid_res
+    grid_res = '2x2.5'
     if grid_res == '2x2.5': 
         #file_res = '2x25'
         timestep = 1800 #sec
@@ -997,15 +1064,16 @@ if __name__ == "__main__":
     #Define paths dependent on resolution and levels.
     if grid_res == '4x5':
         if levels == 72:
-            gcdir = '/home/ucfacb0/uptrop/GC/run_12.9.3_72L/methane_fluxes/merra2_4x5_og/StateMet/'
+            gcdir = './Databases/StateMet_run_12.9.3_72L_merra2_2x25_og'
+            #gcdir = '/home/ucfacb0/uptrop/GC/run_12.9.3_72L/methane_fluxes/merra2_4x5_og/StateMet/'
         if levels == 47:
             gcdir = ''
     if grid_res == '2x2.5':
         if levels == 72:
-            gcdir = '/home/ucfacb0/uptrop/GC/run_12.9.3_72L/methane_fluxes/merra2_2x25_og/StateMet'
+            gcdir = './Databases/StateMet_run_12.9.3_72L_merra2_2x25_og'
+            #gcdir = '/home/ucfacb0/uptrop/GC/run_12.9.3_72L/methane_fluxes/merra2_2x25_og/StateMet'
         if levels == 47:
             gcdir = ''
-
         
     # Go through process of gridding and saving rocket emissions:
     emis_data = OutputEmis(rocket_data, grid_res, timestep, levels, booster_level, reentry_levs, gcdir)
