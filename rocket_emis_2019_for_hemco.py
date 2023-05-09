@@ -21,11 +21,23 @@ import numpy as np
 class RocketData:
     '''Read rocket launch and re-entry emissions'''
     def __init__(self,launchfile,reentryfile):
-
-        # Read launch file emissions:
+        
+        self.read_launch_emissions(launchfile)
+        self.read_reentry_emissions(reentryfile)
+        self.define_scale_factors()
+        self.read_rocket_info()
+    
+    def read_launch_emissions(self, launchfile):
+    
+        ###########################################
+        # Read launch emissions from the database.
+        ###########################################
+        
+        #Open Dataset.
         fh = Dataset(launchfile, mode='r')
         
-        # Extract data of interest:
+        #Extract variables.
+        # TODO: Surely this can be put into a cleaner format somehow so all boosters, stage 1, total are in the same array?
         self.launch_lons = fh.variables['Longitude'][:]
         self.launch_lats = fh.variables['Latitude'][:]
         self.launch_time = fh.variables['Time (UTC)'][:]  # UTC hours
@@ -45,30 +57,44 @@ class RocketData:
         self.launch_s1_al = fh.variables['Stage 1 Alumina'][:]
         self.launch_s1_hcl = fh.variables['Stage 1 HCl'][:]
         self.launch_s1_cl = fh.variables['Stage 1 Cl'][:]
+        self.launch_t_nox = fh.variables['Total NOx'][:]
+        self.launch_t_h2o = fh.variables['Total H2O'][:]
+        self.launch_t_bc = fh.variables['Total BC'][:]
+        self.launch_t_al = fh.variables['Total Alumina'][:]
+        self.launch_t_hcl = fh.variables['Total HCl'][:]
+        self.launch_t_cl = fh.variables['Total Cl'][:]
+        
+        #Close Dataset.
         fh.close()
 
-        # Calculate BC emissions for all carbon-based fuels
-        # (that's all rockets in 2019):
-        #
+        # TODO: This is left over from initial file. Why is the equation like that?
+        # Calculate BC emissions for all carbon-based fuels (that's all rockets in 2019):
         # EI_BC = max(0.04, min(1 * np.exp(0.12 * (h - 15))))
 
-        print('Total booster + stage 1 BC emissions (tonnes) = ',sum(self.launch_s1_bc+self.launch_b_bc)*1e-3)
-        print('Total booster + stage 1 NOx emissions (tonnes) = ',sum(self.launch_s1_nox+self.launch_b_nox)*1e-3)
-        print('Total booster + stage 1 H2O emissions (tonnes) = ',sum(self.launch_s1_h2o+self.launch_b_h2o)*1e-3)
-        print('Total booster + stage 1 Al2O3 emissions (tonnes) = ',sum(self.launch_s1_al+self.launch_b_al)*1e-3)
-        print('Total booster + stage 1 Cl emissions (tonnes) = ',sum(self.launch_s1_cl+self.launch_b_cl)*1e-3)
-        print('Total booster + stage 1 HCl emissions (tonnes) = ',sum(self.launch_s1_hcl+self.launch_b_hcl)*1e-3)
+        #Print total emissions for each species.
+        #print(f'Total booster + stage 1 NOx emissions   = {sum(self.launch_s1_nox+self.launch_b_nox)*1e-3:.4f} tonnes')
+        #print(f'Total booster + stage 1 H2O emissions   = {sum(self.launch_s1_h2o+self.launch_b_h2o)*1e-3:.4f} tonnes')
+        #print(f'Total booster + stage 1 BC emissions    = {sum(self.launch_s1_bc+self.launch_b_bc)*1e-3:.4f} tonnes')
+        #print(f'Total booster + stage 1 Al2O3 emissions = {sum(self.launch_s1_al+self.launch_b_al)*1e-3:.4f} tonnes')
+        #print(f'Total booster + stage 1 HCl emissions   = {sum(self.launch_s1_hcl+self.launch_b_hcl)*1e-3:.4f} tonnes')
+        #print(f'Total booster + stage 1 Cl emissions    = {sum(self.launch_s1_cl+self.launch_b_cl)*1e-3:.4f} tonnes')
         
-        # Read re-entry file emissions:
+        #Use this to check totals after database is complete.
+        #print(f'Total Check (NOx)                       = {(sum(self.launch_s1_nox+self.launch_b_nox)-sum(self.launch_t_nox))*1e-3} tonnes')
+        #print(f'Total Check (H2O)                       = {(sum(self.launch_s1_h2o+self.launch_b_h2o)-sum(self.launch_t_h2o))*1e-3} tonnes')
+        #print(f'Total Check (BC)                        = {(sum(self.launch_s1_bc+self.launch_b_bc)-sum(self.launch_t_bc))*1e-3} tonnes')
+        #print(f'Total Check (Al2O3)                     = {(sum(self.launch_s1_al+self.launch_b_al)-sum(self.launch_t_al))*1e-3} tonnes')
+        #print(f'Total Check (HCl)                       = {(sum(self.launch_s1_hcl+self.launch_b_hcl)-sum(self.launch_t_hcl))*1e-3} tonnes')
+        #print(f'Total Check (Cl)                        = {(sum(self.launch_s1_cl+self.launch_b_cl)-sum(self.launch_t_cl))*1e-3} tonnes')
+        
+    def read_reentry_emissions(self,reentryfile):
+        ############################################
+        # Read re-entry emissions from the database.
+        ############################################
+
         fg = Dataset(reentryfile, mode='r')
-        #print(fg)
-        #self.tmp = fg.variables['ID'][:]   # Re-entry ID
-        #self.tmp = fg.variables['Controlled?'][:]   # Whether controlled or not (Y/N)
-        #print(self.tmp.shape)
-        #index = 2
-        # String with length of 8 is from rocket launch and should be ignored if not a controlled entry, something like if len(ID)==8 and Controlled=='Y', then calculate 0.175*mass to get NOx, if len(ID)==8 and Controlled=='Y', then don't calculate re-entry NOx.
-        #print(len(self.tmp[index]))
-        # Extract data of interest:
+        
+        # Extract variables:
         self.reentry_id = fg.variables['ID'][:]
         self.reentry_type = fg.variables['Controlled?'][:]
         self.reentry_lons = fg.variables['Longitude'][:]
@@ -78,15 +104,35 @@ class RocketData:
         self.reentry_day = fg.variables['Day'][:]
         self.reentry_mass = fg.variables['Total Mass'][:]
         self.reentry_nox = fg.variables['NOx from re-entry'][:]  # in tonnes
+        
+        #Close Dataset.
         fg.close()
-
-        print('Total reentry NOx emissions (tonnes) = ',sum(self.reentry_nox)*1e-3)
-
+        
+        #print(f'Total reentry NOx emissions             = {sum(self.reentry_nox)*1e-3} tonnes')
+        
+        # TODO: Need to sort out controlled vs uncontrolled entries.
+        # ID String with length of 8 is from rocket launch and should be ignored if not a controlled entry.
+        # Something like:
+        #           if len(ID)==8 and Controlled=='Y', then calculate 0.175*mass to get NOx
+        #           if len(ID)==8 and Controlled=='Y', then don't calculate re-entry NOx.
+        
+        
+        # Can use this to check the totals after database is complete.
+        # However, the input file contains lots of empty data for the booster, stage 1 and stage 2 mass. 
+        # Therefore the total from all three is very different from the total mass.
+        #self.reentry_booster_mass = fg.variables['Booster mass'][:]
+        #self.reentry_stage1_mass = fg.variables['First stage mass'][:]
+        #self.reentry_stage2_mass = fg.variables['Second stage mass'][:]
+        #print(f'Total Check (NOx)                       = {(np.nansum(self.reentry_booster_mass+self.reentry_stage1_mass+self.reentry_stage2_mass)-sum(self.reentry_mass))*1e-3} tonnes')
+        
+    def define_scale_factors(self):
+        ###############################################################################
         # Create vertical fuel burned scale factors for the 47-layer GEOS-Chem model:
-        # Scale factors obtained by regridding vertical profile from
-        # Ross and Sheaffer (2014) 
+        ###############################################################################
+        
+        # Scale factors obtained by regridding vertical profile from Ross and Sheaffer (2014) to the GEOS-Chem vertical grid.
         # https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2013EF000160
-        # to the GEOS-Chem vertical grid.
+        # TODO: This is for 47-layer model, what about 72 layer model?
         scale_emis=[0.049891495, 0.111470331, 0.078233471, 0.063383364,
                     0.060797961, 0.059372945, 0.053323669, 0.046966629,
                     0.023518583, 0.025045331, 0.023940206, 0.02557847,
@@ -101,16 +147,17 @@ class RocketData:
                     0.00416808,  0.004117436, 0.004080244]
         # Data are from layer 47 to the surface, aso need to be reversed:
         self.scale_emis = scale_emis[::-1]
+        
+    def read_rocket_info(self):
+        ##########################################################
+        # Read propellant mass per rocket type from the database.
+        ##########################################################
 
-        # Read database of propellant mass per rocket type:
-        # Define database filename:
-        #rocket_prop_mass_file = './rocket_propellant_mass_dataset.nc'
+        # Open Dataset.
         propellant_mass_file = './Databases/rocket_type_propellant_mass_2019_database.nc'
-
-        # Get data:
         fh = Dataset(propellant_mass_file, mode='r')
         
-        # Extract relevant data:
+        # Extract variables:
         self.rocket_name       = fh.variables['2019_rocket_name'][:]
         self.booster_prop_mass = fh.variables['booster_prop_mass'][:]
         self.stage1_prop_mass  = fh.variables['stage1_prop_mass'][:]
@@ -126,27 +173,35 @@ class RocketData:
         self.co_pei            = fh.variables['co_pei'][:]
         self.co2_pei           = fh.variables['co2_pei'][:]
 
-        # Extract rocket name:
-        #self.rocket_name = fh.variables['name'][:]
-
-        # Extract propellant mass (in kg):
-        #self.rocket_propellant_mass = fh.variables['mass'][:]
-
         # Close the file:
         fh.close()
         
-
 class OutputEmis:
     def __init__(self, rocketdata, res, ts, levs, blev, reentry_levs, gc_dir):
 
-        # Define relevant rocketdata:
-        #self.launch_id = rocketdata.launch_id
+        # Setup input variables.
+        self.launch_id = rocketdata.launch_id # Extract launch IDs from the imported rocket data.
+        self.ts = ts # Time step:
+        self.nlev = levs
+        self.nhours = 24
+        self.blev = blev
+        self.bot_reenter = min(reentry_levs)
+        self.top_reenter = max(reentry_levs)
+        self.n_reenter_levs = self.top_reenter - self.bot_reenter + 1
+        
+        # Constants:
+        # TODO: Check what these constants are.
+        self.mw_h = 1.008
+        self.mw_h2 = self.mw_h * 2
+        self.mw_h2o = self.mw_h2 + 16.00
 
         # Get Ross vertical profiles of propellant burned:
-        # Data are self.ross_alt and self.ross_prop_mass
+        #   self.ross_alt (centre alitiudes of each bin)
+        #   self.ross_prop_mass (unitless percent of propellant mass)
         self.get_ross_profiles()
 
         # Sum emissions (sanity check):
+        # TODO: What is this checking?
         self.nox_launch_total = 0.0
         self.bc_total  = 0.0
         self.h2o_total = 0.0
@@ -157,41 +212,27 @@ class OutputEmis:
         self.nox_reentry_total = 0.0
         self.al2o3_reentry_total = 0.0
 
-        # Constants:
-        self.mw_h = 1.008
-        self.mw_h2 = self.mw_h * 2
-        self.mw_h2o = self.mw_h2 + 16.00
-
-        # Grid:
         # Make grid at input resolution:
-        grid = self.make_grid_LL(res)
-
-        # Define lats and lons:        
+        # TODO: Understand this gridding procedure.
+        grid = self.make_grid_LL(res)      
         self.nlon = len(grid['lon'])
         self.nlat = len(grid['lat'])
-        self.nlev = levs
         self.lon =  grid['lon']
         self.lat =  grid['lat']
+        
         #2D lat and lon:
         #X, Y = np.meshgrid(self.lon, self.lat,indexing='ij')
         #self.lon2d = X
         #self.lat2d = Y
-        self.nhours = 24
-        #self.blev = blev
-        self.bot_reenter = min(reentry_levs)
-        self.top_reenter = max(reentry_levs)
-        self.n_reenter_levs = self.top_reenter - self.bot_reenter + 1
 
-        # Time step:
-        self.ts = ts 
-
-        # months:
-        month=np.arange(1,3)
+        # TODO: Configure these properly.
+        # Setup months and days:
+        month=[0]
         ndays = 31
 
         # Loop over months:
         for m in range(len(month)):
-
+            
             month_emis=0.0
 
             # Get month string:
@@ -996,15 +1037,20 @@ class OutputEmis:
 if __name__ == "__main__":
 
     ##########################################################
+    # Configure additional arguments when running the script.
+    ##########################################################
+    
+    # TODO: Add additional arguments inc. months to output, verbose output??
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--levels", default="72", help="Vertical resolution, either 47 or 72.")
+    parser.add_argument("--grid_res", default = "2x2.5", help='Grid resolution, "4x5" or "2x2.5"')
+    args = parser.parse_args()
+    
+    ##########################################################
     # Read the rocket emissions from the database.
     ##########################################################
     
-    # Configure additional arguments when running the script.
-    # Current options are grid levels and grid resolution.
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--levels", default="47", help="Either 47 or 72")
-    parser.add_argument("--grid_res", default = "4x5", help="Can only be 2x2.5 for now")
-    args = parser.parse_args()
+    # TODO: Write databases for 2020. Probably CSV into NetCDF.
 
     # Define rocket emissions data directories:
     datadir = './Databases/'
@@ -1022,58 +1068,62 @@ if __name__ == "__main__":
     ''' Define booster and re-entry levels. '''
     
     # N.B. Boosters only extend to ~45 km (layer 44 of the 47-layer model, layer 57 of the 72-layer model)
-    
     # N.B. Re-entry emissions are placed in the GC layer at ~68 km (reentry burnup location).
     # The emissions are evenly distributed across two vertical layers in the model.
     # 46-47 for the 47-layer model, 65-72 for the 72-layer model (equivalent to 60-80 km).
     # This means greater smoothing for the 47-layer model.
     
-    #levels = int(args.levels)
-    levels = 72
+    # TODO: Do we need to change the reentry or booster locations?
+    levels = int(args.levels)
     if levels==47:
         booster_level = 44
         reentry_levs = [46-1,47-1]    # Convert to python indices
-    if levels==72:
+    elif levels==72:
         booster_level = 57
         reentry_levs = [65-1,72-1]    # Convert to python indices
-
+    else:
+        sys.exit("Invalid number of levels.")
+        
+        
     ''' Define resolutions and set timings '''
     
-    # Define grid and file resolutions:
-    #grid_res = args.grid_res
-    grid_res = '2x2.5'
+    # Define timesteps.
+    grid_res = args.grid_res
     if grid_res == '2x2.5': 
-        #file_res = '2x25'
         timestep = 1800 #sec
-    if grid_res == '4x5':
-        #file_res = '4x5'   
+    elif grid_res == '4x5':
         timestep = 3600 #sec
-    
-    # file_res no longer used??
-    
-    # Months and days are set within the OutputEmis class, could change this.
-    # Define month:
-    #monnum = args.month
-    #print(monnum)
-
-    # Define no. of days in month:
-    ndays = 31
+    else:
+        sys.exit("Invalid grid resolution.")
 
     ''' Define locations of StateMet files '''
     
-    #Define paths dependent on resolution and levels.
+    #Define paths dependent on resolution and levels. Errors should be handled above but included here just in case.
+    # TODO: Need to run GEOS-Chem so we have StateMet files for all options.
     if grid_res == '4x5':
         if levels == 72:
-            gcdir = './Databases/StateMet_run_12.9.3_72L_merra2_2x25_og'
+            pass
             #gcdir = '/home/ucfacb0/uptrop/GC/run_12.9.3_72L/methane_fluxes/merra2_4x5_og/StateMet/'
-        if levels == 47:
-            gcdir = ''
-    if grid_res == '2x2.5':
+        elif levels == 47:
+            pass
+        else:
+            sys.exit("Invalid number of levels.")
+    elif grid_res == '2x2.5':
         if levels == 72:
             gcdir = './Databases/StateMet_run_12.9.3_72L_merra2_2x25_og'
             #gcdir = '/home/ucfacb0/uptrop/GC/run_12.9.3_72L/methane_fluxes/merra2_2x25_og/StateMet'
-        if levels == 47:
-            gcdir = ''
+        elif levels == 47:
+            pass
+        else:
+            sys.exit("Invalid number of levels.")
+    else:
+        sys.exit("Invalid grid resolution.")
+        
+    # TODO: Need to set month and day here, and automatically set right numbers of days in each month. 
+    # Define no. of days in month:
+    #ndays = 31
+    #start_mon = 1
+    #end_mon = 1
         
     # Go through process of gridding and saving rocket emissions:
     emis_data = OutputEmis(rocket_data, grid_res, timestep, levels, booster_level, reentry_levs, gcdir)
@@ -1082,16 +1132,20 @@ if __name__ == "__main__":
     # Print total emissions of each species.
     ##########################################################
     
-    print('Total BC emissions (tonnes): ', emis_data.bc_total*1e-6)
-    print('Total NOx launch emissions (tonnes): ', emis_data.nox_launch_total*1e-6)
-    print('Total H2O emissions (tonnes): ', emis_data.h2o_total*1e-6)
-    print('Total CO emissions (tonnes): ', emis_data.co_total*1e-6)
-    print('Total Al2O3 launch emissions (tonnes): ', emis_data.al2o3_launch_total*1e-6)
-    print('Total Cl emissions (tonnes): ', emis_data.cl_total*1e-6)
-    print('Total HCl emissions (tonnes): ', emis_data.hcl_total*1e-6)
-    print('Total NOx re-entry emissions (tonnes): ', emis_data.nox_reentry_total*1e-3)
-    print('Total Al2O3 re-entry emissions (tonnes): ', emis_data.al2o3_reentry_total*1e-6)
+    def print_total_emissions():
+        print('Total BC emissions (tonnes): ', emis_data.bc_total*1e-6)
+        print('Total NOx launch emissions (tonnes): ', emis_data.nox_launch_total*1e-6)
+        print('Total H2O emissions (tonnes): ', emis_data.h2o_total*1e-6)
+        print('Total CO emissions (tonnes): ', emis_data.co_total*1e-6)
+        print('Total Al2O3 launch emissions (tonnes): ', emis_data.al2o3_launch_total*1e-6)
+        print('Total Cl emissions (tonnes): ', emis_data.cl_total*1e-6)
+        print('Total HCl emissions (tonnes): ', emis_data.hcl_total*1e-6)
+        print('Total NOx re-entry emissions (tonnes): ', emis_data.nox_reentry_total*1e-3)
+        print('Total Al2O3 re-entry emissions (tonnes): ', emis_data.al2o3_reentry_total*1e-6)
+    
+    #print_total_emissions()
 
+    # TODO: Go through and understand these notes.
     # Notes:
     # (1) not sure is zero or letter 'o' in Blok-DM-03
     # (2) check SI to determine Hyperbola, Jielong-1, Kuaizhou-1A propellant mass.
