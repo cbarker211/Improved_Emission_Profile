@@ -35,8 +35,10 @@ class RocketData:
         #Open Dataset.
         fh = Dataset(launchfile, mode='r')
         
+        #TODO: Why do we load in the launch emissions? Surely this is the output??
+        # Have removed for now.
+        
         #Extract variables.
-        # TODO: Surely this can be put into a cleaner format somehow so all boosters, stage 1, total are in the same array?
         self.launch_lons = fh.variables['Longitude'][:]
         self.launch_lats = fh.variables['Latitude'][:]
         self.launch_time = fh.variables['Time (UTC)'][:]  # UTC hours
@@ -44,45 +46,54 @@ class RocketData:
         self.launch_day = fh.variables['Day'][:]
         self.launch_id = fh.variables['ID'][:]
         self.rocket_type = fh.variables['Rocket Type'][:]
-        self.launch_b_nox = fh.variables['Boosters NOx'][:]
-        self.launch_b_h2o = fh.variables['Boosters H2O'][:]
-        self.launch_b_bc = fh.variables['Boosters BC'][:]
-        self.launch_b_al = fh.variables['Boosters Alumina'][:]
-        self.launch_b_hcl = fh.variables['Boosters HCl'][:]
-        self.launch_b_cl = fh.variables['Boosters Cl'][:]
-        self.launch_s1_nox = fh.variables['Stage 1 NOx'][:]
-        self.launch_s1_h2o = fh.variables['Stage 1 H2O'][:]
-        self.launch_s1_bc = fh.variables['Stage 1 BC'][:]
-        self.launch_s1_al = fh.variables['Stage 1 Alumina'][:]
-        self.launch_s1_hcl = fh.variables['Stage 1 HCl'][:]
-        self.launch_s1_cl = fh.variables['Stage 1 Cl'][:]
-        self.launch_t_nox = fh.variables['Total NOx'][:]
-        self.launch_t_h2o = fh.variables['Total H2O'][:]
-        self.launch_t_bc = fh.variables['Total BC'][:]
-        self.launch_t_al = fh.variables['Total Alumina'][:]
-        self.launch_t_hcl = fh.variables['Total HCl'][:]
-        self.launch_t_cl = fh.variables['Total Cl'][:]
+        
+        # These are used for a monthly nox emissions check later.
+        #self.launch_b_nox = fh.variables['Boosters NOx'][:]
+        #self.launch_s1_nox = fh.variables['Stage 1 NOx'][:]
+        
+        # All of these are used in:
+        #       1) Sanity check below
+        #       2) Now commented out code for launches in grid_emis
+        #self.launch_b_h2o = fh.variables['Boosters H2O'][:]
+        #self.launch_b_bc = fh.variables['Boosters BC'][:]
+        #self.launch_b_al = fh.variables['Boosters Alumina'][:]
+        #self.launch_b_hcl = fh.variables['Boosters HCl'][:]
+        #self.launch_b_cl = fh.variables['Boosters Cl'][:]
+        #self.launch_s1_h2o = fh.variables['Stage 1 H2O'][:]
+        #self.launch_s1_bc = fh.variables['Stage 1 BC'][:]
+        #self.launch_s1_al = fh.variables['Stage 1 Alumina'][:]
+        #self.launch_s1_hcl = fh.variables['Stage 1 HCl'][:]
+        #self.launch_s1_cl = fh.variables['Stage 1 Cl'][:]
+        
+        #All of these are only used for the sanity check below.
+        #self.launch_t_nox = fh.variables['Total NOx'][:]
+        #self.launch_t_h2o = fh.variables['Total H2O'][:]
+        #self.launch_t_bc = fh.variables['Total BC'][:]
+        #self.launch_t_al = fh.variables['Total Alumina'][:]
+        #self.launch_t_hcl = fh.variables['Total HCl'][:]
+        #self.launch_t_cl = fh.variables['Total Cl'][:]
         
         #Close Dataset.
         fh.close()
 
-
+        # TODO: Sanity Check
         if args.verbose == True:
+            pass
             #Print total emissions for each species.
-            print(f'Total booster + stage 1 NOx emissions   = {sum(self.launch_s1_nox+self.launch_b_nox)*1e-3:.4f} tonnes')
-            print(f'Total booster + stage 1 H2O emissions   = {sum(self.launch_s1_h2o+self.launch_b_h2o)*1e-3:.4f} tonnes')
-            print(f'Total booster + stage 1 BC emissions    = {sum(self.launch_s1_bc+self.launch_b_bc)*1e-3:.4f} tonnes')
-            print(f'Total booster + stage 1 Al2O3 emissions = {sum(self.launch_s1_al+self.launch_b_al)*1e-3:.4f} tonnes')
-            print(f'Total booster + stage 1 HCl emissions   = {sum(self.launch_s1_hcl+self.launch_b_hcl)*1e-3:.4f} tonnes')
-            print(f'Total booster + stage 1 Cl emissions    = {sum(self.launch_s1_cl+self.launch_b_cl)*1e-3:.4f} tonnes')
+            #print(f'Total booster + stage 1 NOx emissions   = {sum(self.launch_s1_nox+self.launch_b_nox)*1e-3:.4f} tonnes')
+            #print(f'Total booster + stage 1 H2O emissions   = {sum(self.launch_s1_h2o+self.launch_b_h2o)*1e-3:.4f} tonnes')
+            #print(f'Total booster + stage 1 BC emissions    = {sum(self.launch_s1_bc+self.launch_b_bc)*1e-3:.4f} tonnes')
+            #print(f'Total booster + stage 1 Al2O3 emissions = {sum(self.launch_s1_al+self.launch_b_al)*1e-3:.4f} tonnes')
+            #print(f'Total booster + stage 1 HCl emissions   = {sum(self.launch_s1_hcl+self.launch_b_hcl)*1e-3:.4f} tonnes')
+            #print(f'Total booster + stage 1 Cl emissions    = {sum(self.launch_s1_cl+self.launch_b_cl)*1e-3:.4f} tonnes')
             
             #Use this to check totals after database is complete.
-            print(f'Total Check (NOx)                       = {(sum(self.launch_s1_nox+self.launch_b_nox)-sum(self.launch_t_nox))*1e-3} tonnes')
-            print(f'Total Check (H2O)                       = {(sum(self.launch_s1_h2o+self.launch_b_h2o)-sum(self.launch_t_h2o))*1e-3} tonnes')
-            print(f'Total Check (BC)                        = {(sum(self.launch_s1_bc+self.launch_b_bc)-sum(self.launch_t_bc))*1e-3} tonnes')
-            print(f'Total Check (Al2O3)                     = {(sum(self.launch_s1_al+self.launch_b_al)-sum(self.launch_t_al))*1e-3} tonnes')
-            print(f'Total Check (HCl)                       = {(sum(self.launch_s1_hcl+self.launch_b_hcl)-sum(self.launch_t_hcl))*1e-3} tonnes')
-            print(f'Total Check (Cl)                        = {(sum(self.launch_s1_cl+self.launch_b_cl)-sum(self.launch_t_cl))*1e-3} tonnes')
+            #print(f'Total Check (NOx)                       = {(sum(self.launch_s1_nox+self.launch_b_nox)-sum(self.launch_t_nox))*1e-3} tonnes')
+            #print(f'Total Check (H2O)                       = {(sum(self.launch_s1_h2o+self.launch_b_h2o)-sum(self.launch_t_h2o))*1e-3} tonnes')
+            #print(f'Total Check (BC)                        = {(sum(self.launch_s1_bc+self.launch_b_bc)-sum(self.launch_t_bc))*1e-3} tonnes')
+            #print(f'Total Check (Al2O3)                     = {(sum(self.launch_s1_al+self.launch_b_al)-sum(self.launch_t_al))*1e-3} tonnes')
+            #print(f'Total Check (HCl)                       = {(sum(self.launch_s1_hcl+self.launch_b_hcl)-sum(self.launch_t_hcl))*1e-3} tonnes')
+            #print(f'Total Check (Cl)                        = {(sum(self.launch_s1_cl+self.launch_b_cl)-sum(self.launch_t_cl))*1e-3} tonnes')
         
     def read_reentry_emissions(self,reentryfile):
         ############################################
@@ -109,10 +120,11 @@ class RocketData:
         #Close Dataset.
         fg.close()
         
+        # TODO: Sanity Check
         if args.verbose == True:
             print(f'Total reentry NOx emissions             = {sum(self.reentry_nox)*1e-3} tonnes')
         
-        # TODO: Need to sort out controlled vs uncontrolled entries.
+        # TODO: Reentries - Need to sort out controlled vs uncontrolled entries.
         # ID String with length of 8 is from rocket launch and should be ignored if not a controlled entry.
         # Something like:
         #           if len(ID)==8 and Controlled=='Y', then calculate 0.175*mass to get NOx
@@ -132,7 +144,7 @@ class RocketData:
         
         # Scale factors obtained by regridding vertical profile from Ross and Sheaffer (2014) to the GEOS-Chem vertical grid.
         # https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2013EF000160
-        # TODO: This is for 47-layer model, what about 72 layer model?
+        # TODO: Pretty sure this isn't used anymore
         scale_emis=[0.049891495, 0.111470331, 0.078233471, 0.063383364,
                     0.060797961, 0.059372945, 0.053323669, 0.046966629,
                     0.023518583, 0.025045331, 0.023940206, 0.02557847,
@@ -153,6 +165,8 @@ class RocketData:
         # Read propellant mass per rocket type from the database.
         ##########################################################
 
+        #TODO: Probably need a sanity check here, and also a lot of these are probably not used anymore.
+        
         # Open Dataset.
         propellant_mass_file = './Databases/rocket_type_propellant_mass_2019_database.nc'
         fh = Dataset(propellant_mass_file, mode='r')
@@ -202,8 +216,7 @@ class OutputEmis:
         #   self.ross_prop_mass (unitless percent of propellant mass)
         self.get_ross_profiles()
 
-        # Sum emissions (sanity check):
-        # TODO: Make sure these are all used somewhere in the grid_emis function.
+        # Create variables for totals for a future sanity check:
         self.nox_launch_total = 0.0
         self.bc_total  = 0.0
         self.h2o_total = 0.0
@@ -250,7 +263,7 @@ class OutputEmis:
                 
             #ndays = 1
                         
-            month_emis=0.0
+            #month_emis=0.0
 
             # Get month string:
             if m+1<=9:
@@ -258,17 +271,7 @@ class OutputEmis:
             else:
                 self.strmon=str(m+1)
 
-            print('Month processing: ', self.strmon)
-
-            # TODO: Wait until Myriad is back online and can access UpTrop folder.
-            # Surely the read_gc_box_height should only be called every day or every month.
-            # Also the loops can be combined.
-            
-            # Read GEOS-Chem box height:
-            # Define file path of GEOS-Chem file:
-            if res == '4x5' and self.nlev==47:
-                self.gc_file = path.join(gc_dir, 'GEOSChem.StateMet.2019'+self.strmon+'01_0000z.nc4')
-                self.read_gc_box_height()
+            print('Month processing: ', self.strmon)             
             
             # Loop over days:
             for d in range(ndays):
@@ -279,22 +282,14 @@ class OutputEmis:
                 else:
                     self.strday=str(d+1)
 
-                if res == '2x2.5' and self.nlev==72:
-                    # StateMet file:
-                    self.gc_file = path.join(gc_dir, 'GEOSChem.StateMet.2019'+self.strmon+self.strday+'_0000z.nc4')
-                    file_exists = os.path.exists(self.gc_file)
-                    if not file_exists: continue
-                    self.read_gc_box_height()
+                # gc_dir is defined for each scenario in the main section of the python script.
+                # So only need one block to read GEOS-Chem box height from StateMet file.
+                self.gc_file = path.join(gc_dir, 'GEOSChem.StateMet.2019'+self.strmon+self.strday+'_0000z.nc4')
+                file_exists = os.path.exists(self.gc_file)
+                if not file_exists: continue
+                self.read_gc_box_height()
 
-                if res == '4x5' and self.nlev==72:
-                    # StateMet file:
-                    self.gc_file = path.join(gc_dir, 'GEOSChem.StateMet.2019'+self.strmon+self.strday+'_0000z.nc4')
-                    file_exists = os.path.exists(self.gc_file)
-                    if not file_exists: continue
-                    self.read_gc_box_height()
-
-                #TODO: What are these arrays and constants used for?
-                # Data arrays:
+                # Set up the data arrays which will be saved to file.
                 #self.reentry_nox = np.zeros((self.nlon,self.nlat,self.nlev))
                 self.rocket_nox = np.zeros((self.nhours,self.nlev,self.nlat,self.nlon))
                 self.rocket_h2o = np.zeros((self.nhours,self.nlev,self.nlat,self.nlon))
@@ -331,7 +326,7 @@ class OutputEmis:
                                    )
                     
                     #TODO: Why are we only adding NOx to the monthly emission total?
-                    month_emis += sum(rocket_data.launch_s1_nox[l_ind]+rocket_data.launch_b_nox[l_ind])*1e-3
+                    #month_emis += sum(rocket_data.launch_s1_nox[l_ind]+rocket_data.launch_b_nox[l_ind])*1e-3
 
                 ########################################################################
                 # Call grid_emis function to calculate distribution from re-entries
@@ -367,7 +362,7 @@ class OutputEmis:
                 if  len(l_ind)>0 or len(r_ind)>0:
                     self.save_netcdf()
                 else:
-                    # TODO: Understand this section.
+
                     # Create dummy file to accommodate HEMCO file reading
                     # Settings:
                     
@@ -381,7 +376,8 @@ class OutputEmis:
                     self.pmin,self.pmax=int(lon_ind),int(lon_ind)
                     
                     self.save_netcdf()
-
+                    
+            #TODO: Sanity Check
             #print('Monthly NOx launch emissions (tonnes): ',month_emis)
             
     def make_grid_LL(self, llres, in_extent=[-180, 180, -90, 90], out_extent=[]):
@@ -497,7 +493,7 @@ class OutputEmis:
         for i, h in enumerate(height):
             self.ei_sec_nox[i] = 33 * np.exp((-0.26)*h)
 
-        ## !!**  STILL NEED TO CALCULATE PRIMARY NOx FOR ROCKETS WITH N-BASED FUEL **!! ##
+        ## TODO: STILL NEED TO CALCULATE PRIMARY NOx FOR ROCKETS WITH N-BASED FUEL
 
     def calculate_co_ei(self, height, co_pei, co2_pei):
         """Calculate CO emission index in g CO per kg propellant burned."""
@@ -624,7 +620,7 @@ class OutputEmis:
 
                 # Setup rocket type variables (trim_name contains all rockets and is defined in __init__ function of this class):
                 # TODO: Isn't this section mixing up rockets with the same name? It only uses the final rocket that it finds.
-                # TODO: Why do we even trim the rocket names at all??
+                # Why do we even trim the rocket names at all??
                 trim_type = rocket_type[w][0:5]
                 rocket_found = False
                 valid_index = 0
@@ -663,150 +659,118 @@ class OutputEmis:
                 # Calculate emission indices of individual pollutants:
                 # These are given in g pollutant per kg propellant.
                 # Methodology is from https://crp.trb.org/uat/acrp0356/wp-content/uploads/sites/26/2021/07/ACRP-Web-Only-51-Commercial-Space-Vehicle-Emissions-Modeling.pdf
+                # General structure is this for each species:
+                #       0) Check if species is emitted
+                #       1) calculate vertical profile of emission indices (g(xx) / kg(propellant)) using function self.calculate_xx_ei
+                #       2) multiply propellant mass by (0.01 * ei * vertical mass profile) to get mass vertical profile (in g)
+                #       3) add vertical mass profile (in g) to sanity check total
+                #       3) convert vertical mass profile from kg to kgm2s and add to output variable
                 ##########################################################
                 
                 ###########################
                 # (1) BC and (2) CO
                 ###########################
                 
-                # TODO: Should this function be inside the if statement below?
-                # Calculate vertical profile of emission indices from highest to lowest altitude:
-                self.calculate_bc_ei(self.mid_alt[::-1,q,p]*1e-3)
-
-                # Check booster produces BC or CO:
+                # TODO: Update these to reflect changes in fuel types (e.g. liq. methane)
+                
+                # Check if booster produces BC or CO:
                 if rocket_data.booster_prop_type[valid_index] in ['solid','hypergolic','kerosene']:
 
-                    # Temporary data variable (g BC):
+                    self.calculate_bc_ei(self.mid_alt[::-1,q,p]*1e-3)
                     t_bc_emis = self.ei_bc * rocket_data.booster_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass
-                    print(len(t_bc_emis),len(self.ei_bc),len(self.gc_relative_mass))
                     self.bc_total += np.sum(t_bc_emis)
-                    # Apply to final array and convert to kg/m2/s
-                    self.rocket_bc[int(hour[w]),::-1,q,p] += t_bc_emis*1e-3/kg_to_kgm2s
+                    self.rocket_bc[int(hour[w]),::-1,q,p] += t_bc_emis * 1e-3/kg_to_kgm2s
                     
-                    # Get vertically resolved CO emission indices (g CO/kg propellant):
                     self.calculate_co_ei(self.mid_alt[::-1,q,p]*1e-3, rocket_data.co_pei[pei_booster_index], rocket_data.co2_pei[pei_booster_index])
-                    # Temporary data variable (g CO):
                     t_co_emis = self.ei_co * rocket_data.booster_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass
                     self.co_total += np.sum(t_co_emis)
-                    # Apply to final array and convert to kg/m2/s
-                    self.rocket_co[int(hour[w]),::-1,q,p] += t_co_emis*1e-3 / kg_to_kgm2s
+                    self.rocket_co[int(hour[w]),::-1,q,p] += t_co_emis * 1e-3 / kg_to_kgm2s
 
-                    
-                # Check stage 1 produces BC or CO:
+                # Check if stage 1 produces BC or CO:
                 if rocket_data.stage1_prop_type[valid_index] in ['solid','hypergolic','kerosene']:
                     
-                    # Temporary data variable (g BC):
+                    self.calculate_bc_ei(self.mid_alt[::-1,q,p]*1e-3)
                     t_bc_emis = self.ei_bc * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass
                     self.bc_total += np.sum(t_bc_emis)
-                    # Apply to final array and convert to kg/m2/s
                     self.rocket_bc[int(hour[w]),::-1,q,p] += t_bc_emis*1e-3 / kg_to_kgm2s
 
-                    # Get vertically resolved CO emission indices (g CO):
                     self.calculate_co_ei(self.mid_alt[::-1,q,p]*1e-3, rocket_data.co_pei[pei_stage1_index], rocket_data.co2_pei[pei_stage1_index])
-                    # Temporary data variable (g CO):
                     t_co_emis = self.ei_co * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass
                     self.co_total += np.sum(t_co_emis)
-                    # Apply to final array and convert to kg/m2/s
                     self.rocket_co[int(hour[w]),::-1,q,p] += t_co_emis*1e-3 / kg_to_kgm2s
-
-                # Sanity check by summing emissions for the year:
-                #self.bc_total += np.sum(t_bc_emis)
 
                 ###########################
                 # (3) Secondary NOx:
                 ###########################
                 
-                # Calculate vertical profile of emission indices from highest to
-                # lowest altitude:
-                self.calculate_secondary_nox_ei(self.mid_alt[::-1,q,p]*1e-3)
-
-                # Temporary data variable (g NO):
-                # NOx emissions calculate using the same of booster and stage 1
-                # propellant mass calculated earlier:
-                t_nox_emis = self.ei_sec_nox * self.gc_vert_prop_mass
-
-                # Apply to final array and convert to kg/m2/s
-                self.rocket_nox[int(hour[w]),::-1,q,p] = t_nox_emis*1e-3 / kg_to_kgm2s
-
-                # Sanity check by summing emissions for the year:
-                self.nox_launch_total += np.sum(t_nox_emis)
-
+                # Every launch.
                 # Only Virgin Galactic space plane has primary NOx emissions of 4g/kg.
-
+                # NOx emissions calculate using the same of booster and stage 1 propellant mass calculated earlier.
+                
+                self.calculate_secondary_nox_ei(self.mid_alt[::-1,q,p]*1e-3)
+                t_nox_emis = self.ei_sec_nox * self.gc_vert_prop_mass
+                self.nox_launch_total += np.sum(t_nox_emis)
+                self.rocket_nox[int(hour[w]),::-1,q,p] = t_nox_emis*1e-3 / kg_to_kgm2s
+                
                 ###########################
                 # (4) H2O emissions:
                 ###########################
-            
+
                 # Use formula:
                 # E_f(H2O) = E_p(H2O) + E_P(HO)*MW_H2O/MW_H + E_p(H2)*MW_H2O/MW_H2 + E_p(OH)
                 # No H primary emissions, so ignore that term. No OH for almost all rockets, so ignore that term too.
-                #print(rocket_data.stage1_prop_type[valid_index])
-
 
                 # Check whether there is a booster:
                 if ( rocket_data.booster_prop_type[valid_index]!='None' ):
-                    # Temporary data variable (g H2O):
-                    t_h2o_emis = ( rocket_data.h2o_pei[pei_booster_index] + rocket_data.h2_pei[pei_booster_index]*self.mw_h2o / self.mw_h2 ) * rocket_data.booster_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass
+                    
+                    self.ei_h2o =  rocket_data.h2o_pei[pei_booster_index] + rocket_data.h2_pei[pei_booster_index] * self.mw_h2o / self.mw_h2 
+                    t_h2o_emis = self.ei_h2o * rocket_data.booster_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass
                     self.h2o_total += np.sum(t_h2o_emis)
-                    # Apply to final array and convert to kg/m2/s
                     self.rocket_h2o[int(hour[w]),::-1,q,p] += t_h2o_emis*1e-3/kg_to_kgm2s
-                    #sys.exit()
                 
                 # Check whether there is a stage 1 rocket:
                 if ( rocket_data.stage1_prop_type[valid_index]!='None' ):
-                    # Temporary data variable (g H2O):
-                    t_h2o_emis = ( rocket_data.h2o_pei[pei_stage1_index] + rocket_data.h2_pei[pei_stage1_index]*self.mw_h2o / self.mw_h2 ) * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass
+                    
+                    self.ei_h2o =  rocket_data.h2o_pei[pei_stage1_index] + rocket_data.h2_pei[pei_stage1_index] * self.mw_h2o / self.mw_h2 
+                    t_h2o_emis = self.ei_h2o * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass
                     self.h2o_total += np.sum(t_h2o_emis)
-                    # Apply to final array and convert to kg/m2/s
                     self.rocket_h2o[int(hour[w]),::-1,q,p] += t_h2o_emis*1e-3 / kg_to_kgm2s
-
-                #TODO: Should there be a (4)? Whats missing?
                 
                 ###########################
                 # (5) Alumina and (6) Chlorine:
                 ###########################
                 
+                # Check if booster produces Al2O3, HCl or Cl:
                 if ( rocket_data.booster_prop_type[valid_index]=='solid' ):
                     
-                    # Temporary data variable (g Al2O3):
                     t_al2o3_emis = rocket_data.al2o3_pei[pei_booster_index] * rocket_data.booster_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass
                     self.al2o3_launch_total += np.sum(t_al2o3_emis)
-                    # Apply to final array and convert to kg/m2/s
                     self.rocket_al[int(hour[w]),::-1,q,p] += t_al2o3_emis*1e-3/kg_to_kgm2s
 
-                    # Temporary data variable (g Cl):
                     t_cl_emis = rocket_data.cl_pei[pei_booster_index] * rocket_data.booster_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass
                     self.cl_total += np.sum(t_cl_emis)
-                    # Apply to final array and convert to kg/m2/s
                     self.rocket_cl[int(hour[w]),::-1,q,p] += t_cl_emis*1e-3/kg_to_kgm2s
 
-                    # Temporary data variable (g HCl):
                     t_hcl_emis = rocket_data.hcl_pei[pei_booster_index] * rocket_data.booster_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass
                     self.hcl_total += np.sum(t_hcl_emis)
-                    # Apply to final array and convert to kg/m2/s
                     self.rocket_hcl[int(hour[w]),::-1,q,p] += t_hcl_emis*1e-3/kg_to_kgm2s
 
-
+                # Check if stage 1 produces Al2O3, HCl or Cl:
                 if ( rocket_data.stage1_prop_type[valid_index]=='solid' ):
                     
-                    # Temporary data variable (g Al2O3):
                     t_al2o3_emis = rocket_data.al2o3_pei[pei_stage1_index] * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass
                     self.al2o3_launch_total += np.sum(t_al2o3_emis)
-                    # Apply to final array and convert to kg/m2/s
                     self.rocket_al[int(hour[w]),::-1,q,p] += t_al2o3_emis*1e-3/kg_to_kgm2s
 
-                    # Temporary data variable (g Cl):
                     t_cl_emis = rocket_data.cl_pei[pei_stage1_index] * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass
                     self.cl_total += np.sum(t_cl_emis)
-                    # Apply to final array and convert to kg/m2/s
                     self.rocket_cl[int(hour[w]),::-1,q,p] += t_cl_emis*1e-3/kg_to_kgm2s
 
-                    # Temporary data variable (g HCl):
                     t_hcl_emis = rocket_data.hcl_pei[pei_stage1_index] * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass
                     self.hcl_total += np.sum(t_hcl_emis)
-                    # Apply to final array and convert to kg/m2/s
                     self.rocket_hcl[int(hour[w]),::-1,q,p] += t_hcl_emis*1e-3/kg_to_kgm2s
                     
+                # TODO: Check if all of this code is still needed.
                 #print('BC emis (kg) = ', sum(t_bc_emis)*1e-3)
 
                 # NEXT: UPDATE CODE TO CHECK IF BC IS ACTUALLY PRODUCED
@@ -898,6 +862,7 @@ class OutputEmis:
             # Work out vertical distribution for reentry emissions.
             #########################################################
             
+            #TODO: Looks like the nox and al2o3 reentry emissions are just added to the launch emissions. Shall we keep them separate?
             # Re-entries (!!!STILL TO UPDATE!!!):
             if emis_type=='reentry':
 
@@ -1013,6 +978,7 @@ class OutputEmis:
         ########################################
         
         # TODO: This section could probably be rewritten using xarray in much fewer lines.
+        # TODO: Key here is we probably want to split emissions into categories.
         # define dataset:
         ncout = Dataset(self.outfile_rocket_emis, mode='w', format='NETCDF4')
 
@@ -1024,8 +990,8 @@ class OutputEmis:
         ncout.createDimension('lev', self.nlev)
         ncout.createDimension('time', self.nhours)
 
-        #print(self.pmin,self.qmin)
-        #print(self.lon[self.pmin],self.lat[self.qmin])
+        print(self.pmin,self.pmax)
+        print(self.qmin,self.qmax)
         
         ######################################
         # Create variables for the dimensions.
@@ -1067,8 +1033,7 @@ class OutputEmis:
         ######################################
         # Create variables for each species.
         ######################################
-        
-        # TODO: Can probably make this all a bit shorter using xarray if needed.
+
         # (1) NOx (emitted as NO):
         rocket_nox = ncout.createVariable('rocket_nox', np.float32, ('time','lev','lat','lon',))
         rocket_nox.long_name = 'Rocket NOx emissions emitted as NO'
@@ -1220,6 +1185,7 @@ if __name__ == "__main__":
     # Print total emissions of each species.
     ##########################################################
     
+    # TODO: Sanity Check (Final Emissions)
     def print_total_emissions():
         print('Total BC emissions (tonnes): ', emis_data.bc_total*1e-6)
         print('Total NOx launch emissions (tonnes): ', emis_data.nox_launch_total*1e-6)
