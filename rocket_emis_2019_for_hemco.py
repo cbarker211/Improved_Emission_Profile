@@ -1179,26 +1179,26 @@ if __name__ == "__main__":
     months = np.arange(start_month-1,final_month)    
         
     # Go through process of gridding and saving rocket emissions:
-    emis_data = OutputEmis(rocket_data, grid_res, timestep, levels, booster_level, reentry_levs, gcdir, months)
+    #emis_data = OutputEmis(rocket_data, grid_res, timestep, levels, booster_level, reentry_levs, gcdir, months)
     
     ##########################################################
     # Print total emissions of each species.
     ##########################################################
     
     # TODO: Sanity Check (Final Emissions)
-    def print_total_emissions():
-        print('Total BC emissions (tonnes): ', emis_data.bc_total*1e-6)
-        print('Total NOx launch emissions (tonnes): ', emis_data.nox_launch_total*1e-6)
-        print('Total H2O emissions (tonnes): ', emis_data.h2o_total*1e-6)
-        print('Total CO emissions (tonnes): ', emis_data.co_total*1e-6)
-        print('Total Al2O3 launch emissions (tonnes): ', emis_data.al2o3_launch_total*1e-6)
-        print('Total Cl emissions (tonnes): ', emis_data.cl_total*1e-6)
-        print('Total HCl emissions (tonnes): ', emis_data.hcl_total*1e-6)
-        print('Total NOx re-entry emissions (tonnes): ', emis_data.nox_reentry_total*1e-3)
-        print('Total Al2O3 re-entry emissions (tonnes): ', emis_data.al2o3_reentry_total*1e-6)
+    #def print_total_emissions():
+    #    print('Total BC emissions (tonnes): ', emis_data.bc_total*1e-6)
+    #    print('Total NOx launch emissions (tonnes): ', emis_data.nox_launch_total*1e-6)
+    #    print('Total H2O emissions (tonnes): ', emis_data.h2o_total*1e-6)
+    #    print('Total CO emissions (tonnes): ', emis_data.co_total*1e-6)
+    #    print('Total Al2O3 launch emissions (tonnes): ', emis_data.al2o3_launch_total*1e-6)
+    #    print('Total Cl emissions (tonnes): ', emis_data.cl_total*1e-6)
+    #    print('Total HCl emissions (tonnes): ', emis_data.hcl_total*1e-6)
+    #    print('Total NOx re-entry emissions (tonnes): ', emis_data.nox_reentry_total*1e-3)
+    #    print('Total Al2O3 re-entry emissions (tonnes): ', emis_data.al2o3_reentry_total*1e-6)
     
-    if args.verbose == True:
-        print_total_emissions()
+    #if args.verbose == True:
+        #print_total_emissions()
 
     # TODO: Go through and understand these notes.
     # Notes:
