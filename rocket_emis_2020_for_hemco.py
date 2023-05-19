@@ -27,7 +27,6 @@ class RocketData:
         self.read_rocket_info()
     
     def read_launch_emissions(self, launchfile):
-    
         ###########################################
         # Read launch emissions from the database.
         ###########################################
@@ -41,11 +40,11 @@ class RocketData:
         #Extract variables.
         self.launch_lons = fh.variables['Longitude'][:]
         self.launch_lats = fh.variables['Latitude'][:]
-        self.launch_time = fh.variables['Time (UTC)'][:]  # UTC hours
+        self.launch_time = fh.variables['Time(UTC)'][:]  # UTC hours
         self.launch_month = fh.variables['Month'][:]
         self.launch_day = fh.variables['Day'][:]
-        self.launch_id = fh.variables['ID'][:]
-        self.rocket_type = fh.variables['Rocket Type'][:]
+        self.launch_id = fh.variables['COSPAR_ID'][:]
+        self.rocket_type = fh.variables['Rocket_Type'][:]
         
         # These are used for a monthly nox emissions check later.
         #self.launch_b_nox = fh.variables['Boosters NOx'][:]
@@ -168,7 +167,7 @@ class RocketData:
         #TODO: Probably need a sanity check here, and also a lot of these are probably not used anymore.
         
         # Open Dataset.
-        propellant_mass_file = './Databases/rocket_type_propellant_mass_2019_database.nc'
+        propellant_mass_file = './Databases/Old/rocket_type_propellant_mass_2019_database.nc'
         fh = Dataset(propellant_mass_file, mode='r')
         
         # Extract variables:
@@ -1109,8 +1108,8 @@ if __name__ == "__main__":
 
     # Define rocket emissions data directories:
     datadir = './Databases/'
-    launch_path = path.join(datadir, 'launches-28Aug2020.nc4')
-    reentry_path = path.join(datadir, 'reentries-21Aug2020.nc4')
+    launch_path = path.join(datadir, 'launch_info_2020.nc')
+    reentry_path = path.join('./Databases/Old/', 'reentries-21Aug2020.nc4')
     outdir = './Output/'    
 
     # Read rocket emissions:
