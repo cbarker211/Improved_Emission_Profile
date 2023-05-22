@@ -46,6 +46,10 @@ class RocketData:
         self.launch_id = fh.variables['COSPAR_ID'][:]
         self.rocket_type = fh.variables['Rocket_Type'][:]
         
+        print(self.launch_id)
+        
+        print("Successfully loaded launch information.")
+        
         # These are used for a monthly nox emissions check later.
         #self.launch_b_nox = fh.variables['Boosters NOx'][:]
         #self.launch_s1_nox = fh.variables['Stage 1 NOx'][:]
@@ -241,7 +245,7 @@ class OutputEmis:
         #self.lat2d = Y
         
         # Trim the rocket names in the propellant mass database:
-        # I guess duplicates don't matter? Maybe there should be a 
+        # TODO: Why do we trim? I guess duplicates don't matter? 
         self.trim_name = [elem[0:5] for elem in rocket_data.rocket_name]
 
         #################################
@@ -314,6 +318,7 @@ class OutputEmis:
                 
                 l_ind=np.where((rocket_data.launch_month==(m+1))&(rocket_data.launch_day==(d+1))&(~np.isnan(rocket_data.launch_time)))[0]
                 
+                print(f"Num launches is {len(l_ind)}")
                 if len(l_ind)>0:
                     self.grid_emis(l_ind,
                                    rocket_data.launch_lons[l_ind],
@@ -595,12 +600,35 @@ class OutputEmis:
                 # Skip Failed Launches
                 #######################
                 
-                #TODO: Edit this section to account for all failed launches in 2020 (or other years if needed)
-                # Skip missions that failed at start of launch. 
+                # For all failed launches, DISCOSweb does not include objects.
+                
                 # For 2019, these include all labelled "F" except F04 that failed at stage 3:
-                t_id = launch_id[w][-3:]
-                fail_codes = ['E01','F01','F02','F03','F05']
-                if t_id in fail_codes:
+                # List of 2020 Failed Launches
+                
+                    # F01 - 09/02/2020 Simorgh (Iran) - 2 stage rocket
+                    # First stage operated correctly, but second stage failed to deploy payload succesfully.
+                    # Satellite reached 540 km apogee but only reached 6,400 m/s, so short of 7,400 m/s orbital velocity.
+ 
+                    # F02 - 16/03/2020 Long March 7A (China) - 3 stages, 4 boosters?
+                    # Limited information about what happened on this failed launch. 
+                    # SLR: Failure just after S2 start.
+                    # Wiki: Vehicle disintegrated at first stage separation due to booster LOX pressurization failure leading to engine shutdown and loss of control.
+                    
+                    # F03 - 09/04/2020 Long March 3B/E (China)
+                    # Wiki/SLR: Third stage engine failed to ignite. Failed to put satellite in orbit.
+                    
+                    # F04 - 25/05/2020 LauncherOne ()
+                    # F05 - 04/07/2020 Electron (Curie) ()
+                    # F06 - 10/07/2020 Kuaizhou-11 ()
+                    # F07 - 12/09/2020 Astra Rocket 3 ()
+                    # F08 - 12/09/2020 Kuaizhou-11 ()
+                    # F09 - 17/11/2020 Vega ()
+                    # F10 - 15/12/2020 Astra Rocket 3 ()
+                    # F11 - 03/12/2020 Chang'e 5 SSQ (Ascent Stage)
+                
+
+                #For now, exclude all failed launches. # TODO: Go through each failed launch and decide which emissions to include in final inventory. 
+                if launch_id[w][-3:-2] == 'F':
                     print(f'Launch {launch_id[w]} failed. Not processing.')
                     continue
                 
@@ -988,9 +1016,6 @@ class OutputEmis:
         ncout.createDimension('lon', self.pmax-self.pmin+3)
         ncout.createDimension('lev', self.nlev)
         ncout.createDimension('time', self.nhours)
-
-        print(self.pmin,self.pmax)
-        print(self.qmin,self.qmax)
         
         ######################################
         # Create variables for the dimensions.
@@ -1164,7 +1189,7 @@ if __name__ == "__main__":
             sys.exit("Invalid number of levels.")
     elif grid_res == '2x2.5':
         if levels == 72:
-            gcdir = './Databases/StateMet_run_12.9.3_72L_merra2_2x25_og'
+            gcdir = '~/rundirs/gc_2x25_72L_merra2_nochem_StateMet/StateMet/'
             #gcdir = '/home/ucfacb0/uptrop/GC/run_12.9.3_72L/methane_fluxes/merra2_2x25_og/StateMet'
         elif levels == 47:
             pass
