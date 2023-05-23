@@ -61,7 +61,14 @@ class import_launches_from_discos:
             #This is useful to clean up the terminal, but may look weird sometimes before/after waiting.
             print(f"{message}Too many requests, retrying in {str(i)}s.", end="\r", flush=True)
             time.sleep(1)
- 
+            
+    def response_error_handler(self,response,message):
+        if response.status_code == 400:
+            print("Client Error")
+        elif response.status_code == 429:
+            wait_time=(int(response.headers["X-Ratelimit-Reset"])-int(time.time()))+1
+            self.wait_function(message,wait_time)
+        
     def get_yearly_launches(self): 
         """This function is called in all of the following functions.
         It gets the launch information for an entire year, which will be saved as self.full_launch_list
@@ -85,8 +92,7 @@ class import_launches_from_discos:
                 }
             #Now we need a while loop to deal with the rate limit. 
             #If the response is ok (code <400), then it breaks the while loop, and if not then the while loop continues after a delay.
-            while True:
-                print(type(params))  
+            while True:  
                 response = self.server_request(params, '/launches')
                 if response.ok:
                     break
@@ -290,10 +296,12 @@ class import_launches_from_discos:
         self.latitude = []
         self.longitude = []
         self.site_name = []
-        self.rocket_name = []
-
-        self.full_launch_list = self.full_launch_list[:5]
+        self.rocket_type = []
+        self.vehicle_id = []
+        
+        #self.full_launch_list = self.full_launch_list[:6]
         for count, launch in enumerate(self.full_launch_list):
+            
             self.Cospar_Id.append(launch["attributes"]["cosparLaunchNo"])
             temp_launch_epoch = launch["attributes"]["epoch"]
             self.launch_day.append(np.float64(temp_launch_epoch[8:10]))
@@ -306,6 +314,7 @@ class import_launches_from_discos:
             time_utc = np.float64(hour + minute / 60 + sec / 3600)
             self.launch_time.append(time_utc)
 
+            # Get the launch site info.
             while True:
                 response = self.server_request({},f'/launches/{launch["id"]}/site')
                 if response.ok:
@@ -315,40 +324,38 @@ class import_launches_from_discos:
                     temp_site_name = doc['data']["attributes"]["name"]
                     self.site_name.append(temp_site_name.replace(",",""))
                     break
-                elif response.status_code == 400:
-                    print("Client Error")
-                    break
                 elif response.status_code == 429:
                     message = f"On launch {count} of {len(self.full_launch_list)} in {self.year}."
-                    wait_time=(int(response.headers["X-Ratelimit-Reset"])-int(time.time()))+1
-                    self.wait_function(message,wait_time)
+                    self.response_error_handler(response,message)
                     continue
+                else:
+                    self.response_error_handler(response,"")
+                break
                 
+            # Get the vehicle info.
             while True:
                 response = self.server_request({},f'/launches/{launch["id"]}/vehicle')
                 if response.ok:
                     doc = response.json()
-                    self.rocket_name.append(doc['data']["attributes"]["name"])
-                    break
-                elif response.status_code == 400:
-                    print("Client Error")
-                    break
+                    self.rocket_type.append(doc['data']["attributes"]["name"])
+                    self.vehicle_id.append(int(doc["data"]["id"]))
                 elif response.status_code == 429:
                     message = f"On launch {count} of {len(self.full_launch_list)} in {self.year}."
-                    wait_time=(int(response.headers["X-Ratelimit-Reset"])-int(time.time()))+1
-                    self.wait_function(message,wait_time)
+                    self.response_error_handler(response,message)
                     continue
-        
-    
-        return [self.Cospar_Id, self.launch_time, self.launch_day, self.launch_month, self.latitude, self.longitude, self.site_name, self.rocket_name]
+                else:
+                    self.response_error_handler(response,"")
+                break
+                    
+        return [self.Cospar_Id, self.launch_time, self.launch_day, self.launch_month, self.latitude, self.longitude, self.site_name, self.rocket_type]
             
-    def convert_to_netcdf(self):
+    def launch_info_to_netcdf(self):
         """This saves the launch information as a NetCDF file for later processing for GEOS-Chem.
         This is only needed if using GEOS-Chem. Recommended to ignore if you don't need this.
         """        
         
         #Set up the dimensions of the netcdf file.
-        launches = np.arange(len(self.Cospar_Id), dtype=np.int64)
+        #launches = np.arange(len(self.Cospar_Id), dtype=np.int64)
         dims = ('launches')
     
         #Create the DataArrays (The data is currently lists instead of numpy arrays, I guess this is fine?)
@@ -386,9 +393,14 @@ class import_launches_from_discos:
                        short_name="Launch Site",
                        ))
         
-        data_da_rocket_type = xr.DataArray(self.rocket_name, dims=dims,
+        data_da_rocket_type = xr.DataArray(self.rocket_type, dims=dims,
             attrs=dict(long_name="Rocket Type",
                        short_name="Rocket Type",
+                       ))
+        
+        data_da_vehicle_id = xr.DataArray(self.vehicle_id, dims=dims,
+            attrs=dict(long_name="Vehicle ID",
+                       short_name="Vehicle ID",
                        ))
         
         # Create an xarray Dataset from the DataArrays.
@@ -401,11 +413,179 @@ class import_launches_from_discos:
         ds['Latitude'] = data_da_lat
         ds['Launch_Site'] = data_da_launch_site
         ds['Rocket_Type'] = data_da_rocket_type
+        ds['Vehicle_ID'] = data_da_vehicle_id
              
         #Save to file and close the DataSet     
-        ds.to_netcdf(f'{self.filename}.nc')
+        ds.to_netcdf(f'./Databases/launch_info_{year}.nc')
         ds.close()
+    
+    def get_rocket_info(self):
+        
+        self.unique_rocket_list = []
+        
+        #Open file and get a list of unique vehicles.
+        ds = xr.open_dataset('Databases\launch_info_2020.nc', decode_times=False)
+        vehicle_name_list = ds['Rocket_Type'].values
+        vehicle_id_list = ds['Vehicle_ID'].values
+        unique_vehicle_name_list = sorted(list(set(vehicle_name_list)))
+        ds.close()
+            
+        #Loop over all rockets, and pull the information for each.
+        for i in range(0,len(unique_vehicle_name_list)):
+            
+            temp_vehicle_id = vehicle_id_list[np.where(vehicle_name_list == unique_vehicle_name_list[i])[0][0]]
+            temp_dict = {
+                "id" : temp_vehicle_id,
+                "name": unique_vehicle_name_list[i],
+            }
 
+            print(temp_dict)                    
+            # Get the propellant mass info.
+            while True:
+                response = self.server_request({},f'/launch-vehicles/{temp_vehicle_id}/stages')
+
+                if response.ok:
+                    doc = response.json()
+                    vehicle_info = doc['data']
+                    # Usually 2-5 stages, so won't need to account for the maximum of 30 items in a list.
+                    run_func = True
+                    if run_func == True:
+                        for j in range(0,5):
+                            temp_dict[f"Stage{j+1} Propellant Mass"] = 0
+                            temp_dict[f"Stage{j+1} Solid"] = ""
+                            temp_dict[f"Stage{j+1} Propellant Name"] = ""
+                            
+                        for count,stage in enumerate(vehicle_info):
+                            
+                            temp_fuel_mass = stage["attributes"]["fuelMass"]
+                            if temp_fuel_mass == None:
+                                temp_fuel_mass = 0
+                            temp_oxidiser_mass = stage["attributes"]["oxidiserMass"]
+                            if temp_oxidiser_mass == None:
+                                temp_oxidiser_mass = 0
+                            temp_solid_mass = stage["attributes"]["solidPropellantMass"]
+                            if temp_solid_mass == None:
+                                temp_solid_mass = 0
+                            
+                            temp_prop_mass = temp_fuel_mass+temp_oxidiser_mass+temp_solid_mass
+                            temp_dict[f"Stage{count+1} Propellant Mass"] = temp_prop_mass
+                            print(stage["attributes"]["name"])
+                            
+                            # Get the propellant info.
+                            while True:
+                                response = self.server_request({},f'/launch-vehicles/stages/{stage["id"]}/propellant')
+                                if response.ok:
+                                    doc = response.json()
+                                    if doc['data'] != None:
+                                        propellant_info = doc['data']["attributes"]
+                                        
+                                        if propellant_info["fuel"] == None:
+                                            temp_dict[f"Stage{count+1} Solid"] = "Yes"  
+                                            temp_dict[f"Stage{count+1} Propellant Name"] = propellant_info["solidPropellant"]  
+                                        elif propellant_info["solidPropellant"] == None:
+                                            temp_dict[f"Stage{count+1} Solid"] = "No" 
+                                            name = propellant_info["fuel"] + "/" + propellant_info["oxidiser"]
+                                            temp_dict[f"Stage{count+1} Propellant Name"] = name
+                                        else:
+                                            print("Liquid/Solid Fuel Error")
+                                    else:
+                                        print("No propellant found.")
+                                        
+                                elif response.status_code == 429:
+                                    message = f"On launch {i+1} of {len(unique_vehicle_name_list)} in {self.year}."
+                                    self.response_error_handler(response,message)
+                                    continue
+                                else:
+                                    self.response_error_handler(response,"")
+                                break
+                                                
+                elif response.status_code == 429:
+                    message = f"On launch {i+1} of {len(unique_vehicle_name_list)} in {self.year}."
+                    self.response_error_handler(response,message)
+                    continue
+                else:
+                    self.response_error_handler(response,"")
+                break      
+            
+            self.unique_rocket_list.append(temp_dict)    
+        
+    def rocket_info_to_netcdf(self):
+        """This saves the propellant information as a NetCDF file for later processing for GEOS-Chem.
+        This is only needed if using GEOS-Chem. Recommended to ignore if you don't need this.
+        """        
+        
+        #Set up the dimensions of the netcdf file.
+        #launches = np.arange(len(self.Cospar_Id), dtype=np.int64)
+        dims = ('rockets')
+        
+        #Set up the data
+        rocket_name_list = []
+        stage1_propmass_list, stage1_solid_list, stage1_propname_list = [], [], []
+        stage2_propmass_list, stage2_solid_list, stage2_propname_list = [], [], []
+        stage3_propmass_list, stage3_solid_list, stage3_propname_list = [], [], []
+        stage4_propmass_list, stage4_solid_list, stage4_propname_list = [], [], []
+        stage5_propmass_list, stage5_solid_list, stage5_propname_list = [], [], []
+        
+        for rocket in self.unique_rocket_list:
+            rocket_name_list.append(rocket["name"])
+            stage1_propmass_list.append(rocket["Stage1 Propellant Mass"])
+            stage1_solid_list.append(rocket["Stage1 Solid"])
+            stage1_propname_list.append(rocket["Stage1 Propellant Name"])
+            stage2_propmass_list.append(rocket["Stage2 Propellant Mass"])
+            stage2_solid_list.append(rocket["Stage2 Solid"])
+            stage2_propname_list.append(rocket["Stage2 Propellant Name"])
+            stage3_propmass_list.append(rocket["Stage3 Propellant Mass"])
+            stage3_solid_list.append(rocket["Stage3 Solid"])
+            stage3_propname_list.append(rocket["Stage3 Propellant Name"])
+            stage4_propmass_list.append(rocket["Stage4 Propellant Mass"])
+            stage4_solid_list.append(rocket["Stage4 Solid"])
+            stage4_propname_list.append(rocket["Stage4 Propellant Name"])
+            stage5_propmass_list.append(rocket["Stage5 Propellant Mass"])
+            stage5_solid_list.append(rocket["Stage5 Solid"])
+            stage5_propname_list.append(rocket["Stage5 Propellant Name"])
+            
+        #Create the DataArrays.
+            
+        data_da_name            = xr.DataArray(rocket_name_list,     dims=dims, attrs=dict(long_name="Rocket Name"))
+        data_da_stage1_propmass = xr.DataArray(stage1_propmass_list, dims=dims, attrs=dict(long_name="Stage 1 Propellant Mass", units="kg"))
+        data_da_stage1_solid    = xr.DataArray(stage1_solid_list,    dims=dims, attrs=dict(long_name="Stage 1 Solid Check"))
+        data_da_stage1_propname = xr.DataArray(stage1_propname_list, dims=dims, attrs=dict(long_name="Stage 1 Propellant Name"))
+        data_da_stage2_propmass = xr.DataArray(stage2_propmass_list, dims=dims, attrs=dict(long_name="Stage 2 Propellant Mass", units="kg"))
+        data_da_stage2_solid    = xr.DataArray(stage2_solid_list,    dims=dims, attrs=dict(long_name="Stage 2 Solid Check"))
+        data_da_stage2_propname = xr.DataArray(stage2_propname_list, dims=dims, attrs=dict(long_name="Stage 2 Propellant Name"))
+        data_da_stage3_propmass = xr.DataArray(stage3_propmass_list, dims=dims, attrs=dict(long_name="Stage 3 Propellant Mass", units="kg"))
+        data_da_stage3_solid    = xr.DataArray(stage3_solid_list,    dims=dims, attrs=dict(long_name="Stage 3 Solid Check"))
+        data_da_stage3_propname = xr.DataArray(stage3_propname_list, dims=dims, attrs=dict(long_name="Stage 3 Propellant Name"))
+        data_da_stage4_propmass = xr.DataArray(stage4_propmass_list, dims=dims, attrs=dict(long_name="Stage 4 Propellant Mass", units="kg"))
+        data_da_stage4_solid    = xr.DataArray(stage4_solid_list,    dims=dims, attrs=dict(long_name="Stage 4 Solid Check"))
+        data_da_stage4_propname = xr.DataArray(stage4_propname_list, dims=dims, attrs=dict(long_name="Stage 4 Propellant Name"))
+        data_da_stage5_propmass = xr.DataArray(stage5_propmass_list, dims=dims, attrs=dict(long_name="Stage 5 Propellant Mass", units="kg"))
+        data_da_stage5_solid    = xr.DataArray(stage5_solid_list,    dims=dims, attrs=dict(long_name="Stage 5 Solid Check"))
+        data_da_stage5_propname = xr.DataArray(stage5_propname_list, dims=dims, attrs=dict(long_name="Stage 5 Propellant Name"))
+        
+        # Create an xarray Dataset from the DataArrays.
+        ds = xr.Dataset()
+        ds['Rocket_Name']     = data_da_name
+        ds['Stage1_PropMass'] = data_da_stage1_propmass
+        ds['Stage1_Solid']    = data_da_stage1_solid
+        ds['Stage1_PropName'] = data_da_stage1_propname
+        ds['Stage2_PropMass'] = data_da_stage2_propmass
+        ds['Stage2_Solid']    = data_da_stage2_solid
+        ds['Stage2_PropName'] = data_da_stage2_propname
+        ds['Stage3_PropMass'] = data_da_stage3_propmass
+        ds['Stage3_Solid']    = data_da_stage3_solid
+        ds['Stage3_PropName'] = data_da_stage3_propname
+        ds['Stage4_PropMass'] = data_da_stage4_propmass
+        ds['Stage4_Solid']    = data_da_stage4_solid
+        ds['Stage4_PropName'] = data_da_stage4_propname
+        ds['Stage5_PropMass'] = data_da_stage5_propmass
+        ds['Stage5_Solid']    = data_da_stage5_solid
+        ds['Stage5_PropName'] = data_da_stage5_propname
+             
+        #Save to file and close the DataSet     
+        ds.to_netcdf(f'./Databases/rocket_info_{year}.nc')
+        ds.close()
+                
 if __name__ == "__main__":
     """The main running of the program goes here. 
     All of the functions are inside the import_launches_from_discos class.
@@ -415,18 +595,21 @@ if __name__ == "__main__":
     
     #Set up the year and filename.
     year = 2020
-    filename = f'./Databases/launch_info_{year}'
     
     #Create an instance of the class.
     LaunchData = import_launches_from_discos(year)
     
     #Now we can run class functions. E.g. launch_list = LaunchData.get_yearly_launches()
-    LaunchData.get_launch_info()
-    LaunchData.convert_to_netcdf()
+    #LaunchData.get_launch_info()
+    #LaunchData.launch_info_to_netcdf()
+    LaunchData.get_rocket_info()
+    #LaunchData.rocket_info_to_netcdf()
+    
+    # TODO: Need to account for which stage is which, assign/count boosters etc.
     
     #OPTIONAL: Save results to file.
     #with open(filename, 'a') as f:
-    #   f.write(f'{self.Cospar_Id[count]},{self.launch_time[count]},{self.launch_day[count]},{self.launch_month[count]},{self.latitude[count]},{self.longitude[count]},{self.site_name[count]},{self.rocket_name[count]},\n')
+    #   f.write(f'{self.Cospar_Id[count]},{self.launch_time[count]},{self.launch_day[count]},{self.launch_month[count]},{self.latitude[count]},{self.longitude[count]},{self.site_name[count]},{self.rocket_type[count]},\n')
     #   f.write(f'{year},{fuel_mass},{oxidiser_mass},{solid_mass},{total_mass}\n')
     #   f.write(f'In {year}, there were {num_payloads} payloads successfully launched.\n')   
     

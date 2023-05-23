@@ -19,12 +19,12 @@ import numpy as np
 
 class RocketData:
     '''Read rocket launch and re-entry emissions'''
-    def __init__(self,launchfile,reentryfile):
+    def __init__(self,launchfile,reentryfile, rocketinfofile):
         
         self.read_launch_emissions(launchfile)
         self.read_reentry_emissions(reentryfile)
         self.define_scale_factors()
-        self.read_rocket_info()
+        self.read_rocket_info(rocketinfofile)
     
     def read_launch_emissions(self, launchfile):
         ###########################################
@@ -98,7 +98,7 @@ class RocketData:
             #print(f'Total Check (HCl)                       = {(sum(self.launch_s1_hcl+self.launch_b_hcl)-sum(self.launch_t_hcl))*1e-3} tonnes')
             #print(f'Total Check (Cl)                        = {(sum(self.launch_s1_cl+self.launch_b_cl)-sum(self.launch_t_cl))*1e-3} tonnes')
         
-    def read_reentry_emissions(self,reentryfile):
+    def read_reentry_emissions(self, reentryfile):
         ############################################
         # Read re-entry emissions from the database.
         ############################################
@@ -163,7 +163,7 @@ class RocketData:
         # Data are from layer 47 to the surface, aso need to be reversed:
         self.scale_emis = scale_emis[::-1]
         
-    def read_rocket_info(self):
+    def read_rocket_info(self, rocketinfofile):
         ##########################################################
         # Read propellant mass per rocket type from the database.
         ##########################################################
@@ -171,26 +171,46 @@ class RocketData:
         #TODO: Probably need a sanity check here, and also a lot of these are probably not used anymore.
         
         # Open Dataset.
-        propellant_mass_file = './Databases/Old/rocket_type_propellant_mass_2019_database.nc'
-        fh = Dataset(propellant_mass_file, mode='r')
+        #rocketinfofile = './Databases/Old/rocket_type_propellant_mass_2019_database.nc'
+        fh = Dataset(rocketinfofile, mode='r')
         
         # Extract variables:
-        self.rocket_name       = fh.variables['2019_rocket_name'][:]
-        self.booster_prop_mass = fh.variables['booster_prop_mass'][:]
-        self.stage1_prop_mass  = fh.variables['stage1_prop_mass'][:]
-        self.booster_prop_type = fh.variables['booster_prop_type'][:]
-        self.stage1_prop_type  = fh.variables['stage1_prop_type'][:]
-        self.pei_fuel_type     = fh.variables['fuel_type_for_pei'][:]
-        self.h2_pei            = fh.variables['h2_pei'][:]
-        self.h2o_pei           = fh.variables['h2o_pei'][:]
-        self.cl_pei            = fh.variables['cl_pei'][:]
-        self.hcl_pei           = fh.variables['hcl_pei'][:]
-        self.al2o3_pei         = fh.variables['al2o3_pei'][:]
-        self.bc_pei            = fh.variables['bc_pei'][:]
-        self.co_pei            = fh.variables['co_pei'][:]
-        self.co2_pei           = fh.variables['co2_pei'][:]
+        self.rocket_name = fh.variables['Rocket_Name'][:]
+        self.stage1_prop_mass  = fh.variables['Stage1_PropMass'][:]
+        self.stage1_solid      = fh.variables['Stage1_Solid'][:]
+        self.stage1_prop_name  = fh.variables['Stage1_PropName'][:]
+        self.stage2_prop_mass  = fh.variables['Stage2_PropMass'][:]
+        self.stage2_solid      = fh.variables['Stage2_Solid'][:]
+        self.stage2_prop_name  = fh.variables['Stage2_PropName'][:]
+        self.stage3_prop_mass  = fh.variables['Stage3_PropMass'][:]
+        self.stage3_solid      = fh.variables['Stage3_Solid'][:]
+        self.stage3_prop_name  = fh.variables['Stage3_PropName'][:]
+        self.stage4_prop_mass  = fh.variables['Stage4_PropMass'][:]
+        self.stage4_solid      = fh.variables['Stage4_Solid'][:]
+        self.stage4_prop_name  = fh.variables['Stage4_PropName'][:]
+        self.stage5_prop_mass  = fh.variables['Stage5_PropMass'][:]
+        self.stage5_solid      = fh.variables['Stage5_Solid'][:]
+        self.stage5_prop_name  = fh.variables['Stage5_PropName'][:]
+        
+        #Old variables
+        #self.rocket_name       = fh.variables['2019_rocket_name'][:]
+        #self.booster_prop_mass = fh.variables['booster_prop_mass'][:]
+        #self.stage1_prop_mass  = fh.variables['stage1_prop_mass'][:]
+        #self.booster_prop_type = fh.variables['booster_prop_type'][:]
+        #self.stage1_prop_type  = fh.variables['stage1_prop_type'][:]
+        #self.pei_fuel_type     = fh.variables['fuel_type_for_pei'][:]
+        #self.h2_pei            = fh.variables['h2_pei'][:]
+        #self.h2o_pei           = fh.variables['h2o_pei'][:]
+        #self.cl_pei            = fh.variables['cl_pei'][:]
+        #self.hcl_pei           = fh.variables['hcl_pei'][:]
+        #self.al2o3_pei         = fh.variables['al2o3_pei'][:]
+        #self.bc_pei            = fh.variables['bc_pei'][:]
+        #self.co_pei            = fh.variables['co_pei'][:]
+        #self.co2_pei           = fh.variables['co2_pei'][:]
         # Close Dataset.
         fh.close()
+        
+        print("Successfully loaded rocket information.")
         
 class OutputEmis:
     def __init__(self, rocketdata, res, ts, levs, blev, reentry_levs, gc_dir, months):
@@ -1132,13 +1152,15 @@ if __name__ == "__main__":
     # TODO: Write databases for 2020. Probably CSV into NetCDF.
 
     # Define rocket emissions data directories:
+    year = 2020
     datadir = './Databases/'
-    launch_path = path.join(datadir, 'launch_info_2020.nc')
+    launch_path = path.join(datadir, f'launch_info_{year}.nc')
     reentry_path = path.join('./Databases/Old/', 'reentries-21Aug2020.nc4')
+    rocket_info_path = path.join(datadir, f'rocket_info_{year}.nc')
     outdir = './Output/'    
 
     # Read rocket emissions:
-    rocket_data = RocketData(launch_path, reentry_path)
+    rocket_data = RocketData(launch_path, reentry_path, rocket_info_path)
 
     ##########################################################
     # Calculate the distribution of rocket emissions and save.
