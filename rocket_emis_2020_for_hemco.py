@@ -46,8 +46,6 @@ class RocketData:
         self.launch_id = fh.variables['COSPAR_ID'][:]
         self.rocket_type = fh.variables['Rocket_Type'][:]
         
-        print(self.launch_id)
-        
         print("Successfully loaded launch information.")
         
         # These are used for a monthly nox emissions check later.
@@ -307,7 +305,8 @@ class OutputEmis:
 
                 # gc_dir is defined for each scenario in the main section of the python script.
                 # So only need one block to read GEOS-Chem box height from StateMet file.
-                self.gc_file = path.join(gc_dir, 'GEOSChem.StateMet.2019'+self.strmon+self.strday+'_0000z.nc4')
+                self.gc_file = path.join(gc_dir, 'GEOSChem.StateMet.2020'+self.strmon+self.strday+'_0000z.nc4')
+
                 file_exists = os.path.exists(self.gc_file)
                 if not file_exists: continue
                 self.read_gc_box_height()
@@ -329,7 +328,7 @@ class OutputEmis:
                 print('----> Day processing: ',self.strday)
 
                 # Define output file name for this day:
-                self.outfile_rocket_emis = path.join(outdir,self.strmon,f'ROCKET_EMIS_{res}_{str(self.nlev)}L_2019{self.strmon}{self.strday}.nc4')
+                self.outfile_rocket_emis = path.join(outdir,self.strmon,f'ROCKET_EMIS_{res}_{str(self.nlev)}L_2020{self.strmon}{self.strday}.nc4')
                 #print(f'Output to: {self.outfile_rocket_emis}')
                 
                 ########################################################################
@@ -1045,7 +1044,7 @@ class OutputEmis:
         # Time:
         time = ncout.createVariable('time', np.int64, ('time',))
         time.long_name = 'time'
-        time.units = 'hours since 2019-'+self.strmon+'-'+self.strday+' 00:00:00'
+        time.units = 'hours since 2020-'+self.strmon+'-'+self.strday+' 00:00:00'
         time.calendar = 'standard'
         time.axis = 'T'
         time[:] = np.arange(0,24)
@@ -1157,7 +1156,7 @@ if __name__ == "__main__":
     launch_path = path.join(datadir, f'launch_info_{year}.nc')
     reentry_path = path.join('./Databases/Old/', 'reentries-21Aug2020.nc4')
     rocket_info_path = path.join(datadir, f'rocket_info_{year}.nc')
-    outdir = './Output/'    
+    outdir = './Output/2020/'    
 
     # Read rocket emissions:
     rocket_data = RocketData(launch_path, reentry_path, rocket_info_path)
@@ -1200,6 +1199,7 @@ if __name__ == "__main__":
     ''' Define locations of StateMet files '''
     
     #Define paths dependent on resolution and levels. Errors should be handled above but included here just in case.
+    #Can't use ~ for home directory, have to use '/home/ucfacb0/<path>'
     # TODO: Need to run GEOS-Chem so we have StateMet files for all options.
     if grid_res == '4x5':
         if levels == 72:
@@ -1211,7 +1211,7 @@ if __name__ == "__main__":
             sys.exit("Invalid number of levels.")
     elif grid_res == '2x2.5':
         if levels == 72:
-            gcdir = '~/rundirs/gc_2x25_72L_merra2_nochem_StateMet/StateMet/'
+            gcdir = '/home/ucfacb0/rundirs/gc_2x25_72L_merra2_nochem_StateMet/StateMet/'
             #gcdir = '/home/ucfacb0/uptrop/GC/run_12.9.3_72L/methane_fluxes/merra2_2x25_og/StateMet'
         elif levels == 47:
             pass
@@ -1225,7 +1225,7 @@ if __name__ == "__main__":
     months = np.arange(start_month-1,final_month)    
         
     # Go through process of gridding and saving rocket emissions:
-    #emis_data = OutputEmis(rocket_data, grid_res, timestep, levels, booster_level, reentry_levs, gcdir, months)
+    emis_data = OutputEmis(rocket_data, grid_res, timestep, levels, booster_level, reentry_levs, gcdir, months)
     
     ##########################################################
     # Print total emissions of each species.
