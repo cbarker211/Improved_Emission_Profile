@@ -25,6 +25,7 @@ class RocketData:
         self.read_reentry_emissions(reentryfile)
         self.define_scale_factors()
         self.read_rocket_info(rocketinfofile)
+        self.define_pei()
     
     def read_launch_emissions(self, launchfile):
         ###########################################
@@ -174,23 +175,25 @@ class RocketData:
         
         # Extract variables:
         self.rocket_name = fh.variables['Rocket_Name'][:]
+        self.booster_prop_mass = fh.variables['Booster_PropMass'][:]
+        self.booster_prop_type = fh.variables['Booster_Fuel_Type'][:]
         self.stage1_prop_mass  = fh.variables['Stage1_PropMass'][:]
-        self.stage1_solid      = fh.variables['Stage1_Solid'][:]
-        self.stage1_prop_name  = fh.variables['Stage1_PropName'][:]
-        self.stage2_prop_mass  = fh.variables['Stage2_PropMass'][:]
-        self.stage2_solid      = fh.variables['Stage2_Solid'][:]
-        self.stage2_prop_name  = fh.variables['Stage2_PropName'][:]
-        self.stage3_prop_mass  = fh.variables['Stage3_PropMass'][:]
-        self.stage3_solid      = fh.variables['Stage3_Solid'][:]
-        self.stage3_prop_name  = fh.variables['Stage3_PropName'][:]
-        self.stage4_prop_mass  = fh.variables['Stage4_PropMass'][:]
-        self.stage4_solid      = fh.variables['Stage4_Solid'][:]
-        self.stage4_prop_name  = fh.variables['Stage4_PropName'][:]
-        self.stage5_prop_mass  = fh.variables['Stage5_PropMass'][:]
-        self.stage5_solid      = fh.variables['Stage5_Solid'][:]
-        self.stage5_prop_name  = fh.variables['Stage5_PropName'][:]
+        self.stage1_prop_type  = fh.variables['Stage1_Fuel_Type'][:]
         
-        #Old variables
+        #For now, ignoring anything above stage 1, and don't need propellant names.
+        #self.stage2_prop_mass  = fh.variables['Stage2_PropMass'][:]
+        #self.stage2_prop_type  = fh.variables['Stage2_Fuel_Type'][:]
+        #self.stage2_prop_name  = fh.variables['Stage2_PropName'][:]
+        #self.stage3_prop_mass  = fh.variables['Stage3_PropMass'][:]
+        #self.stage3_prop_type  = fh.variables['Stage3_Fuel_Type'][:]
+        #self.stage3_prop_name  = fh.variables['Stage3_PropName'][:]
+        #self.stage4_prop_mass  = fh.variables['Stage4_PropMass'][:]
+        #self.stage4_prop_type  = fh.variables['Stage4_Fuel_Type'][:]
+        #self.stage4_prop_name  = fh.variables['Stage4_PropName'][:]
+        #self.booster_prop_name = fh.variables['Booster_PropName'][:]
+        #self.stage1_prop_name  = fh.variables['Stage1_PropName'][:]
+        
+        #Old variables from 2019.
         #self.rocket_name       = fh.variables['2019_rocket_name'][:]
         #self.booster_prop_mass = fh.variables['booster_prop_mass'][:]
         #self.stage1_prop_mass  = fh.variables['stage1_prop_mass'][:]
@@ -209,6 +212,22 @@ class RocketData:
         fh.close()
         
         print("Successfully loaded rocket information.")
+    
+    def define_pei(self):
+        
+        #Define the primary emission indices here, instead of loading from file.
+        # Each array should contain 4 values, corresponding to the emission index for :
+        #       Hypergolic, Kerosene, Solid, Hydrogen
+        # Each variable must be a numpy array in order to make the np.where routine work later.
+        self.pei_fuel_type     = np.array(['Hypergolic', 'Kerosene', 'Solid', 'Hydrogen'])
+        self.h2_pei            = np.array([4, 12, 27, 35])
+        self.h2o_pei           = np.array([290, 263, 71, 965.])
+        self.cl_pei            = np.array([0, 0, 5, 0])
+        self.hcl_pei           = np.array([0, 0, 209, 0])
+        self.al2o3_pei         = np.array([0, 0, 358, 0])
+        self.bc_pei            = np.array([25, 25, 25, 0])
+        self.co_pei            = np.array([69, 372, 228, 0])
+        self.co2_pei           = np.array([289, 350, 18, 0])
         
 class OutputEmis:
     def __init__(self, rocketdata, res, ts, levs, blev, reentry_levs, gc_dir, months):
@@ -263,9 +282,9 @@ class OutputEmis:
         #self.lat2d = Y
         
         # Trim the rocket names in the propellant mass database:
-        # TODO: Why do we trim? I guess duplicates don't matter? 
-        self.trim_name = [elem[0:5] for elem in rocket_data.rocket_name]
-
+        # TODO: Why do we trim? I guess duplicates don't matter? Going to remove this and ask Eloise.
+        #self.trim_name = [elem[0:5] for elem in rocket_data.rocket_name]
+        
         #################################
         # Loop over each day and month.
         #################################
@@ -294,8 +313,12 @@ class OutputEmis:
 
             print('Month processing: ', self.strmon)             
             
-            # Loop over days:
+            #Loop over a single day
+            #for d in range(6,7):
+            
+            #Loop over all days:
             for d in range(ndays):
+           
 
                 # Get day string:
                 if d+1<=9:
@@ -619,9 +642,9 @@ class OutputEmis:
                 # Skip Failed Launches
                 #######################
                 
+                # For 2019, these include all labelled "F" except F04 that failed at stage 3:
                 # For all failed launches, DISCOSweb does not include objects.
                 
-                # For 2019, these include all labelled "F" except F04 that failed at stage 3:
                 # List of 2020 Failed Launches
                 
                     # F01 - 09/02/2020 Simorgh (Iran) - 2 stage rocket
@@ -639,14 +662,23 @@ class OutputEmis:
                     # F04 - 25/05/2020 LauncherOne ()
                     # F05 - 04/07/2020 Electron (Curie) ()
                     # F06 - 10/07/2020 Kuaizhou-11 ()
+                    
                     # F07 - 12/09/2020 Astra Rocket 3 ()
+                    # Engines shut down by safety officer after 30s.
+                    
                     # F08 - 12/09/2020 Kuaizhou-11 ()
                     # F09 - 17/11/2020 Vega ()
+                    
                     # F10 - 15/12/2020 Astra Rocket 3 ()
+                    # Rocket passed Karman line and reached orbital altitude, but didn't reach stable orbit.
+                    
                     # F11 - 03/12/2020 Chang'e 5 SSQ (Ascent Stage)
+                    # Moon launch, don't need to include.
                 
 
                 #For now, exclude all failed launches. # TODO: Go through each failed launch and decide which emissions to include in final inventory. 
+                
+                #TODO: Need to make sure that LauncherOne is handled differently, as this is air-launched.
                 if launch_id[w][-3:-2] == 'F':
                     print(f'Launch {launch_id[w]} failed. Not processing.')
                     continue
@@ -665,18 +697,21 @@ class OutputEmis:
                 ############################################
 
                 # Setup rocket type variables (trim_name contains all rockets and is defined in __init__ function of this class):
-                # TODO: Isn't this section mixing up rockets with the same name? It only uses the final rocket that it finds.
+                # TODO: Isn't this section mixing up rockets with the same name? It only uses the final rocket that it finds. 
+                # Going to remove now and need to ask Eloise about this.
                 # Why do we even trim the rocket names at all??
-                trim_type = rocket_type[w][0:5]
+                
+                #trim_type = rocket_type[w][0:5]
                 rocket_found = False
                 valid_index = 0
                 
                 # Loop over 2019 rockets to find matching rocket and associated propellant mass:
-                for ll in range(len(self.trim_name)):
+                for ll in range(len(rocket_data.rocket_name)):
                     #print(ll, ttype)
-                    if trim_type == self.trim_name[ll]:
+                    if rocket_type[w] == rocket_data.rocket_name[ll]:
                         rocket_found = True
                         valid_index=ll
+                        print(f"Rocket Name is {rocket_type[w]}")
                         
                         # Get vertical distribution of propellant mass on GEOS-Chem
                         # grid in order from highest to lowest altitude (in kg):
@@ -690,16 +725,19 @@ class OutputEmis:
 
                 # Catch any missing rocket propellant masses:
                 if rocket_found == False:
-                    print('No propellant mass found for ' + trim_type)
+                    print('No propellant mass found for ' + rocket_type[w])
                     print('Exiting programme')
                     sys.exit()
                                                     
                 # Next find index of fuel type in primary emissions index data:
                 # (1) Boosters:
                 pei_booster_index = np.where( rocket_data.pei_fuel_type == rocket_data.booster_prop_type[valid_index] )[0]
+                #print(rocket_data.pei_fuel_type,rocket_data.booster_prop_type[valid_index],pei_booster_index)
+                
                 # (2) Stage 1:
                 pei_stage1_index = np.where( rocket_data.pei_fuel_type == rocket_data.stage1_prop_type[valid_index] )[0]
-                
+                #print(rocket_data.pei_fuel_type,rocket_data.stage1_prop_type[valid_index],pei_stage1_index)
+       
                 ##########################################################
                 # Apply emission indices:
                 # Calculate emission indices of individual pollutants:
@@ -720,7 +758,7 @@ class OutputEmis:
                 # TODO: Update these to reflect changes in fuel types (e.g. liq. methane)
                 
                 # Check if booster produces BC or CO:
-                if rocket_data.booster_prop_type[valid_index] in ['solid','hypergolic','kerosene']:
+                if rocket_data.booster_prop_type[valid_index] in ['Solid','Hypergolic','Kerosene']:
 
                     self.calculate_bc_ei(self.mid_alt[::-1,q,p]*1e-3)
                     t_bc_emis = self.ei_bc * rocket_data.booster_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass
@@ -733,7 +771,7 @@ class OutputEmis:
                     self.rocket_co[int(hour[w]),::-1,q,p] += t_co_emis * 1e-3 / kg_to_kgm2s
 
                 # Check if stage 1 produces BC or CO:
-                if rocket_data.stage1_prop_type[valid_index] in ['solid','hypergolic','kerosene']:
+                if rocket_data.stage1_prop_type[valid_index] in ['Solid','Hypergolic','Kerosene']:
                     
                     self.calculate_bc_ei(self.mid_alt[::-1,q,p]*1e-3)
                     t_bc_emis = self.ei_bc * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass
@@ -767,7 +805,8 @@ class OutputEmis:
                 # No H primary emissions, so ignore that term. No OH for almost all rockets, so ignore that term too.
 
                 # Check whether there is a booster:
-                if ( rocket_data.booster_prop_type[valid_index]!='None' ):
+                #print(rocket_data.booster_prop_type[valid_index])
+                if ( rocket_data.booster_prop_type[valid_index] != '' ):
                     
                     self.ei_h2o =  rocket_data.h2o_pei[pei_booster_index] + rocket_data.h2_pei[pei_booster_index] * self.mw_h2o / self.mw_h2 
                     t_h2o_emis = self.ei_h2o * rocket_data.booster_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass
@@ -775,7 +814,8 @@ class OutputEmis:
                     self.rocket_h2o[int(hour[w]),::-1,q,p] += t_h2o_emis*1e-3/kg_to_kgm2s
                 
                 # Check whether there is a stage 1 rocket:
-                if ( rocket_data.stage1_prop_type[valid_index]!='None' ):
+                #print(rocket_data.stage1_prop_type[valid_index],pei_stage1_index,rocket_data.h2o_pei)
+                if ( rocket_data.stage1_prop_type[valid_index]!= '' ):
                     
                     self.ei_h2o =  rocket_data.h2o_pei[pei_stage1_index] + rocket_data.h2_pei[pei_stage1_index] * self.mw_h2o / self.mw_h2 
                     t_h2o_emis = self.ei_h2o * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass
@@ -787,7 +827,7 @@ class OutputEmis:
                 ###########################
                 
                 # Check if booster produces Al2O3, HCl or Cl:
-                if ( rocket_data.booster_prop_type[valid_index]=='solid' ):
+                if ( rocket_data.booster_prop_type[valid_index]=='Solid' ):
                     
                     t_al2o3_emis = rocket_data.al2o3_pei[pei_booster_index] * rocket_data.booster_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass
                     self.al2o3_launch_total += np.sum(t_al2o3_emis)
@@ -802,7 +842,7 @@ class OutputEmis:
                     self.rocket_hcl[int(hour[w]),::-1,q,p] += t_hcl_emis*1e-3/kg_to_kgm2s
 
                 # Check if stage 1 produces Al2O3, HCl or Cl:
-                if ( rocket_data.stage1_prop_type[valid_index]=='solid' ):
+                if ( rocket_data.stage1_prop_type[valid_index]=='Solid' ):
                     
                     t_al2o3_emis = rocket_data.al2o3_pei[pei_stage1_index] * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass
                     self.al2o3_launch_total += np.sum(t_al2o3_emis)
@@ -1023,8 +1063,10 @@ class OutputEmis:
         # Open Dataset and set up dimensions.
         ########################################
         
-        # TODO: This section could probably be rewritten using xarray in much fewer lines.
-        # TODO: Key here is we probably want to split emissions into categories.
+        # TODO: Need to split emissions into categories:
+        #       - Crewed
+        #       - Satellites
+        #       - Megaconstellations
         # define dataset:
         ncout = Dataset(self.outfile_rocket_emis, mode='w', format='NETCDF4')
 
@@ -1097,6 +1139,7 @@ class OutputEmis:
         rocket_bc.short_name = 'Rocket BC emissions'
         rocket_bc.units = 'kg/m2/s'
         rocket_bc[:] = self.rocket_bc[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]
+        #print(self.rocket_bc[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2])
 
         # (4) Alumina:
         rocket_al = ncout.createVariable('rocket_al', np.float32, ('time','lev','lat','lon',))
@@ -1139,8 +1182,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-l', "--levels", default="72", choices=[47, 72], help="Vertical resolution.")
     parser.add_argument('-g', "--grid_res", default = "2x2.5", choices=["4x5", "2x2.5"], help='Grid resolution.')
-    parser.add_argument('-sm', "--start_month", default = "1", choices=np.arange(1,13), help='Start Month.')
-    parser.add_argument('-fm', "--final_month", default = "1", choices=np.arange(1,13), help='Final Month.')
+    parser.add_argument('-sm', "--start_month", default = "1", choices=str(np.arange(1,13)), help='Start Month.')
+    parser.add_argument('-fm', "--final_month", default = "1", choices=str(np.arange(1,13)), help='Final Month.')
     parser.add_argument('-v', "--verbose", action='store_true')
     args = parser.parse_args()
     

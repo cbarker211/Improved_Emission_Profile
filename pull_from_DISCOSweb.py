@@ -55,12 +55,14 @@ class import_launches_from_discos:
         Args:
             message (string): An additional message to print to the screen about the current process.
             wait_time (int): How many seconds are left befor emore requests can be made.
-        """        
+        """
+        print("\n")        
         for i in range(wait_time,0,-1):
             #The 'end="\r", flush=True' means that the line will replace itself instead of printing 60 lines.
             #This is useful to clean up the terminal, but may look weird sometimes before/after waiting.
             print(f"{message}Too many requests, retrying in {str(i)}s.", end="\r", flush=True)
             time.sleep(1)
+        print("\n")
             
     def response_error_handler(self,response,message):
         if response.status_code == 400:
@@ -418,19 +420,153 @@ class import_launches_from_discos:
         #Save to file and close the DataSet     
         ds.to_netcdf(f'./Databases/launch_info_{year}.nc')
         ds.close()
+        
+    def handle_propellant_info(self, count, stage, i, temp_dict, unique_vehicle_name_list):
+        
+        #print(unique_vehicle_name_list[i])
+        #If the boosters and stages are not in the right order on DISCOSweb, then manually rearrage.
+        if unique_vehicle_name_list[i] in ["Angara A5", "Ariane 5ECA", "Atlas V 411", "Atlas V 531", "Atlas V 541", "Atlas V 551", 
+                                           "Delta 4H", "H-IIA 202", "H-IIB", "PSLV-DL", "PSLV-XL", 
+                                           "Long March (CZ) 11", "Long March (CZ) 2F", "Long March (CZ) 3B", "Long March (CZ) 5", 
+                                           "Long March (CZ) 5B", "Long March (CZ) 6", "Long March (CZ) 7A", "Long March (CZ) 8",
+                                           "Soyuz-2-1A", "Soyuz-2-1A Fregat-M", "Soyuz-2-1B Fregat", "Soyuz-2-1B Fregat-M", "Soyuz-ST-A Fregat-M"]:
+            
+            #print("Manually assigning propellant information.")
+            stage_name = stage["attributes"]["name"]
+            
+            if stage_name in ["URM-1 Boosters", "EPS P241", "Atlas V 1 Boosters", "Atlas V 3 Boosters", "Atlas V Booster",
+                              "Delta IV CBC Boosters", "H-II SRB-A", "PSOM-XL Boosters", "Soyuz-FG Blok-B,V,G,D",
+                              "Booster LB-41 (YF25)", "Booster LB-38 (YF25)", "K2-1"]:
+                stage_number = "Booster"
+                
+            elif (stage_name in ["URM-1","EPC H173", "Atlas V CCB", "H-II LE-7A", "H-II widebody LE-7A", "PS1", "Soyuz-FG Blok-A",
+                                 "Long March (CZ) 11 Stage 1", "L-186 (YF21B)", "L-172 (YF21C)", "CZ-5-500", "L-165 (H5-1)", "L-76 (YF100)",
+                                 ]) or stage["id"] == "775":
+                stage_number = "Stage1"
+                
+            elif (stage_name in ["URM-2","ESC-A","Centaur-5 SEC", "H-II LE-5B", "PS2", "Blok-I", "Long March (CZ) 11 Stage 2", 
+                                 "L-84 (YF26) (Long March (CZ) 2F)", "L-45 (YF-24E)", "CZ-5-HO", "L-15 (YF115)", "K3-2 short"]) or stage["id"] == "773":
+                stage_number = "Stage2"
+                
+            elif stage_name in ["Briz-M", "PS3", "Fregat-M", "Fregat", "Long March (CZ) 11 Stage 3", "PBV"]:
+                stage_number = "Stage3"
+                
+            elif stage_name in ["PSLV fourth stage (PS4)", "Long March (CZ) 11 Stage 4"]:
+                stage_number = "Stage4"
+                
+            elif stage_name == "H-18 (Long March (CZ) YF)":
+                if unique_vehicle_name_list[i] in ["Long March (CZ) 3B", "Long March (CZ) 7A"]:
+                    stage_number = "Stage3"
+                elif unique_vehicle_name_list[i] == "Long March (CZ) 8":
+                    stage_number = "Stage2"
+
+            elif stage_name == "K3-1":
+                if unique_vehicle_name_list[i] in ["Long March (CZ) 5", "Long March (CZ) 5B"]:
+                    stage_number = "Booster"
+                elif unique_vehicle_name_list[i] in ["Long March (CZ) 8", "Long March (CZ) 7A"]:
+                    stage_number = "Stage1"
+                    
+            else:
+                sys.exit(f"Warning: Error manually assigning stages and boosters. Stage {stage_name} not in check lists.")
+        else:
+            #print("Automatically assigning propellant information.")
+            stage_number = f"Stage{count+1}"
+
+        #Now add the propellant mass together.
+        temp_fuel_mass = stage["attributes"]["fuelMass"]
+        if temp_fuel_mass == None:
+            temp_fuel_mass = 0
+        temp_oxidiser_mass = stage["attributes"]["oxidiserMass"]
+        if temp_oxidiser_mass == None:
+            temp_oxidiser_mass = 0
+        temp_solid_mass = stage["attributes"]["solidPropellantMass"]
+        if temp_solid_mass == None:
+            temp_solid_mass = 0
+        
+        temp_prop_mass = temp_fuel_mass+temp_oxidiser_mass+temp_solid_mass
+        if temp_prop_mass == 0:
+            print(f"Warning: No propellant mass found for {stage_number} of {unique_vehicle_name_list[i]}")
+        
+        # Finally get the propellant name and assign type.
+        while True:
+            response = self.server_request({},f'/launch-vehicles/stages/{stage["id"]}/propellant')
+            if response.ok:
+                doc = response.json()
+                if doc['data'] != None:
+                    propellant_info = doc['data']["attributes"]
+                    
+                    #First get the name.
+                    if (propellant_info["fuel"] != None) and (propellant_info["oxidiser"] != None):
+                        temp_dict[f"{stage_number} Propellant Name"] = propellant_info["fuel"] + "/" + propellant_info["oxidiser"]
+                    elif propellant_info["solidPropellant"] != None:
+                        temp_dict[f"{stage_number} Propellant Name"] = propellant_info["solidPropellant"]
+                        #The else case is handled below in the next else block.
+                        
+                    # Fix minor spelling errors from database.
+                    if stage["attributes"]["name"] == "Antares-200 first stage (RD-181)":
+                        temp_dict[f"Stage1 Propellant Name"] = "RP1 (Rocket Propellant 1)/LOX"
+                    
+                    if stage["attributes"]["name"] == "AVUM":
+                        temp_dict[f"Stage4 Propellant Name"] = "UDMH (Unsymmetrical Dimethyl Hydrazine)/N2O4"
+                    
+                    #Now assign to a fuel type.
+                    if temp_dict[f"{stage_number} Propellant Name"] in ['HTPB','Solid','HTPB-1912','TP-H8299']:
+                        temp_dict[f"{stage_number} Fuel Type"] = "Solid"  
+                    elif temp_dict[f"{stage_number} Propellant Name"] in ['RP1 (Rocket Propellant 1)/LOX','Kerosene/LOX']:
+                        temp_dict[f"{stage_number} Fuel Type"] = "Kerosene"  
+                    elif temp_dict[f"{stage_number} Propellant Name"] in ['UDMH (Unsymmetrical Dimethyl Hydrazine)/N2O4','UDMH (Unsymmetrical Dimethyl Hydrazine)/AK27',
+                                                                          'MMH (Monomethyl Hydrazine)/N2O4','MMH (Monomethyl Hydrazine)/MON']:
+                        temp_dict[f"{stage_number} Fuel Type"] = "Hypergolic"  
+                    elif temp_dict[f"{stage_number} Propellant Name"] in ['LH2 (Liquid Hydrogen)/LOX']:
+                        temp_dict[f"{stage_number} Fuel Type"] = "Hydrogen"  
+                    else:
+                        print(f"Warning: Couldn't assign propellant <{temp_dict[f'{stage_number} Propellant Name']}> for {stage_number} of {unique_vehicle_name_list[i]}.")     
+                else:
+                    print(f"Warning: Couldn't find any propellant for {stage_number} of {unique_vehicle_name_list[i]}.")
+                    
+            elif response.status_code == 429:
+                message = f"On launch {i+1} of {len(unique_vehicle_name_list)} in {self.year}."
+                self.response_error_handler(response,message)
+                continue
+            else:
+                self.response_error_handler(response,"")
+            break
+        
+        temp_dict[f"{stage_number} Propellant Mass"] = temp_prop_mass
+        
+        #pprint(temp_dict)
+        return temp_dict
     
     def get_rocket_info(self):
         
         self.unique_rocket_list = []
         
         #Open file and get a list of unique vehicles.
-        ds = xr.open_dataset('Databases\launch_info_2020.nc', decode_times=False)
+        ds = xr.open_dataset('Databases/launch_info_2020.nc', decode_times=False)
         vehicle_name_list = ds['Rocket_Type'].values
         vehicle_id_list = ds['Vehicle_ID'].values
         unique_vehicle_name_list = sorted(list(set(vehicle_name_list)))
         ds.close()
             
         #Loop over all rockets, and pull the information for each.
+        # There is currently missing propellant information for the following rockets (12/44):
+        #       Astra Rocket 3 (Stage 1-2, no prop mass)
+        #       Ceres-1 (Stage 1-4, no prop mass or type)
+        #       Chang'e 5 SSQ (Ascent Stage) (Stage 1, no prop mass or type)
+        #       Electron (Curie) (Stage 1-3, no prop mass or type)
+        #       Kuaizhou-1 (Stage 4, no prop mass)
+        #       Kuaizhou-11 (Stage 1-3, no prop mass or type)
+        #       LauncherOne (Stage 1-2, no prop mass)
+        #       Long March (CZ) 11 (Stage 1-4, no prop mass or type)
+        #       Long March (CZ) 6 (Stage 3 PBV?, no prop mass)
+        #       Minotaur-4 (Stage 1-3, no prop mass or type)
+        #       Qased (Stage 1-3, no prop mass or type)
+        #       Shavit (Stage 1-3, no prop mass or type)
+        #       Simorgh (Stage 1-3, no prop mass or type)
+        
+        # The todo-list for handling incomplete information is later in this function.
+        
+        #unique_vehicle_name_list = unique_vehicle_name_list[29:31]
         for i in range(0,len(unique_vehicle_name_list)):
             
             temp_vehicle_id = vehicle_id_list[np.where(vehicle_name_list == unique_vehicle_name_list[i])[0][0]]
@@ -439,7 +575,7 @@ class import_launches_from_discos:
                 "name": unique_vehicle_name_list[i],
             }
 
-            print(temp_dict)                    
+            #print(temp_dict)                    
             # Get the propellant mass info.
             while True:
                 response = self.server_request({},f'/launch-vehicles/{temp_vehicle_id}/stages')
@@ -450,55 +586,18 @@ class import_launches_from_discos:
                     # Usually 2-5 stages, so won't need to account for the maximum of 30 items in a list.
                     run_func = True
                     if run_func == True:
-                        for j in range(0,5):
+                        temp_dict[f"Booster Propellant Mass"] = 0
+                        temp_dict[f"Booster Fuel Type"] = ""
+                        temp_dict[f"Booster Propellant Name"] = ""
+                        for j in range(0,4):
                             temp_dict[f"Stage{j+1} Propellant Mass"] = 0
-                            temp_dict[f"Stage{j+1} Solid"] = ""
+                            temp_dict[f"Stage{j+1} Fuel Type"] = ""
                             temp_dict[f"Stage{j+1} Propellant Name"] = ""
                             
                         for count,stage in enumerate(vehicle_info):
-                            
-                            temp_fuel_mass = stage["attributes"]["fuelMass"]
-                            if temp_fuel_mass == None:
-                                temp_fuel_mass = 0
-                            temp_oxidiser_mass = stage["attributes"]["oxidiserMass"]
-                            if temp_oxidiser_mass == None:
-                                temp_oxidiser_mass = 0
-                            temp_solid_mass = stage["attributes"]["solidPropellantMass"]
-                            if temp_solid_mass == None:
-                                temp_solid_mass = 0
-                            
-                            temp_prop_mass = temp_fuel_mass+temp_oxidiser_mass+temp_solid_mass
-                            temp_dict[f"Stage{count+1} Propellant Mass"] = temp_prop_mass
-                            print(stage["attributes"]["name"])
-                            
-                            # Get the propellant info.
-                            while True:
-                                response = self.server_request({},f'/launch-vehicles/stages/{stage["id"]}/propellant')
-                                if response.ok:
-                                    doc = response.json()
-                                    if doc['data'] != None:
-                                        propellant_info = doc['data']["attributes"]
-                                        
-                                        if propellant_info["fuel"] == None:
-                                            temp_dict[f"Stage{count+1} Solid"] = "Yes"  
-                                            temp_dict[f"Stage{count+1} Propellant Name"] = propellant_info["solidPropellant"]  
-                                        elif propellant_info["solidPropellant"] == None:
-                                            temp_dict[f"Stage{count+1} Solid"] = "No" 
-                                            name = propellant_info["fuel"] + "/" + propellant_info["oxidiser"]
-                                            temp_dict[f"Stage{count+1} Propellant Name"] = name
-                                        else:
-                                            print("Liquid/Solid Fuel Error")
-                                    else:
-                                        print("No propellant found.")
-                                        
-                                elif response.status_code == 429:
-                                    message = f"On launch {i+1} of {len(unique_vehicle_name_list)} in {self.year}."
-                                    self.response_error_handler(response,message)
-                                    continue
-                                else:
-                                    self.response_error_handler(response,"")
-                                break
-                                                
+                            temp_dict = self.handle_propellant_info(count,stage,i,temp_dict,unique_vehicle_name_list)
+                        #pprint(temp_dict) 
+                                               
                 elif response.status_code == 429:
                     message = f"On launch {i+1} of {len(unique_vehicle_name_list)} in {self.year}."
                     self.response_error_handler(response,message)
@@ -507,80 +606,244 @@ class import_launches_from_discos:
                     self.response_error_handler(response,"")
                 break      
             
+            ####################################
+            # Handle any imcomplete information.
+            ####################################
+            
+            # 3 launches in 2020.
+            # First not included in databases, fire destroyed rocket on launch pad.
+            # Second launch, engines shut down by safety officer after 30s.
+            # Third launch, rocket passed Karman line and reached orbital altitude, but didn't reach stable orbit.
+            # TODO: Find Astra propellant mass.
+            # First stage powered by 5 Delphin engines.
+            # Second stage powered by 1 Aether engine.
+            if unique_vehicle_name_list[i] == "Astra Rocket 3":
+                temp_dict[f"Stage1 Propellant Mass"] = 0
+                temp_dict[f"Stage2 Propellant Mass"] = 0
+                
+            #Interent search seems to agree that upper stage is 'liquid-propellant', but no info.
+            # Will assume hypergolic, as some sources suggest hydrazine.
+            # https://www.nasaspaceflight.com/2021/12/chinas-galactic-energy-launches-second-ceres-1-rocket-successfully/
+            # TODO: Find Ceres-1 propellant mass.
+            if unique_vehicle_name_list[i] == "Ceres-1":
+                temp_dict[f"Stage1 Fuel Type"] = "Solid"
+                temp_dict[f"Stage2 Fuel Type"] = "Solid"
+                temp_dict[f"Stage3 Fuel Type"] = "Solid"
+                temp_dict[f"Stage4 Fuel Type"] = "Hypergolic"
+                temp_dict[f"Stage1 Propellant Mass"] = 0
+                temp_dict[f"Stage2 Propellant Mass"] = 0
+                temp_dict[f"Stage3 Propellant Mass"] = 0
+                temp_dict[f"Stage4 Propellant Mass"] = 0
+            
+            # "Chang'e 5 SSQ (Ascent Stage)" refers to the Chinese lunar exploration mission.
+            # Specifically, the 'ascender' launching from the moon to dock with the 'orbiter'.
+            # It eventually was 'crashed' back onto the moon to avoid space debris, so didn't re-enter. 
+            
+            # Electron (Curie) - 6 successes and one failure.
+            # https://www.rocketlabusa.com/assets/Uploads/Electron-Payload-User-Guide-7.0.pdf
+            # 3rd stage is 'kick-stage', and has a 'liquid bi-propellant' which wikipedia says is hypergolic.
+            # Both 1st and 2nd stages use Rutherford engines, kick-stage uses Curie engine.
+            # TODO: Find Electron propellant mass.
+            if unique_vehicle_name_list[i] == "Electron (Curie)":
+                temp_dict[f"Stage1 Propellant Name"] = 'Kerosene/LOX'
+                temp_dict[f"Stage2 Propellant Name"] = 'Kerosene/LOX'
+                temp_dict[f"Stage3 Propellant Name"] = 'Liquid bi-propellant'
+                temp_dict[f"Stage1 Fuel Type"] = "Kerosene"
+                temp_dict[f"Stage2 Fuel Type"] = "Kerosene"
+                temp_dict[f"Stage3 Fuel Type"] = "Hypergolic"
+                temp_dict[f"Stage1 Propellant Mass"] = 0
+                temp_dict[f"Stage2 Propellant Mass"] = 2000
+                temp_dict[f"Stage3 Propellant Mass"] = 0
+            
+            # Kuaizhou-1 - 2 successes and 1 failure.
+            # https://www.nasaspaceflight.com/2014/11/china-launches-kuaizhou-2-second-launch-24-hours/ 'liquid upper stage'
+            # Both successes were LEO launches of satellites. Both failures were SSO launches of satellites. 
+            # Failed launch failed after liftoff, so still include. However, only missing info is 4th stage propellant mass.
+            # Therefore ignore for now as we probably won't include 4th Stage emissions.             
+            
+            # Kuaizhou-11 (Stage 1-3, no prop mass or type)
+            # Larger version of Kuaizhou-1.
+            # First stage appeared to work correctly https://spaceflightnow.com/2020/07/10/new-chinese-satellite-launcher-fails-on-first-flight/
+            # TODO: Find Kuaizhou-11 propellant mass.
+            if unique_vehicle_name_list[i] == "Kuaizhou-11":
+                temp_dict[f"Stage1 Propellant Name"] = 'Solid'
+                temp_dict[f"Stage2 Propellant Name"] = 'Solid'
+                temp_dict[f"Stage3 Propellant Name"] = 'Solid'
+                temp_dict[f"Stage1 Fuel Type"] = "Solid"
+                temp_dict[f"Stage2 Fuel Type"] = "Solid"
+                temp_dict[f"Stage3 Fuel Type"] = "Solid"
+                temp_dict[f"Stage1 Propellant Mass"] = 0
+                temp_dict[f"Stage2 Propellant Mass"] = 0
+                temp_dict[f"Stage3 Propellant Mass"] = 0
+            
+            # LauncherOne (Stage 1-2, no prop mass)
+            # https://spaceflightnow.com/2020/05/25/virgin-orbits-air-launched-rocket-fails-on-first-test-flight/
+            # Failed after ignition of 1st stage, so probably should include something.
+            # TODO: Find LauncherOne propellant mass.
+            if unique_vehicle_name_list[i] == "LauncherOne":
+                temp_dict[f"Stage1 Propellant Mass"] = 0
+                temp_dict[f"Stage2 Propellant Mass"] = 0
+                
+            # Long March (CZ) 6
+            # DISCOSweb lists third stage as 'PBV' with LH2/LOX propellant.
+            # Wikipedia lists third stage as N2O4/UDMH propellant.
+            # Gunter's Space Page lists third stage as Kerosene/Hydrogen peroxide.
+            # https://space.skyrocket.de/doc_lau/cz-6.htm
+            # Ignore for now as we probably won't include 3rd Stage emissions.
+            
+            # Long March (CZ) 11.
+            # Likely based on DF-31 missile, may have to use and total mass to guess propellant mass.
+            # https://space.skyrocket.de/doc_lau/cz-11.htm 
+            if unique_vehicle_name_list[i] == "Long March (CZ) 11":
+                temp_dict[f"Stage1 Propellant Name"] = 'Solid'
+                temp_dict[f"Stage2 Propellant Name"] = 'Solid'
+                temp_dict[f"Stage3 Propellant Name"] = 'Solid'
+                temp_dict[f"Stage4 Propellant Name"] = 'Solid'
+                temp_dict[f"Stage1 Fuel Type"] = "Solid"
+                temp_dict[f"Stage2 Fuel Type"] = "Solid"
+                temp_dict[f"Stage3 Fuel Type"] = "Solid"
+                temp_dict[f"Stage4 Fuel Type"] = 'Solid'
+                temp_dict[f"Stage1 Propellant Mass"] = 0
+                temp_dict[f"Stage2 Propellant Mass"] = 0
+                temp_dict[f"Stage3 Propellant Mass"] = 0
+                temp_dict[f"Stage4 Propellant Mass"] = 0
+            
+            # Minotaur-4
+            # Based on LGM-118 Peacekeeper ICBM.
+            # https://en.wikipedia.org/wiki/Minotaur_IV#STP-S26 
+            # TODO: Find Minotaur-4 propellant mass.
+            if unique_vehicle_name_list[i] == "Minotaur-4":
+                temp_dict[f"Stage1 Propellant Name"] = 'Solid'
+                temp_dict[f"Stage2 Propellant Name"] = 'Solid'
+                temp_dict[f"Stage3 Propellant Name"] = 'Solid'
+                temp_dict[f"Stage1 Fuel Type"] = "Solid"
+                temp_dict[f"Stage2 Fuel Type"] = "Solid"
+                temp_dict[f"Stage3 Fuel Type"] = "Solid"
+                temp_dict[f"Stage1 Propellant Mass"] = 0
+                temp_dict[f"Stage2 Propellant Mass"] = 0
+                temp_dict[f"Stage3 Propellant Mass"] = 0
+                temp_dict[f"Stage4 Propellant Mass"] = 0           
+                
+            # Qased
+            # https://en.wikipedia.org/wiki/Qased_(rocket)
+            # First stage uses UDMH/N2O4, second is 'solid fueled'.
+            # First stage says oxidiser is AK27 on DISCOSweb.
+            # Third stage is mysterious.
+            # TODO: Find Qased propellant mass.
+            if unique_vehicle_name_list[i] == "Qased":
+                temp_dict[f"Stage1 Propellant Name"] = 'UDMH (Unsymmetrical Dimethyl Hydrazine)/N2O4'
+                temp_dict[f"Stage2 Propellant Name"] = 'Solid'
+                temp_dict[f"Stage3 Propellant Name"] = 'Solid'
+                temp_dict[f"Stage1 Fuel Type"] = "Solid"
+                temp_dict[f"Stage2 Fuel Type"] = "Solid"
+                temp_dict[f"Stage3 Fuel Type"] = "Solid"
+                temp_dict[f"Stage1 Propellant Mass"] = 0
+                temp_dict[f"Stage2 Propellant Mass"] = 0
+                temp_dict[f"Stage3 Propellant Mass"] = 0
+            
+            # Shavit (Stage 1-3, no prop mass or type)
+            # The rocket launched in 2020 seems to be the RSA-3 vehicle.
+            # This was the South African licensed version, so I will assume the details are same as for Shavit-2.
+            # TODO: Find Shavit propellant mass.
+            if unique_vehicle_name_list[i] == "Shavit":
+                temp_dict[f"Stage1 Propellant Name"] = 'HTPB'
+                temp_dict[f"Stage2 Propellant Name"] = 'HTPB'
+                temp_dict[f"Stage3 Propellant Name"] = 'HTPB'
+                temp_dict[f"Stage1 Fuel Type"] = "Solid"
+                temp_dict[f"Stage2 Fuel Type"] = "Solid"
+                temp_dict[f"Stage3 Fuel Type"] = "Solid"
+                temp_dict[f"Stage1 Propellant Mass"] = 0
+                temp_dict[f"Stage2 Propellant Mass"] = 0
+                temp_dict[f"Stage3 Propellant Mass"] = 0
+                
+            # Simorgh
+            # Wiki: Simorgh operated for 475 seconds. 
+            # Satellite reached speed of 6,500 m/s out of the 7,400 m/s required to orbit. 
+            # First stage operated fully correctly.
+            # Second stage failed in latests second of the flight.
+            # Saman-1 is an upper-stage, used as a space tug to transfer satellites to higher orbits.
+            # TODO: Find Simorgh propellant mass.
+            if unique_vehicle_name_list[i] == "Simorgh":
+                temp_dict[f"Stage3 Propellant Name"] = 'Solid'
+                temp_dict[f"Stage3 Fuel Type"] = "Solid"
+                temp_dict[f"Stage1 Propellant Mass"] = 0
+                temp_dict[f"Stage2 Propellant Mass"] = 0
+                temp_dict[f"Stage3 Propellant Mass"] = 185 # https://en.wikipedia.org/wiki/Saman-1_(rocket_stage)
+            
             self.unique_rocket_list.append(temp_dict)    
         
     def rocket_info_to_netcdf(self):
         """This saves the propellant information as a NetCDF file for later processing for GEOS-Chem.
         This is only needed if using GEOS-Chem. Recommended to ignore if you don't need this.
         """        
-        
         #Set up the dimensions of the netcdf file.
         #launches = np.arange(len(self.Cospar_Id), dtype=np.int64)
         dims = ('rockets')
         
         #Set up the data
         rocket_name_list = []
-        stage1_propmass_list, stage1_solid_list, stage1_propname_list = [], [], []
-        stage2_propmass_list, stage2_solid_list, stage2_propname_list = [], [], []
-        stage3_propmass_list, stage3_solid_list, stage3_propname_list = [], [], []
-        stage4_propmass_list, stage4_solid_list, stage4_propname_list = [], [], []
-        stage5_propmass_list, stage5_solid_list, stage5_propname_list = [], [], []
-        
+        booster_propmass_list, booster_fuel_type_list, booster_propname_list = [], [], []
+        stage1_propmass_list, stage1_fuel_type_list, stage1_propname_list = [], [], []
+        stage2_propmass_list, stage2_fuel_type_list, stage2_propname_list = [], [], []
+        stage3_propmass_list, stage3_fuel_type_list, stage3_propname_list = [], [], []
+        stage4_propmass_list, stage4_fuel_type_list, stage4_propname_list = [], [], []
+
         for rocket in self.unique_rocket_list:
             rocket_name_list.append(rocket["name"])
+            booster_propmass_list.append(rocket["Booster Propellant Mass"])
+            booster_fuel_type_list.append(rocket["Booster Fuel Type"])
+            booster_propname_list.append(rocket["Booster Propellant Name"])
             stage1_propmass_list.append(rocket["Stage1 Propellant Mass"])
-            stage1_solid_list.append(rocket["Stage1 Solid"])
+            stage1_fuel_type_list.append(rocket["Stage1 Fuel Type"])
             stage1_propname_list.append(rocket["Stage1 Propellant Name"])
             stage2_propmass_list.append(rocket["Stage2 Propellant Mass"])
-            stage2_solid_list.append(rocket["Stage2 Solid"])
+            stage2_fuel_type_list.append(rocket["Stage2 Fuel Type"])
             stage2_propname_list.append(rocket["Stage2 Propellant Name"])
             stage3_propmass_list.append(rocket["Stage3 Propellant Mass"])
-            stage3_solid_list.append(rocket["Stage3 Solid"])
+            stage3_fuel_type_list.append(rocket["Stage3 Fuel Type"])
             stage3_propname_list.append(rocket["Stage3 Propellant Name"])
             stage4_propmass_list.append(rocket["Stage4 Propellant Mass"])
-            stage4_solid_list.append(rocket["Stage4 Solid"])
+            stage4_fuel_type_list.append(rocket["Stage4 Fuel Type"])
             stage4_propname_list.append(rocket["Stage4 Propellant Name"])
-            stage5_propmass_list.append(rocket["Stage5 Propellant Mass"])
-            stage5_solid_list.append(rocket["Stage5 Solid"])
-            stage5_propname_list.append(rocket["Stage5 Propellant Name"])
             
         #Create the DataArrays.
-            
-        data_da_name            = xr.DataArray(rocket_name_list,     dims=dims, attrs=dict(long_name="Rocket Name"))
-        data_da_stage1_propmass = xr.DataArray(stage1_propmass_list, dims=dims, attrs=dict(long_name="Stage 1 Propellant Mass", units="kg"))
-        data_da_stage1_solid    = xr.DataArray(stage1_solid_list,    dims=dims, attrs=dict(long_name="Stage 1 Solid Check"))
-        data_da_stage1_propname = xr.DataArray(stage1_propname_list, dims=dims, attrs=dict(long_name="Stage 1 Propellant Name"))
-        data_da_stage2_propmass = xr.DataArray(stage2_propmass_list, dims=dims, attrs=dict(long_name="Stage 2 Propellant Mass", units="kg"))
-        data_da_stage2_solid    = xr.DataArray(stage2_solid_list,    dims=dims, attrs=dict(long_name="Stage 2 Solid Check"))
-        data_da_stage2_propname = xr.DataArray(stage2_propname_list, dims=dims, attrs=dict(long_name="Stage 2 Propellant Name"))
-        data_da_stage3_propmass = xr.DataArray(stage3_propmass_list, dims=dims, attrs=dict(long_name="Stage 3 Propellant Mass", units="kg"))
-        data_da_stage3_solid    = xr.DataArray(stage3_solid_list,    dims=dims, attrs=dict(long_name="Stage 3 Solid Check"))
-        data_da_stage3_propname = xr.DataArray(stage3_propname_list, dims=dims, attrs=dict(long_name="Stage 3 Propellant Name"))
-        data_da_stage4_propmass = xr.DataArray(stage4_propmass_list, dims=dims, attrs=dict(long_name="Stage 4 Propellant Mass", units="kg"))
-        data_da_stage4_solid    = xr.DataArray(stage4_solid_list,    dims=dims, attrs=dict(long_name="Stage 4 Solid Check"))
-        data_da_stage4_propname = xr.DataArray(stage4_propname_list, dims=dims, attrs=dict(long_name="Stage 4 Propellant Name"))
-        data_da_stage5_propmass = xr.DataArray(stage5_propmass_list, dims=dims, attrs=dict(long_name="Stage 5 Propellant Mass", units="kg"))
-        data_da_stage5_solid    = xr.DataArray(stage5_solid_list,    dims=dims, attrs=dict(long_name="Stage 5 Solid Check"))
-        data_da_stage5_propname = xr.DataArray(stage5_propname_list, dims=dims, attrs=dict(long_name="Stage 5 Propellant Name"))
+        data_da_name                = xr.DataArray(rocket_name_list,     dims=dims, attrs=dict(long_name="Rocket Name"))
+        data_da_booster_propmass    = xr.DataArray(booster_propmass_list, dims=dims, attrs=dict(long_name="Booster Propellant Mass", units="kg"))
+        data_da_booster_fuel_type   = xr.DataArray(booster_fuel_type_list,    dims=dims, attrs=dict(long_name="Booster Fuel Type"))
+        data_da_booster_propname    = xr.DataArray(booster_propname_list, dims=dims, attrs=dict(long_name="Booster Propellant Name"))
+        data_da_stage1_propmass     = xr.DataArray(stage1_propmass_list, dims=dims, attrs=dict(long_name="Stage 1 Propellant Mass", units="kg"))
+        data_da_stage1_fuel_type    = xr.DataArray(stage1_fuel_type_list,    dims=dims, attrs=dict(long_name="Stage 1 Fuel Type"))
+        data_da_stage1_propname     = xr.DataArray(stage1_propname_list, dims=dims, attrs=dict(long_name="Stage 1 Propellant Name"))
+        data_da_stage2_propmass     = xr.DataArray(stage2_propmass_list, dims=dims, attrs=dict(long_name="Stage 2 Propellant Mass", units="kg"))
+        data_da_stage2_fuel_type    = xr.DataArray(stage2_fuel_type_list,    dims=dims, attrs=dict(long_name="Stage 2 Fuel Type"))
+        data_da_stage2_propname     = xr.DataArray(stage2_propname_list, dims=dims, attrs=dict(long_name="Stage 2 Propellant Name"))
+        data_da_stage3_propmass     = xr.DataArray(stage3_propmass_list, dims=dims, attrs=dict(long_name="Stage 3 Propellant Mass", units="kg"))
+        data_da_stage3_fuel_type    = xr.DataArray(stage3_fuel_type_list,    dims=dims, attrs=dict(long_name="Stage 3 Fuel Type"))
+        data_da_stage3_propname     = xr.DataArray(stage3_propname_list, dims=dims, attrs=dict(long_name="Stage 3 Propellant Name"))
+        data_da_stage4_propmass     = xr.DataArray(stage4_propmass_list, dims=dims, attrs=dict(long_name="Stage 4 Propellant Mass", units="kg"))
+        data_da_stage4_fuel_type    = xr.DataArray(stage4_fuel_type_list,    dims=dims, attrs=dict(long_name="Stage 4 Fuel Type"))
+        data_da_stage4_propname     = xr.DataArray(stage4_propname_list, dims=dims, attrs=dict(long_name="Stage 4 Propellant Name"))
+        
         
         # Create an xarray Dataset from the DataArrays.
         ds = xr.Dataset()
-        ds['Rocket_Name']     = data_da_name
-        ds['Stage1_PropMass'] = data_da_stage1_propmass
-        ds['Stage1_Solid']    = data_da_stage1_solid
-        ds['Stage1_PropName'] = data_da_stage1_propname
-        ds['Stage2_PropMass'] = data_da_stage2_propmass
-        ds['Stage2_Solid']    = data_da_stage2_solid
-        ds['Stage2_PropName'] = data_da_stage2_propname
-        ds['Stage3_PropMass'] = data_da_stage3_propmass
-        ds['Stage3_Solid']    = data_da_stage3_solid
-        ds['Stage3_PropName'] = data_da_stage3_propname
-        ds['Stage4_PropMass'] = data_da_stage4_propmass
-        ds['Stage4_Solid']    = data_da_stage4_solid
-        ds['Stage4_PropName'] = data_da_stage4_propname
-        ds['Stage5_PropMass'] = data_da_stage5_propmass
-        ds['Stage5_Solid']    = data_da_stage5_solid
-        ds['Stage5_PropName'] = data_da_stage5_propname
+        ds['Rocket_Name']           = data_da_name
+        ds['Booster_PropMass']      = data_da_booster_propmass
+        ds['Booster_Fuel_Type']     = data_da_booster_fuel_type
+        ds['Booster_PropName']      = data_da_booster_propname
+        ds['Stage1_PropMass']       = data_da_stage1_propmass
+        ds['Stage1_Fuel_Type']      = data_da_stage1_fuel_type
+        ds['Stage1_PropName']       = data_da_stage1_propname
+        ds['Stage2_PropMass']       = data_da_stage2_propmass
+        ds['Stage2_Fuel_Type']      = data_da_stage2_fuel_type
+        ds['Stage2_PropName']       = data_da_stage2_propname
+        ds['Stage3_PropMass']       = data_da_stage3_propmass
+        ds['Stage3_Fuel_Type']      = data_da_stage3_fuel_type
+        ds['Stage3_PropName']       = data_da_stage3_propname
+        ds['Stage4_PropMass']       = data_da_stage4_propmass
+        ds['Stage4_Fuel_Type']      = data_da_stage4_fuel_type
+        ds['Stage4_PropName']       = data_da_stage4_propname
+
              
         #Save to file and close the DataSet     
         ds.to_netcdf(f'./Databases/rocket_info_{year}.nc')
@@ -603,9 +866,7 @@ if __name__ == "__main__":
     #LaunchData.get_launch_info()
     #LaunchData.launch_info_to_netcdf()
     LaunchData.get_rocket_info()
-    #LaunchData.rocket_info_to_netcdf()
-    
-    # TODO: Need to account for which stage is which, assign/count boosters etc.
+    LaunchData.rocket_info_to_netcdf()
     
     #OPTIONAL: Save results to file.
     #with open(filename, 'a') as f:
