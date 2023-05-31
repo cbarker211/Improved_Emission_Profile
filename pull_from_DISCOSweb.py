@@ -340,6 +340,7 @@ class import_launches_from_discos:
                 if response.ok:
                     doc = response.json()
                     self.rocket_type.append(doc['data']["attributes"]["name"])
+                    #print(doc['data']["attributes"]["name"])
                     self.vehicle_id.append(int(doc["data"]["id"]))
                 elif response.status_code == 429:
                     message = f"On launch {count} of {len(self.full_launch_list)} in {self.year}."
@@ -549,20 +550,15 @@ class import_launches_from_discos:
         ds.close()
             
         #Loop over all rockets, and pull the information for each.
-        # There is currently missing propellant information for the following rockets (12/44):
+        # There is currently missing propellant information for the following rockets (8/44):
         #       Astra Rocket 3 (Stage 1-2, no prop mass)
         #       Ceres-1 (Stage 1-4, no prop mass or type)
-        #       Chang'e 5 SSQ (Ascent Stage) (Stage 1, no prop mass or type)
-        #       Electron (Curie) (Stage 1-3, no prop mass or type)
-        #       Kuaizhou-1 (Stage 4, no prop mass)
         #       Kuaizhou-11 (Stage 1-3, no prop mass or type)
         #       LauncherOne (Stage 1-2, no prop mass)
         #       Long March (CZ) 11 (Stage 1-4, no prop mass or type)
         #       Long March (CZ) 6 (Stage 3 PBV?, no prop mass)
-        #       Minotaur-4 (Stage 1-3, no prop mass or type)
         #       Qased (Stage 1-3, no prop mass or type)
         #       Shavit (Stage 1-3, no prop mass or type)
-        #       Simorgh (Stage 1-3, no prop mass or type)
         
         # The todo-list for handling incomplete information is later in this function.
         
@@ -607,24 +603,39 @@ class import_launches_from_discos:
                 break      
             
             ####################################
-            # Handle any imcomplete information.
+            # Handle any incomplete information.
             ####################################
             
-            # 3 launches in 2020.
-            # First not included in databases, fire destroyed rocket on launch pad.
-            # Second launch, engines shut down by safety officer after 30s.
-            # Third launch, rocket passed Karman line and reached orbital altitude, but didn't reach stable orbit.
-            # TODO: Find Astra propellant mass.
-            # First stage powered by 5 Delphin engines.
-            # Second stage powered by 1 Aether engine.
+            # Antares 230, second stage solid propellant has a type in DISCOSweb.
+            if unique_vehicle_name_list[i] == "Antares 230":
+                temp_dict[f"Stage2 Propellant Mass"] = 12837 #Still DISCOSweb, fixing typo.
+            
+            # Astra Rocket (USA) - 3 failed launches in 2020.
+            # 2-stage rocket (Kerosene/LOX both stages)
+            # 1) https://web.archive.org/web/20220411235206/http://www.spacelaunchreport.com/astra.html
+            # 2) https://discosweb.esoc.esa.int/launch-vehicles/99082
+            # First stage powered by 5 Delphin engines, second stage powered by 1 Aether engine.
+            # Other two-stage rockets in 2020 include:
+            # Antares 230   (Kerosene,   Solid,      242000, 12837)
+            # Atlas V 501   (Kerosene,   Hydrogen,   284089, 20830)
+            # Falcon 9 v1.2 (Kerosene,   Kerosene,   294300, 108700)
+            # CZ-2C         (Hypergolic, Hypergolic, 144000, 53600) 
+            # CZ-2D         (Hypergolic, Hypergolic, 183170, 35550)
+            # However, these are all much bigger rockets designed to launch much larger payloads.
+            # Need to find another small rocket (~10m) with a small payload (25kg).
+            # Electron (Curie) is similar if we ignore the kick stage, 18m, 300 kg, so using this.
             if unique_vehicle_name_list[i] == "Astra Rocket 3":
-                temp_dict[f"Stage1 Propellant Mass"] = 0
-                temp_dict[f"Stage2 Propellant Mass"] = 0
+                temp_dict[f"Stage1 Propellant Mass"] = 9250 #Using value for Electron from SLR/DISCOSweb(wet/dry) 
+                temp_dict[f"Stage2 Propellant Mass"] = 2050 #Using value for Electron from SLR/DISCOSweb(wet/dry) 
                 
-            #Interent search seems to agree that upper stage is 'liquid-propellant', but no info.
-            # Will assume hypergolic, as some sources suggest hydrazine.
+            # Will assume hypergolic, as wikipedia and following link suggest hydrazine.
             # https://www.nasaspaceflight.com/2021/12/chinas-galactic-energy-launches-second-ceres-1-rocket-successfully/
-            # TODO: Find Ceres-1 propellant mass.
+            # https://space.skyrocket.de/doc_lau/ceres-1.htm
+            # https://discosweb.esoc.esa.int/launch-vehicles/99915
+            # https://en.wikipedia.org/wiki/Galactic_Energy
+            # https://www.galactic-energy.cn/index.php/En/List/cid/14
+            # Website lists fourth stage as 'advanced liquid upper stage', will assume hypergolic
+            # TODO: Approximate Ceres-1 propellant mass.
             if unique_vehicle_name_list[i] == "Ceres-1":
                 temp_dict[f"Stage1 Fuel Type"] = "Solid"
                 temp_dict[f"Stage2 Fuel Type"] = "Solid"
@@ -638,12 +649,18 @@ class import_launches_from_discos:
             # "Chang'e 5 SSQ (Ascent Stage)" refers to the Chinese lunar exploration mission.
             # Specifically, the 'ascender' launching from the moon to dock with the 'orbiter'.
             # It eventually was 'crashed' back onto the moon to avoid space debris, so didn't re-enter. 
+            # This can be ignored for the purpose of our study.
             
-            # Electron (Curie) - 6 successes and one failure.
+            # Electron (Curie) - 6 successes and one failure in 2020.
+            # https://discosweb.esoc.esa.int/launch-vehicles/91285
+            # https://web.archive.org/web/20220406013827/http://www.spacelaunchreport.com/electron.html
+            # https://www.rocketlabusa.com/assets/Uploads/Rocket-Lab-Launch-Payload-Users-Guide-6.5.pdf
             # https://www.rocketlabusa.com/assets/Uploads/Electron-Payload-User-Guide-7.0.pdf
+            # https://www.b14643.de/Spacerockets_3/Rocket-Lab/Description/Frame.htm
             # 3rd stage is 'kick-stage', and has a 'liquid bi-propellant' which wikipedia says is hypergolic.
-            # Both 1st and 2nd stages use Rutherford engines, kick-stage uses Curie engine.
-            # TODO: Find Electron propellant mass.
+            # Kick-stage is placed into low elliptical orbit, and burns some propellant to move into final orbit.
+            # Seems like it is specific to mission, so would have to take an educated guess to the average prop.
+            # Norbert Brügge gives slightly different prop masses, 10340, 2640, ?? to sum to 13000.
             if unique_vehicle_name_list[i] == "Electron (Curie)":
                 temp_dict[f"Stage1 Propellant Name"] = 'Kerosene/LOX'
                 temp_dict[f"Stage2 Propellant Name"] = 'Kerosene/LOX'
@@ -651,20 +668,26 @@ class import_launches_from_discos:
                 temp_dict[f"Stage1 Fuel Type"] = "Kerosene"
                 temp_dict[f"Stage2 Fuel Type"] = "Kerosene"
                 temp_dict[f"Stage3 Fuel Type"] = "Hypergolic"
-                temp_dict[f"Stage1 Propellant Mass"] = 0
-                temp_dict[f"Stage2 Propellant Mass"] = 2000
-                temp_dict[f"Stage3 Propellant Mass"] = 0
+                temp_dict[f"Stage1 Propellant Mass"] = 9250 #Using value from SLR/DISCOSweb(wet/dry) 
+                temp_dict[f"Stage2 Propellant Mass"] = 2050 #Using value from SLR/DISCOSweb(wet/dry) 
+                temp_dict[f"Stage3 Propellant Mass"] = 245  #Using value from DISCOSweb(wet/dry)
             
             # Kuaizhou-1 - 2 successes and 1 failure.
+            # https://web.archive.org/web/20220406013827/http://www.spacelaunchreport.com/kz.html
+            # https://chinaspacereport.wordpress.com/launch-vehicles/kuaizhou/
             # https://www.nasaspaceflight.com/2014/11/china-launches-kuaizhou-2-second-launch-24-hours/ 'liquid upper stage'
-            # Both successes were LEO launches of satellites. Both failures were SSO launches of satellites. 
-            # Failed launch failed after liftoff, so still include. However, only missing info is 4th stage propellant mass.
-            # Therefore ignore for now as we probably won't include 4th Stage emissions.             
+            # Ryan22 approximated the the final stage mass using the mean of all four-stage solid rockets.
+            # DISCOSweb gives stage4 wet and dry mass as 1200 and 200 kg, can use this to work out propellant mass of 1000 kg.
+            # Norbert Brügge gives stage4 propellant mass as ~1.1t, so DISCOSweb figure is reasonable.
+            if unique_vehicle_name_list[i] == "Kuaizhou-1":
+                temp_dict[f"Stage4 Propellant Mass"] = 1000 #DISCOSweb(wet/dry)
             
             # Kuaizhou-11 (Stage 1-3, no prop mass or type)
-            # Larger version of Kuaizhou-1.
-            # First stage appeared to work correctly https://spaceflightnow.com/2020/07/10/new-chinese-satellite-launcher-fails-on-first-flight/
-            # TODO: Find Kuaizhou-11 propellant mass.
+            # https://en.wikipedia.org/wiki/Kuaizhou
+            # https://web.archive.org/web/20220406013817/http://www.spacelaunchreport.com/kz11.html
+            # https://chinaspacereport.wordpress.com/launch-vehicles/kuaizhou/#kz11
+            # Might be a liquid fourth stage for propulsion control?
+            # TODO: Approximate Kuaizhou-11 propellant mass.
             if unique_vehicle_name_list[i] == "Kuaizhou-11":
                 temp_dict[f"Stage1 Propellant Name"] = 'Solid'
                 temp_dict[f"Stage2 Propellant Name"] = 'Solid'
@@ -677,23 +700,48 @@ class import_launches_from_discos:
                 temp_dict[f"Stage3 Propellant Mass"] = 0
             
             # LauncherOne (Stage 1-2, no prop mass)
-            # https://spaceflightnow.com/2020/05/25/virgin-orbits-air-launched-rocket-fails-on-first-test-flight/
-            # Failed after ignition of 1st stage, so probably should include something.
-            # TODO: Find LauncherOne propellant mass.
             if unique_vehicle_name_list[i] == "LauncherOne":
-                temp_dict[f"Stage1 Propellant Mass"] = 0
-                temp_dict[f"Stage2 Propellant Mass"] = 0
+                temp_dict[f"Stage1 Propellant Mass"] = 20000 #NB
+                temp_dict[f"Stage2 Propellant Mass"] = 2750  #NB/DISCOSweb(wet/dry)
                 
             # Long March (CZ) 6
+            # https://discosweb.esoc.esa.int/launch-vehicles/75
+            # https://chinaspacereport.wordpress.com/launch-vehicles/cz6/#1st-stage
+            # https://web.archive.org/web/20220411235209/http://www.spacelaunchreport.com/cz5.html
+            # https://space.skyrocket.de/doc_lau/cz-6.htm
+            # http://www.b14643.de/Spacerockets_1/China/CZ-6/Description/Frame.htm 
             # DISCOSweb lists third stage as 'PBV' with LH2/LOX propellant.
             # Wikipedia lists third stage as N2O4/UDMH propellant.
-            # Gunter's Space Page lists third stage as Kerosene/Hydrogen peroxide.
-            # https://space.skyrocket.de/doc_lau/cz-6.htm
-            # Ignore for now as we probably won't include 3rd Stage emissions.
-            
+            # Gunter's Space Page lists third stage as H2O2/Kerosene -  4 × YF-85.
+            # ChinaSpaceReport lists third stage as H2O2/Kerosene - 4 x YF-85.
+            # SLR lists third stage as H2O2/Kerosene - 4 x YF-85.
+            # SLR gives 76t, 15t for stage 1 and 2 prop mass.
+            # DISCOSweb gives 75.8t, 15.15t for stage 1 and 2 prop mass.
+            # NB gives propellant weights for gross (93.7t), stage 1 (77.02), and stage 2 (16.2).
+            # Subtracting stages 1+2 from gross gives 93.7-77.02-16.2 = 0.48t
+            if unique_vehicle_name_list[i] == "Long March (CZ) 6":
+                temp_dict[f"Stage3 Propellant Name"] = 'Kerosene/H2O2'
+                temp_dict[f"Stage3 Fuel Type"] = "Kerosene"
+                temp_dict[f"Stage3 Propellant Mass"] = 480 #NB
+        
             # Long March (CZ) 11.
             # Likely based on DF-31 missile, may have to use and total mass to guess propellant mass.
+            # Ryan22 approximated the propellant masses using the masses from the Vega rocket.
             # https://space.skyrocket.de/doc_lau/cz-11.htm 
+            # https://chinaspacereport.wordpress.com/launch-vehicles/cz11/
+            # https://discosweb.esoc.esa.int/launch-vehicles/5
+            # https://web.archive.org/web/20220411235209/http://www.spacelaunchreport.com/cz11.html
+            # Fourth Stage is Solid (Wiki, GSP, CSR) or Liquid (SLR)?
+            # Other four-stage rockets in 2020 include: 
+            # Kuaizhou-1 (Solid, Solid, Solid, Hypergolic, 16000, 8000, 3000, 1000)
+            # Minotaur-4 (Solid, Solid, Solid, Solid, 45370, 24490, 7070, 770)
+            # Proton-M   (Hypergolic, Hypergolic, Hypergolic, Hypergolic) 
+            # Vega       (Solid, Solid, Solid, Hypergolic)
+            # Most similar sizes are Kuaizhou-1 or Minotaur-4, but Minotaur-4 has a much more similar first stage propellant mass.
+            # So going to approximate using the Minotaur-4 rocket: 
+            #       2nd stage - 35000 / 45370 *  24490
+            #       3rd stage - 35000 / 45370 *  7070
+            #       4th stage - 35000 / 45370 *  770
             if unique_vehicle_name_list[i] == "Long March (CZ) 11":
                 temp_dict[f"Stage1 Propellant Name"] = 'Solid'
                 temp_dict[f"Stage2 Propellant Name"] = 'Solid'
@@ -703,72 +751,89 @@ class import_launches_from_discos:
                 temp_dict[f"Stage2 Fuel Type"] = "Solid"
                 temp_dict[f"Stage3 Fuel Type"] = "Solid"
                 temp_dict[f"Stage4 Fuel Type"] = 'Solid'
-                temp_dict[f"Stage1 Propellant Mass"] = 0
-                temp_dict[f"Stage2 Propellant Mass"] = 0
-                temp_dict[f"Stage3 Propellant Mass"] = 0
-                temp_dict[f"Stage4 Propellant Mass"] = 0
+                temp_dict[f"Stage1 Propellant Mass"] = 35000 #From SLR/NB
+                temp_dict[f"Stage2 Propellant Mass"] = 18892 #From approximation
+                temp_dict[f"Stage3 Propellant Mass"] = 5454  #From approximation
+                temp_dict[f"Stage4 Propellant Mass"] = 594   #From approximation
             
             # Minotaur-4
             # Based on LGM-118 Peacekeeper ICBM.
             # https://en.wikipedia.org/wiki/Minotaur_IV#STP-S26 
-            # TODO: Find Minotaur-4 propellant mass.
+            # https://web.archive.org/web/20220406013816/http://www.spacelaunchreport.com/mintaur4.html
+            # https://discosweb.esoc.esa.int/launch-vehicles/252
+            # https://space.skyrocket.de/doc_lau_det/minotaur-4.htm
+            # https://www.northropgrumman.com/wp-content/uploads/Minotaur-IV-VI-User-Guide.pdf
             if unique_vehicle_name_list[i] == "Minotaur-4":
-                temp_dict[f"Stage1 Propellant Name"] = 'Solid'
-                temp_dict[f"Stage2 Propellant Name"] = 'Solid'
-                temp_dict[f"Stage3 Propellant Name"] = 'Solid'
+                temp_dict[f"Stage1 Propellant Name"] = 'HTPB'
+                temp_dict[f"Stage2 Propellant Name"] = 'HTPB'
+                temp_dict[f"Stage3 Propellant Name"] = 'NEPE'
+                temp_dict[f"Stage4 Propellant Name"] = 'HTPB'
                 temp_dict[f"Stage1 Fuel Type"] = "Solid"
                 temp_dict[f"Stage2 Fuel Type"] = "Solid"
                 temp_dict[f"Stage3 Fuel Type"] = "Solid"
-                temp_dict[f"Stage1 Propellant Mass"] = 0
-                temp_dict[f"Stage2 Propellant Mass"] = 0
-                temp_dict[f"Stage3 Propellant Mass"] = 0
-                temp_dict[f"Stage4 Propellant Mass"] = 0           
+                temp_dict[f"Stage4 Fuel Type"] = "Solid"
+                temp_dict[f"Stage1 Propellant Mass"] = 45370 #SLR
+                temp_dict[f"Stage2 Propellant Mass"] = 24490 #SLR
+                temp_dict[f"Stage3 Propellant Mass"] = 7070  #SLR
+                temp_dict[f"Stage4 Propellant Mass"] = 770   #SLR, overwriting DISCOSweb with 782 to keep this vehicle consistent.           
                 
             # Qased
             # https://en.wikipedia.org/wiki/Qased_(rocket)
-            # First stage uses UDMH/N2O4, second is 'solid fueled'.
-            # First stage says oxidiser is AK27 on DISCOSweb.
-            # Third stage is mysterious.
-            # TODO: Find Qased propellant mass.
+            # http://www.b14643.de/Spacerockets_1/Rest_World/Qased-IRGC/Description/Frame.htm
+            # https://discosweb.esoc.esa.int/launch-vehicles/98094
+            # https://space.skyrocket.de/doc_lau/qased.htm
+            # https://web.archive.org/web/20220411235210/http://www.spacelaunchreport.com/safir.html
+            # First stage uses UDMH/N2O4, second/third are solid fueled.
+            # First stage says oxidiser is AK27 on DISCOSweb/SLR/NB, N2O4 on Wiki.
+            # Norbert Brügge gives     12330 + 1500 + 185 = 14020, but upper stage is wrong (wiki).
+            # DISCOSweb(wet/dry) gives 12330 + 1500 + 770 = 14600, but upper stage is wrong (wiki).
+            # SLR gives                14400 + ???? + 240 = 14640, but upper stage is wrong (wiki).
+            # Approximating third stage by averaging values from each source.
             if unique_vehicle_name_list[i] == "Qased":
-                temp_dict[f"Stage1 Propellant Name"] = 'UDMH (Unsymmetrical Dimethyl Hydrazine)/N2O4'
+                temp_dict[f"Stage1 Propellant Name"] = 'UDMH (Unsymmetrical Dimethyl Hydrazine)/AK-27I'
                 temp_dict[f"Stage2 Propellant Name"] = 'Solid'
                 temp_dict[f"Stage3 Propellant Name"] = 'Solid'
                 temp_dict[f"Stage1 Fuel Type"] = "Solid"
                 temp_dict[f"Stage2 Fuel Type"] = "Solid"
                 temp_dict[f"Stage3 Fuel Type"] = "Solid"
-                temp_dict[f"Stage1 Propellant Mass"] = 0
-                temp_dict[f"Stage2 Propellant Mass"] = 0
-                temp_dict[f"Stage3 Propellant Mass"] = 0
+                temp_dict[f"Stage1 Propellant Mass"] = 12330 #DISCOSweb(wet/dry)/NB
+                temp_dict[f"Stage2 Propellant Mass"] = 1500  #DISCOSweb(wet/dry)/NB 
+                temp_dict[f"Stage3 Propellant Mass"] = 398   #Average
             
             # Shavit (Stage 1-3, no prop mass or type)
-            # The rocket launched in 2020 seems to be the RSA-3 vehicle.
-            # This was the South African licensed version, so I will assume the details are same as for Shavit-2.
-            # TODO: Find Shavit propellant mass.
+            # https://discosweb.esoc.esa.int/launch-vehicles/76
+            # https://space.skyrocket.de/doc_lau/shavit.htm
+            # https://web.archive.org/web/20220406013832/http://www.spacelaunchreport.com/shavit.html
+            # https://www.rafael.co.il/wp-content/uploads/2021/07/RAFAEL-SPACE-PROPULSION-2021-CATALOGUE-2.pdf
+            # https://www.iai.co.il/sites/default/files/2020-07/Shavit%20Brochure.pdf
+            # The stages are listed on DISCOSweb as the RSA-3 vehicle from South Africa, however the launch in 2020 was for Shavit-2.
+            # Fourth stage isn't included on DISCOSweb or NB, but is included on SLR and mentioned on wiki.
+            # DISCOSweb(wet/dry) are similar to values for Shavit/Shavit-1. Will use SLR values as these are correct for Shavit-2.
             if unique_vehicle_name_list[i] == "Shavit":
                 temp_dict[f"Stage1 Propellant Name"] = 'HTPB'
                 temp_dict[f"Stage2 Propellant Name"] = 'HTPB'
                 temp_dict[f"Stage3 Propellant Name"] = 'HTPB'
+                temp_dict[f"Stage4 Propellant Name"] = 'MMH'
                 temp_dict[f"Stage1 Fuel Type"] = "Solid"
                 temp_dict[f"Stage2 Fuel Type"] = "Solid"
                 temp_dict[f"Stage3 Fuel Type"] = "Solid"
-                temp_dict[f"Stage1 Propellant Mass"] = 0
-                temp_dict[f"Stage2 Propellant Mass"] = 0
-                temp_dict[f"Stage3 Propellant Mass"] = 0
+                temp_dict[f"Stage4 Fuel Type"] = "Hypergolic"
+                temp_dict[f"Stage1 Propellant Mass"] = 12750 #SLR
+                temp_dict[f"Stage2 Propellant Mass"] = 12750 #SLR
+                temp_dict[f"Stage3 Propellant Mass"] = 1890  #SLR
+                temp_dict[f"Stage4 Propellant Mass"] = 166   #SLR
                 
             # Simorgh
-            # Wiki: Simorgh operated for 475 seconds. 
-            # Satellite reached speed of 6,500 m/s out of the 7,400 m/s required to orbit. 
-            # First stage operated fully correctly.
-            # Second stage failed in latests second of the flight.
+            # https://discosweb.esoc.esa.int/launch-vehicles/88324
+            # https://web.archive.org/web/20220406013833/http://www.spacelaunchreport.com/simorgh.html
+            # https://en.wikipedia.org/wiki/Saman-1_(rocket_stage)
             # Saman-1 is an upper-stage, used as a space tug to transfer satellites to higher orbits.
-            # TODO: Find Simorgh propellant mass.
             if unique_vehicle_name_list[i] == "Simorgh":
                 temp_dict[f"Stage3 Propellant Name"] = 'Solid'
                 temp_dict[f"Stage3 Fuel Type"] = "Solid"
-                temp_dict[f"Stage1 Propellant Mass"] = 0
-                temp_dict[f"Stage2 Propellant Mass"] = 0
-                temp_dict[f"Stage3 Propellant Mass"] = 185 # https://en.wikipedia.org/wiki/Saman-1_(rocket_stage)
+                temp_dict[f"Stage1 Propellant Mass"] = 63000 #SLR
+                temp_dict[f"Stage2 Propellant Mass"] = 8000  #SLR
+                temp_dict[f"Stage3 Propellant Mass"] = 185   #SLR 
             
             self.unique_rocket_list.append(temp_dict)    
         
@@ -857,16 +922,17 @@ if __name__ == "__main__":
     """         
     
     #Set up the year and filename.
-    year = 2020
+    year = 2021
     
     #Create an instance of the class.
     LaunchData = import_launches_from_discos(year)
     
     #Now we can run class functions. E.g. launch_list = LaunchData.get_yearly_launches()
-    #LaunchData.get_launch_info()
-    #LaunchData.launch_info_to_netcdf()
-    LaunchData.get_rocket_info()
-    LaunchData.rocket_info_to_netcdf()
+    LaunchData.get_launch_info()
+    #print(LaunchData.rocket_type)
+    LaunchData.launch_info_to_netcdf()
+    #LaunchData.get_rocket_info()
+    #LaunchData.rocket_info_to_netcdf()
     
     #OPTIONAL: Save results to file.
     #with open(filename, 'a') as f:

@@ -35,9 +35,6 @@ class RocketData:
         #Open Dataset.
         fh = Dataset(launchfile, mode='r')
         
-        #TODO: Why do we load in the launch emissions? Surely this is the output??
-        # Have removed for now.
-        
         #Extract variables.
         self.launch_lons = fh.variables['Longitude'][:]
         self.launch_lats = fh.variables['Latitude'][:]
@@ -146,7 +143,7 @@ class RocketData:
         
         # Scale factors obtained by regridding vertical profile from Ross and Sheaffer (2014) to the GEOS-Chem vertical grid.
         # https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2013EF000160
-        # TODO: Pretty sure this isn't used anymore
+        # This doesn't seem to be used anymore, so can ignore.
         scale_emis=[0.049891495, 0.111470331, 0.078233471, 0.063383364,
                     0.060797961, 0.059372945, 0.053323669, 0.046966629,
                     0.023518583, 0.025045331, 0.023940206, 0.02557847,
@@ -281,8 +278,9 @@ class OutputEmis:
         #self.lon2d = X
         #self.lat2d = Y
         
-        # Trim the rocket names in the propellant mass database:
-        # TODO: Why do we trim? I guess duplicates don't matter? Going to remove this and ask Eloise.
+        # Trim the rocket names in the propellant mass database. This was added in 2019 script.
+        # Eloise said this may have been to do with condensing the names from Chloe's excel file?
+        # Have commented out, and now the program will use the full rocket name to find the specific launch vehicle.
         #self.trim_name = [elem[0:5] for elem in rocket_data.rocket_name]
         
         #################################
@@ -647,9 +645,12 @@ class OutputEmis:
                 
                 # List of 2020 Failed Launches
                 
+                    # Both Kuaizhou-11 successes were LEO launches of satellites. Both failures were SSO launches of satellites. 
+                    # Failed launch failed after liftoff, so still include.
+                
                     # F01 - 09/02/2020 Simorgh (Iran) - 2 stage rocket
-                    # First stage operated correctly, but second stage failed to deploy payload succesfully.
-                    # Satellite reached 540 km apogee but only reached 6,400 m/s, so short of 7,400 m/s orbital velocity.
+                    # First stage operated for 475s correctly, but second stage failed to deploy payload succesfully.
+                    # Satellite reached 540 km apogee but only reached 6,400 m/s, just short of 7,400 m/s orbital velocity.
  
                     # F02 - 16/03/2020 Long March 7A (China) - 3 stages, 4 boosters?
                     # Limited information about what happened on this failed launch. 
@@ -660,8 +661,12 @@ class OutputEmis:
                     # Wiki/SLR: Third stage engine failed to ignite. Failed to put satellite in orbit.
                     
                     # F04 - 25/05/2020 LauncherOne ()
+                    # https://spaceflightnow.com/2020/05/25/virgin-orbits-air-launched-rocket-fails-on-first-test-flight/
+                    # Failed after ignition of 1st stage, so probably should include something.
+            
                     # F05 - 04/07/2020 Electron (Curie) ()
                     # F06 - 10/07/2020 Kuaizhou-11 ()
+                    # https://spaceflightnow.com/2020/07/10/new-chinese-satellite-launcher-fails-on-first-flight/
                     
                     # F07 - 12/09/2020 Astra Rocket 3 ()
                     # Engines shut down by safety officer after 30s.
@@ -697,9 +702,8 @@ class OutputEmis:
                 ############################################
 
                 # Setup rocket type variables (trim_name contains all rockets and is defined in __init__ function of this class):
-                # TODO: Isn't this section mixing up rockets with the same name? It only uses the final rocket that it finds. 
-                # Going to remove now and need to ask Eloise about this.
-                # Why do we even trim the rocket names at all??
+                # This was previously set up to trim the rocket name, however this was mixing up rockets with the same name.
+                # Has been removed, so now the script selects the specific launch vehicle. 
                 
                 #trim_type = rocket_type[w][0:5]
                 rocket_found = False
@@ -1191,8 +1195,8 @@ if __name__ == "__main__":
     # Read the rocket emissions from the database.
     ##########################################################
     
-    # TODO: Write databases for 2020. Probably CSV into NetCDF.
-
+    # TODO: Write re-entry and exhaust databases for 2020.
+    
     # Define rocket emissions data directories:
     year = 2020
     datadir = './Databases/'
@@ -1243,7 +1247,11 @@ if __name__ == "__main__":
     
     #Define paths dependent on resolution and levels. Errors should be handled above but included here just in case.
     #Can't use ~ for home directory, have to use '/home/ucfacb0/<path>'
-    # TODO: Need to run GEOS-Chem so we have StateMet files for all options.
+    # TODO: Run GEOS-Chem so we have StateMet files for:
+    #       - 4x5 72
+    #       - 4x5 47
+    #       - 2x2.5 47
+
     if grid_res == '4x5':
         if levels == 72:
             pass
