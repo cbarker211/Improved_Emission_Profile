@@ -13,6 +13,7 @@ import os
 from os import path
 from netCDF4 import Dataset
 import numpy as np
+import pandas as pd
 
 #sys.path.append('/home/ucfacb0/python/packages/GCPy')
 #from gcpy.grid import make_grid_LL
@@ -217,14 +218,32 @@ class RocketData:
         #       Hypergolic, Kerosene, Solid, Hydrogen
         # Each variable must be a numpy array in order to make the np.where routine work later.
         self.pei_fuel_type     = np.array(['Hypergolic', 'Kerosene', 'Solid', 'Hydrogen'])
-        self.h2_pei            = np.array([4, 12, 27, 35])
-        self.h2o_pei           = np.array([290, 263, 71, 965.])
-        self.cl_pei            = np.array([0, 0, 5, 0])
-        self.hcl_pei           = np.array([0, 0, 209, 0])
-        self.al2o3_pei         = np.array([0, 0, 358, 0])
-        self.bc_pei            = np.array([25, 25, 25, 0])
-        self.co_pei            = np.array([69, 372, 228, 0])
-        self.co2_pei           = np.array([289, 350, 18, 0])
+        
+        #Previous values.
+        #self.h2_pei            = np.array([4, 12, 27, 35])
+        #self.h2o_pei           = np.array([290, 263, 71, 965.])
+        #self.cl_pei            = np.array([0, 0, 5, 0])
+        #self.hcl_pei           = np.array([0, 0, 209, 0])
+        #self.al2o3_pei         = np.array([0, 0, 358, 0])
+        #self.bc_pei            = np.array([25, 25, 25, 0])
+        #self.co_pei            = np.array([69, 372, 228, 0])
+        #self.co2_pei           = np.array([289, 350, 18, 0])
+        
+        
+        #New values.
+        pei_file = pd.read_csv("/home/ucfacb0/Emission_Inventory/Improved_Emission_Profile/Databases/PEI_info_2020.csv")
+
+        self.h2o_pei   = pei_file["H2O"].to_numpy()
+        self.h2_pei    = pei_file["H2"].to_numpy()          
+        self.co_pei    = pei_file["CO"].to_numpy()
+        self.bc_pei    = pei_file["BC"].to_numpy()
+        self.nox_pei   = pei_file["NOx"].to_numpy()
+        self.al2o3_pei = pei_file["Al2O3"].to_numpy()
+        self.hcl_pei   = pei_file["HCl"].to_numpy()
+        self.cl_pei    = pei_file["Cl"].to_numpy()
+        
+        print("Successfully loaded PEI information.")
+        
         
 class OutputEmis:
     def __init__(self, rocketdata, res, ts, levs, blev, reentry_levs, gc_dir, months):
@@ -244,9 +263,11 @@ class OutputEmis:
         self.nhours = 24
         
         # Define Molecular Weights:
-        self.mw_h = 1.008
-        self.mw_h2 = self.mw_h * 2
+        self.mw_h   = 1.008
+        self.mw_h2  = self.mw_h * 2
         self.mw_h2o = self.mw_h2 + 16.00
+        self.mw_co  = 28.01
+        self.mw_co2 = self.mw_co + 16.00
 
         # Get Ross vertical profiles of propellant burned:
         #   self.ross_alt (centre alitiudes of each bin)
@@ -299,7 +320,7 @@ class OutputEmis:
             else:
                 sys.exit("Invalid month selected.")
                 
-            #ndays = 1
+            ndays = 1
                         
             #month_emis=0.0
 
@@ -517,34 +538,51 @@ class OutputEmis:
             self.bot_alt[l,:,:] = self.top_alt[l-1,:,:]
             self.top_alt[l,:,:] = np.add(self.top_alt[l-1,:,:], self.box_height[l-1,:,:])
             self.mid_alt[l,:,:] = 0.5*np.add(self.bot_alt[l,:,:], self.top_alt[l,:,:])
+        
+        #print(self.mid_alt[:,0,0]/1000)
 
-    def calculate_bc_ei(self, height):
+    def calculate_bc_ei(self, height, methane):
         """Calculate black carbon vertical emission indices on the GEOS-Chem
-           grid in g BC per kg propellant burned"""
+           grid in g BC per kg propellant burned.
+           From James2021. """
         self.ei_bc = np.zeros_like(height)
         
+        #TODO: Should this be loaded in from file rather than defined here?
+        if methane == True:
+            EI_BC = 5
+        else:
+            EI_BC = 25
+            
         for i, h in enumerate(height):
-            self.ei_bc[i] = 25 * (max(0.04, (min(1, (0.04*(np.exp(0.12*(h-15))))))))
-
-        ## TODO: NEED TO CHANGE 25 TO 5 IN ABOVE EQUATION WHEN ALSO INCLUDE ROCKETS IN
-        ##         FUTURE INVENTORY THAT USE LIQUID METHANE FUEL
+            self.ei_bc[i] = EI_BC * (max(0.04, (min(1, (0.04*(np.exp(0.12*(h-15))))))))
 
     def calculate_secondary_nox_ei(self, height):
         """Calculate secondary NOx emission index from high-temperature rocket plume 
-           in g NO per kg propellant burned. Applies to all rockets"""
+           in g NO per kg propellant burned. Applies to all rockets.
+           Taken from James2021"""
         self.ei_sec_nox = np.zeros_like(height)
 
         for i, h in enumerate(height):
-            self.ei_sec_nox[i] = 33 * np.exp((-0.26)*h)
+            self.ei_sec_nox[i] = 33 * np.exp((-0.26)*h)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
 
         ## TODO: STILL NEED TO CALCULATE PRIMARY NOx FOR ROCKETS WITH N-BASED FUEL
 
     def calculate_co_ei(self, height, co_pei, co2_pei):
-        """Calculate CO emission index in g CO per kg propellant burned."""
+        """Calculate CO emission index in g CO per kg propellant burned.
+        Uses equation from James 2021."""
         self.ei_co = np.zeros_like(height)
 
         for i, h in enumerate(height):
             self.ei_co[i] = min( co_pei, 0.0025*np.exp(0.067*h)*(co2_pei + co_pei))
+            
+    def calculate_co2_ei(self, height, co_pei, co2_pei):
+        """Calculate CO2 emission index in g CO2 per kg propellant burned.
+        Uses equation from James 2021.
+        Valid for all rockets with carbon-containing propellants."""
+        self.ei_co2 = np.zeros_like(height)
+
+        for i, h in enumerate(height):
+            self.ei_co2[i] = co2_pei + (self.mw_co2 / self.mw_co) * (co_pei - co2_pei)
 
     def get_ross_profiles(self):
         """Get Ross profiles provided in 5-km increments in Figure 1 of
@@ -759,12 +797,15 @@ class OutputEmis:
                 # (1) BC and (2) CO
                 ###########################
                 
-                # TODO: Update these to reflect changes in fuel types (e.g. liq. methane)
+                # TODO: Add section for CO2, using equations in James2021.                    
                 
                 # Check if booster produces BC or CO:
-                if rocket_data.booster_prop_type[valid_index] in ['Solid','Hypergolic','Kerosene']:
-
-                    self.calculate_bc_ei(self.mid_alt[::-1,q,p]*1e-3)
+                if rocket_data.booster_prop_type[valid_index] in ['Solid','Hypergolic','Kerosene','Methane']:
+                    
+                    if rocket_data.booster_prop_type[valid_index] == 'Methane':
+                        self.calculate_bc_ei(self.mid_alt[::-1,q,p]*1e-3, True)
+                    else:
+                        self.calculate_bc_ei(self.mid_alt[::-1,q,p]*1e-3, False)
                     t_bc_emis = self.ei_bc * rocket_data.booster_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass
                     self.bc_total += np.sum(t_bc_emis)
                     self.rocket_bc[int(hour[w]),::-1,q,p] += t_bc_emis * 1e-3/kg_to_kgm2s
@@ -775,9 +816,12 @@ class OutputEmis:
                     self.rocket_co[int(hour[w]),::-1,q,p] += t_co_emis * 1e-3 / kg_to_kgm2s
 
                 # Check if stage 1 produces BC or CO:
-                if rocket_data.stage1_prop_type[valid_index] in ['Solid','Hypergolic','Kerosene']:
+                if rocket_data.stage1_prop_type[valid_index] in ['Solid','Hypergolic','Kerosene','Methane']:
                     
-                    self.calculate_bc_ei(self.mid_alt[::-1,q,p]*1e-3)
+                    if rocket_data.booster_prop_type[valid_index] == 'Methane':
+                        self.calculate_bc_ei(self.mid_alt[::-1,q,p]*1e-3, True)
+                    else:
+                        self.calculate_bc_ei(self.mid_alt[::-1,q,p]*1e-3, False)
                     t_bc_emis = self.ei_bc * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass
                     self.bc_total += np.sum(t_bc_emis)
                     self.rocket_bc[int(hour[w]),::-1,q,p] += t_bc_emis*1e-3 / kg_to_kgm2s
@@ -805,9 +849,13 @@ class OutputEmis:
                 ###########################
 
                 # Use formula:
-                # E_f(H2O) = E_p(H2O) + E_P(HO)*MW_H2O/MW_H + E_p(H2)*MW_H2O/MW_H2 + E_p(OH)
-                # No H primary emissions, so ignore that term. No OH for almost all rockets, so ignore that term too.
-
+                # E_f(H2O) = E_p(H2O) + E_P(H)*MW_H2O/MW_H + E_p(H2)*MW_H2O/MW_H2 + E_p(OH) - James 2021
+                # No H primary emissions, so ignore that term.
+                # No OH for almost all rockets, so ignore that term too. Present for Starship (Methane) and Minotaur I (APCP PBAN).
+                # TODO: If adding Starship or other methane rockets, consider OH term.
+                
+                # E_f(H2O) = E_p(H2O) + E_p(H2) * MW_H2O / MW_H2
+                
                 # Check whether there is a booster:
                 #print(rocket_data.booster_prop_type[valid_index])
                 if ( rocket_data.booster_prop_type[valid_index] != '' ):
@@ -1213,6 +1261,9 @@ if __name__ == "__main__":
     ##########################################################
     
     ''' Define booster and re-entry levels. '''
+    # TODO: Booster level should be set for each launch individually, and should be imported from the pull_from_DISCOSweb.py script.
+    # Ideally should have a cuton/cutoff altitude for each stage to assess if within GEOS-Chem range.
+    # Should make sure to properly reference where the altitudes were obtained (usually youtube/livestream, or from user manual).
     
     # N.B. Boosters only extend to ~45 km (layer 44 of the 47-layer model, layer 57 of the 72-layer model)
     # N.B. Re-entry emissions are placed in the GC layer at ~68 km (reentry burnup location).
@@ -1276,7 +1327,7 @@ if __name__ == "__main__":
     months = np.arange(start_month-1,final_month)    
         
     # Go through process of gridding and saving rocket emissions:
-    emis_data = OutputEmis(rocket_data, grid_res, timestep, levels, booster_level, reentry_levs, gcdir, months)
+    #emis_data = OutputEmis(rocket_data, grid_res, timestep, levels, booster_level, reentry_levs, gcdir, months)
     
     ##########################################################
     # Print total emissions of each species.

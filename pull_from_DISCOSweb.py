@@ -496,6 +496,9 @@ class import_launches_from_discos:
                 if doc['data'] != None:
                     propellant_info = doc['data']["attributes"]
                     
+                    #TODO: Check that there aren't any hybrid rockets.
+                    if (propellant_info["fuel"] != None) and (propellant_info["oxidiser"] != None) and (propellant_info["solidPropellant"] != None):
+                        print("HYBRID ROCKET DETECTED")
                     #First get the name.
                     if (propellant_info["fuel"] != None) and (propellant_info["oxidiser"] != None):
                         temp_dict[f"{stage_number} Propellant Name"] = propellant_info["fuel"] + "/" + propellant_info["oxidiser"]
@@ -511,6 +514,7 @@ class import_launches_from_discos:
                         temp_dict[f"Stage4 Propellant Name"] = "UDMH (Unsymmetrical Dimethyl Hydrazine)/N2O4"
                     
                     #Now assign to a fuel type.
+                    # TODO: Can the fuel types be more finely categorized?
                     if temp_dict[f"{stage_number} Propellant Name"] in ['HTPB','Solid','HTPB-1912','TP-H8299']:
                         temp_dict[f"{stage_number} Fuel Type"] = "Solid"  
                     elif temp_dict[f"{stage_number} Propellant Name"] in ['RP1 (Rocket Propellant 1)/LOX','Kerosene/LOX']:
@@ -550,17 +554,6 @@ class import_launches_from_discos:
         ds.close()
             
         #Loop over all rockets, and pull the information for each.
-        # There is currently missing propellant information for the following rockets (8/44):
-        #       Astra Rocket 3 (Stage 1-2, no prop mass)
-        #       Ceres-1 (Stage 1-4, no prop mass or type)
-        #       Kuaizhou-11 (Stage 1-3, no prop mass or type)
-        #       LauncherOne (Stage 1-2, no prop mass)
-        #       Long March (CZ) 11 (Stage 1-4, no prop mass or type)
-        #       Long March (CZ) 6 (Stage 3 PBV?, no prop mass)
-        #       Qased (Stage 1-3, no prop mass or type)
-        #       Shavit (Stage 1-3, no prop mass or type)
-        
-        # The todo-list for handling incomplete information is later in this function.
         
         #unique_vehicle_name_list = unique_vehicle_name_list[29:31]
         for i in range(0,len(unique_vehicle_name_list)):
@@ -582,6 +575,7 @@ class import_launches_from_discos:
                     # Usually 2-5 stages, so won't need to account for the maximum of 30 items in a list.
                     run_func = True
                     if run_func == True:
+                        #Set up the arrays
                         temp_dict[f"Booster Propellant Mass"] = 0
                         temp_dict[f"Booster Fuel Type"] = ""
                         temp_dict[f"Booster Propellant Name"] = ""
@@ -623,7 +617,7 @@ class import_launches_from_discos:
             # CZ-2D         (Hypergolic, Hypergolic, 183170, 35550)
             # However, these are all much bigger rockets designed to launch much larger payloads.
             # Need to find another small rocket (~10m) with a small payload (25kg).
-            # Electron (Curie) is similar if we ignore the kick stage, 18m, 300 kg, so using this.
+            # Electron (Curie) is similar if we ignore the kick stage (18m, 300 kg) so using this.
             if unique_vehicle_name_list[i] == "Astra Rocket 3":
                 temp_dict[f"Stage1 Propellant Mass"] = 9250 #Using value for Electron from SLR/DISCOSweb(wet/dry) 
                 temp_dict[f"Stage2 Propellant Mass"] = 2050 #Using value for Electron from SLR/DISCOSweb(wet/dry) 
@@ -635,16 +629,17 @@ class import_launches_from_discos:
             # https://en.wikipedia.org/wiki/Galactic_Energy
             # https://www.galactic-energy.cn/index.php/En/List/cid/14
             # Website lists fourth stage as 'advanced liquid upper stage', will assume hypergolic
-            # TODO: Approximate Ceres-1 propellant mass.
+            # Comparing to all other four-stage rockets, very similar to Kuaizhou-1 (same fuel types, similar size and max payload mass)
+            # So going to use the propellant masses for Kuaizhou-1.
             if unique_vehicle_name_list[i] == "Ceres-1":
                 temp_dict[f"Stage1 Fuel Type"] = "Solid"
                 temp_dict[f"Stage2 Fuel Type"] = "Solid"
                 temp_dict[f"Stage3 Fuel Type"] = "Solid"
                 temp_dict[f"Stage4 Fuel Type"] = "Hypergolic"
-                temp_dict[f"Stage1 Propellant Mass"] = 0
-                temp_dict[f"Stage2 Propellant Mass"] = 0
-                temp_dict[f"Stage3 Propellant Mass"] = 0
-                temp_dict[f"Stage4 Propellant Mass"] = 0
+                temp_dict[f"Stage1 Propellant Mass"] = 16000 #Kuaizhou-1 from DISCOSweb
+                temp_dict[f"Stage2 Propellant Mass"] = 8000  #Kuaizhou-1 from DISCOSweb
+                temp_dict[f"Stage3 Propellant Mass"] = 3000  #Kuaizhou-1 from DISCOSweb
+                temp_dict[f"Stage4 Propellant Mass"] = 1000  #Kuaizhou-1 from DISCOSweb
             
             # "Chang'e 5 SSQ (Ascent Stage)" refers to the Chinese lunar exploration mission.
             # Specifically, the 'ascender' launching from the moon to dock with the 'orbiter'.
@@ -686,8 +681,13 @@ class import_launches_from_discos:
             # https://en.wikipedia.org/wiki/Kuaizhou
             # https://web.archive.org/web/20220406013817/http://www.spacelaunchreport.com/kz11.html
             # https://chinaspacereport.wordpress.com/launch-vehicles/kuaizhou/#kz11
+            # http://www.b14643.de/Spacerockets_4/Expace_KZ-11/Description/Frame.htm
+            # https://discosweb.esoc.esa.int/launch-vehicles/98654
+            # https://space.skyrocket.de/doc_lau/kuaizhou-11.htm
             # Might be a liquid fourth stage for propulsion control?
-            # TODO: Approximate Kuaizhou-11 propellant mass.
+            # For now, compare to other three-stage rockets.
+            # Similar size to CZ-6 and Simorgh (even though fuel type is different), much more similar LEO payload to CZ-6.
+            # So will approximate using CZ-6.
             if unique_vehicle_name_list[i] == "Kuaizhou-11":
                 temp_dict[f"Stage1 Propellant Name"] = 'Solid'
                 temp_dict[f"Stage2 Propellant Name"] = 'Solid'
@@ -695,9 +695,9 @@ class import_launches_from_discos:
                 temp_dict[f"Stage1 Fuel Type"] = "Solid"
                 temp_dict[f"Stage2 Fuel Type"] = "Solid"
                 temp_dict[f"Stage3 Fuel Type"] = "Solid"
-                temp_dict[f"Stage1 Propellant Mass"] = 0
-                temp_dict[f"Stage2 Propellant Mass"] = 0
-                temp_dict[f"Stage3 Propellant Mass"] = 0
+                temp_dict[f"Stage1 Propellant Mass"] = 75800 #Using CZ-6 value from DISCOSweb
+                temp_dict[f"Stage2 Propellant Mass"] = 15150 #Using CZ-6 value from DISCOSweb
+                temp_dict[f"Stage3 Propellant Mass"] = 480   #Using CZ-6 value from NB
             
             # LauncherOne (Stage 1-2, no prop mass)
             if unique_vehicle_name_list[i] == "LauncherOne":
@@ -831,9 +831,9 @@ class import_launches_from_discos:
             if unique_vehicle_name_list[i] == "Simorgh":
                 temp_dict[f"Stage3 Propellant Name"] = 'Solid'
                 temp_dict[f"Stage3 Fuel Type"] = "Solid"
-                temp_dict[f"Stage1 Propellant Mass"] = 63000 #SLR
-                temp_dict[f"Stage2 Propellant Mass"] = 8000  #SLR
-                temp_dict[f"Stage3 Propellant Mass"] = 185   #SLR 
+                temp_dict[f"Stage1 Propellant Mass"] = 63000 #SLR (v. similar to DISCOSwb(wet/dry))
+                temp_dict[f"Stage2 Propellant Mass"] = 8000  #SLR (v. similar to DISCOSwb(wet/dry))
+                temp_dict[f"Stage3 Propellant Mass"] = 185   #SLR (v. similar to DISCOSwb(wet/dry)) 
             
             self.unique_rocket_list.append(temp_dict)    
         
@@ -922,16 +922,16 @@ if __name__ == "__main__":
     """         
     
     #Set up the year and filename.
-    year = 2021
+    year = 2020
     
     #Create an instance of the class.
     LaunchData = import_launches_from_discos(year)
     
     #Now we can run class functions. E.g. launch_list = LaunchData.get_yearly_launches()
-    LaunchData.get_launch_info()
+    #LaunchData.get_launch_info()
     #print(LaunchData.rocket_type)
-    LaunchData.launch_info_to_netcdf()
-    #LaunchData.get_rocket_info()
+    #LaunchData.launch_info_to_netcdf()
+    LaunchData.get_rocket_info()
     #LaunchData.rocket_info_to_netcdf()
     
     #OPTIONAL: Save results to file.
