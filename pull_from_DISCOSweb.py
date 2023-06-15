@@ -496,7 +496,6 @@ class import_launches_from_discos:
                 if doc['data'] != None:
                     propellant_info = doc['data']["attributes"]
                     
-                    #TODO: Check that there aren't any hybrid rockets.
                     if (propellant_info["fuel"] != None) and (propellant_info["oxidiser"] != None) and (propellant_info["solidPropellant"] != None):
                         print("HYBRID ROCKET DETECTED")
                     #First get the name.
@@ -704,6 +703,12 @@ class import_launches_from_discos:
                 temp_dict[f"Stage1 Propellant Mass"] = 20000 #NB
                 temp_dict[f"Stage2 Propellant Mass"] = 2750  #NB/DISCOSweb(wet/dry)
                 
+            # Long March (CZ) 5B 
+            # https://discosweb.esoc.esa.int/launch-vehicles/98090
+            # https://en.wikipedia.org/wiki/Long_March_5
+            if unique_vehicle_name_list[i] == "Long March (CZ) 5B":
+                temp_dict[f"Stage1 Propellant Mass"] = 158500  #From 5 variant (same stage)
+                
             # Long March (CZ) 6
             # https://discosweb.esoc.esa.int/launch-vehicles/75
             # https://chinaspacereport.wordpress.com/launch-vehicles/cz6/#1st-stage
@@ -723,9 +728,15 @@ class import_launches_from_discos:
                 temp_dict[f"Stage3 Propellant Name"] = 'Kerosene/H2O2'
                 temp_dict[f"Stage3 Fuel Type"] = "Kerosene"
                 temp_dict[f"Stage3 Propellant Mass"] = 480 #NB
+                
+            # Long March (CZ) 7A
+            # https://discosweb.esoc.esa.int/launch-vehicles/98084
+            # https://web.archive.org/web/20220411235209/http://www.spacelaunchreport.com/cz5.html
+            # https://en.wikipedia.org/wiki/Long_March_7#CZ-7A_variant
+            if unique_vehicle_name_list[i] == "Long March (CZ) 7A":
+                temp_dict[f"Stage2 Propellant Mass"] = 15166 + 3033  #Same stage as 3rd stage in LM 3A/3B/3C/7A, using data from DISCOSweb. 
         
             # Long March (CZ) 11.
-            # Likely based on DF-31 missile, may have to use and total mass to guess propellant mass.
             # Ryan22 approximated the propellant masses using the masses from the Vega rocket.
             # https://space.skyrocket.de/doc_lau/cz-11.htm 
             # https://chinaspacereport.wordpress.com/launch-vehicles/cz11/
