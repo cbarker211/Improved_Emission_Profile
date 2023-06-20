@@ -595,13 +595,27 @@ class import_launches_from_discos:
                     self.response_error_handler(response,"")
                 break      
             
-            ####################################
-            # Handle any incomplete information.
-            ####################################
+            ##############################################
+            # Handle any incomplete/incorrect information.
+            ##############################################
             
-            # Antares 230, second stage solid propellant has a type in DISCOSweb.
+            # TODO: Still need to check Falcon 9 v1.2 emissions.
+            
+            if unique_vehicle_name_list[i] == "Atlas V 411":
+                temp_dict[f"Booster Propellant Mass"] = 42630 * 1 # SLR    
+            elif unique_vehicle_name_list[i] == "Atlas V 531":
+                temp_dict[f"Booster Propellant Mass"] = 44200 * 3 # https://web.archive.org/web/20180918143456/http://www.northropgrumman.com/Capabilities/GEM/Documents/GEM_63_GEM_63XL.pdf    
+            elif unique_vehicle_name_list[i] == "Atlas V 541":
+                temp_dict[f"Booster Propellant Mass"] = 42630 * 4 # SLR       
+            elif unique_vehicle_name_list[i] == "Atlas V 551":
+                temp_dict[f"Booster Propellant Mass"] = 42630 * 5 # SLR    
+                
+            # Antares 230, second stage solid propellant has a typo in DISCOSweb.
+            # Looking at user manuals, this value is also wrong, it seems to be for the Castor 30B second stage.
+            # This vehicle uses the Castor 30XL, which has double the propellant mass.
+            # https://www.northropgrumman.com/wp-content/uploads/CASTOR-Motor-Series.pdf Had to convert LBM to kg.
             if unique_vehicle_name_list[i] == "Antares 230":
-                temp_dict[f"Stage2 Propellant Mass"] = 12837 #Still DISCOSweb, fixing typo.
+                temp_dict[f"Stage2 Propellant Mass"] = 24924 # CASTOR documentation
             
             # Astra Rocket (USA) - 3 failed launches in 2020.
             # 2-stage rocket (Kerosene/LOX both stages)
@@ -618,8 +632,8 @@ class import_launches_from_discos:
             # Need to find another small rocket (~10m) with a small payload (25kg).
             # Electron (Curie) is similar if we ignore the kick stage (18m, 300 kg) so using this.
             if unique_vehicle_name_list[i] == "Astra Rocket 3":
-                temp_dict[f"Stage1 Propellant Mass"] = 9250 #Using value for Electron from SLR/DISCOSweb(wet/dry) 
-                temp_dict[f"Stage2 Propellant Mass"] = 2050 #Using value for Electron from SLR/DISCOSweb(wet/dry) 
+                temp_dict[f"Stage1 Propellant Mass"] = 9250 # Using value for Electron from SLR/DISCOSweb(wet/dry) 
+                temp_dict[f"Stage2 Propellant Mass"] = 2050 # Using value for Electron from SLR/DISCOSweb(wet/dry) 
                 
             # Will assume hypergolic, as wikipedia and following link suggest hydrazine.
             # https://www.nasaspaceflight.com/2021/12/chinas-galactic-energy-launches-second-ceres-1-rocket-successfully/
@@ -635,10 +649,10 @@ class import_launches_from_discos:
                 temp_dict[f"Stage2 Fuel Type"] = "Solid"
                 temp_dict[f"Stage3 Fuel Type"] = "Solid"
                 temp_dict[f"Stage4 Fuel Type"] = "Hypergolic"
-                temp_dict[f"Stage1 Propellant Mass"] = 16000 #Kuaizhou-1 from DISCOSweb
-                temp_dict[f"Stage2 Propellant Mass"] = 8000  #Kuaizhou-1 from DISCOSweb
-                temp_dict[f"Stage3 Propellant Mass"] = 3000  #Kuaizhou-1 from DISCOSweb
-                temp_dict[f"Stage4 Propellant Mass"] = 1000  #Kuaizhou-1 from DISCOSweb
+                temp_dict[f"Stage1 Propellant Mass"] = 16000 # Kuaizhou-1 from DISCOSweb
+                temp_dict[f"Stage2 Propellant Mass"] = 8000  # Kuaizhou-1 from DISCOSweb
+                temp_dict[f"Stage3 Propellant Mass"] = 3000  # Kuaizhou-1 from DISCOSweb
+                temp_dict[f"Stage4 Propellant Mass"] = 1000  # Kuaizhou-1 from DISCOSweb
             
             # "Chang'e 5 SSQ (Ascent Stage)" refers to the Chinese lunar exploration mission.
             # Specifically, the 'ascender' launching from the moon to dock with the 'orbiter'.
@@ -662,9 +676,15 @@ class import_launches_from_discos:
                 temp_dict[f"Stage1 Fuel Type"] = "Kerosene"
                 temp_dict[f"Stage2 Fuel Type"] = "Kerosene"
                 temp_dict[f"Stage3 Fuel Type"] = "Hypergolic"
-                temp_dict[f"Stage1 Propellant Mass"] = 9250 #Using value from SLR/DISCOSweb(wet/dry) 
-                temp_dict[f"Stage2 Propellant Mass"] = 2050 #Using value from SLR/DISCOSweb(wet/dry) 
-                temp_dict[f"Stage3 Propellant Mass"] = 245  #Using value from DISCOSweb(wet/dry)
+                temp_dict[f"Stage1 Propellant Mass"] = 9250 # Using value from SLR/DISCOSweb(wet/dry) 
+                temp_dict[f"Stage2 Propellant Mass"] = 2050 # Using value from SLR/DISCOSweb(wet/dry) 
+                temp_dict[f"Stage3 Propellant Mass"] = 245  # Using value from DISCOSweb(wet/dry)
+                
+            if unique_vehicle_name_list[i] == "H-IIA 202":
+                temp_dict[f"Booster Propellant Mass"] = 130000 # https://global.jaxa.jp/projects/rockets/h2a/
+                
+            if unique_vehicle_name_list[i] == "H-IIB":
+                temp_dict[f"Booster Propellant Mass"] = 263800 # https://global.jaxa.jp/projects/rockets/h2b/
             
             # Kuaizhou-1 - 2 successes and 1 failure.
             # https://web.archive.org/web/20220406013827/http://www.spacelaunchreport.com/kz.html
@@ -674,7 +694,7 @@ class import_launches_from_discos:
             # DISCOSweb gives stage4 wet and dry mass as 1200 and 200 kg, can use this to work out propellant mass of 1000 kg.
             # Norbert Brügge gives stage4 propellant mass as ~1.1t, so DISCOSweb figure is reasonable.
             if unique_vehicle_name_list[i] == "Kuaizhou-1":
-                temp_dict[f"Stage4 Propellant Mass"] = 1000 #DISCOSweb(wet/dry)
+                temp_dict[f"Stage4 Propellant Mass"] = 1000 # DISCOSweb(wet/dry)
             
             # Kuaizhou-11 (Stage 1-3, no prop mass or type)
             # https://en.wikipedia.org/wiki/Kuaizhou
@@ -694,20 +714,57 @@ class import_launches_from_discos:
                 temp_dict[f"Stage1 Fuel Type"] = "Solid"
                 temp_dict[f"Stage2 Fuel Type"] = "Solid"
                 temp_dict[f"Stage3 Fuel Type"] = "Solid"
-                temp_dict[f"Stage1 Propellant Mass"] = 75800 #Using CZ-6 value from DISCOSweb
-                temp_dict[f"Stage2 Propellant Mass"] = 15150 #Using CZ-6 value from DISCOSweb
-                temp_dict[f"Stage3 Propellant Mass"] = 480   #Using CZ-6 value from NB
+                temp_dict[f"Stage1 Propellant Mass"] = 75800 # Using CZ-6 value from DISCOSweb
+                temp_dict[f"Stage2 Propellant Mass"] = 15150 # Using CZ-6 value from DISCOSweb
+                temp_dict[f"Stage3 Propellant Mass"] = 480   # Using CZ-6 value from NB
             
             # LauncherOne (Stage 1-2, no prop mass)
             if unique_vehicle_name_list[i] == "LauncherOne":
-                temp_dict[f"Stage1 Propellant Mass"] = 20000 #NB
-                temp_dict[f"Stage2 Propellant Mass"] = 2750  #NB/DISCOSweb(wet/dry)
+                temp_dict[f"Stage1 Propellant Mass"] = 20000 # NB
+                temp_dict[f"Stage2 Propellant Mass"] = 2750  # NB/DISCOSweb(wet/dry)
+                
+            # Long March (CZ) 2C 
+            # https://discosweb.esoc.esa.int/launch-vehicles/157
+            # https://en.wikipedia.org/wiki/Long_March_2C
+            # http://cgwic.com/Launchservice/LM2C.html
+            if unique_vehicle_name_list[i] == "Long March (CZ) 2C":
+                temp_dict[f"Stage1 Propellant Mass"] = 162706  # http://cgwic.com/Launchservice/LM2C.html
+                temp_dict[f"Stage2 Propellant Mass"] = 54667   # http://cgwic.com/Launchservice/LM2C.html
+                
+            # Long March (CZ) 2D
+            # https://discosweb.esoc.esa.int/launch-vehicles/158
+            # https://en.wikipedia.org/wiki/Long_March_2D
+            # http://cgwic.com/Launchservice/LM2D.html
+            if unique_vehicle_name_list[i] == "Long March (CZ) 2D":
+                temp_dict[f"Stage1 Propellant Mass"] = 182000  # http://cgwic.com/Launchservice/LM2D.html
+                temp_dict[f"Stage2 Propellant Mass"] = 52700   # http://cgwic.com/Launchservice/LM2D.html
+            
+            # Long March (CZ) 2F
+            if unique_vehicle_name_list[i] == "Long March (CZ) 2F":
+                temp_dict[f"Booster Propellant Mass"] = 37800 * 4 # SLR
+                
+            # Long March (CZ) 3B 
+            # https://discosweb.esoc.esa.int/launch-vehicles/64
+            # https://en.wikipedia.org/wiki/Long_March_3B
+            # http://cgwic.com/Launchservice/LM3B.html
+            if unique_vehicle_name_list[i] == "Long March (CZ) 3B":
+                temp_dict[f"Booster Propellant Mass"] = 37746 * 4 # http://cgwic.com/Launchservice/LM3B.html
+                temp_dict[f"Stage1 Propellant Mass"]  = 171775    # http://cgwic.com/Launchservice/LM3B.html
+                temp_dict[f"Stage2 Propellant Mass"]  = 49605     # http://cgwic.com/Launchservice/LM3B.html
+                temp_dict[f"Stage3 Propellant Mass"]  = 18193     # http://cgwic.com/Launchservice/LM3B.html
+                
+            # Long March (CZ) 5
+            # https://discosweb.esoc.esa.int/launch-vehicles/88066
+            # https://en.wikipedia.org/wiki/Long_March_5
+            if unique_vehicle_name_list[i] == "Long March (CZ) 5":
+                temp_dict[f"Booster Propellant Mass"] = 152000 * 4 # From SLR (previous value was for when the same stage was used in LM7/8 as the 1st stage)
                 
             # Long March (CZ) 5B 
             # https://discosweb.esoc.esa.int/launch-vehicles/98090
             # https://en.wikipedia.org/wiki/Long_March_5
             if unique_vehicle_name_list[i] == "Long March (CZ) 5B":
-                temp_dict[f"Stage1 Propellant Mass"] = 158500  #From 5 variant (same stage)
+                temp_dict[f"Booster Propellant Mass"] = 152000 * 4 # From SLR (previous value was for when the same stage was used in LM7/8 as the 1st stage)
+                temp_dict[f"Stage1 Propellant Mass"]  = 158500     # From 5 variant (same stage)
                 
             # Long March (CZ) 6
             # https://discosweb.esoc.esa.int/launch-vehicles/75
@@ -727,14 +784,25 @@ class import_launches_from_discos:
             if unique_vehicle_name_list[i] == "Long March (CZ) 6":
                 temp_dict[f"Stage3 Propellant Name"] = 'Kerosene/H2O2'
                 temp_dict[f"Stage3 Fuel Type"] = "Kerosene"
-                temp_dict[f"Stage3 Propellant Mass"] = 480 #NB
+                temp_dict[f"Stage3 Propellant Mass"] = 480 # NB
                 
             # Long March (CZ) 7A
             # https://discosweb.esoc.esa.int/launch-vehicles/98084
             # https://web.archive.org/web/20220411235209/http://www.spacelaunchreport.com/cz5.html
             # https://en.wikipedia.org/wiki/Long_March_7#CZ-7A_variant
+            # The only launch in 2020 for this rocket only includes emissons for the booster and 1st stage. So will ignore upper stages.
             if unique_vehicle_name_list[i] == "Long March (CZ) 7A":
-                temp_dict[f"Stage2 Propellant Mass"] = 15166 + 3033  #Same stage as 3rd stage in LM 3A/3B/3C/7A, using data from DISCOSweb. 
+                temp_dict[f"Booster Propellant Mass"] = 75500 * 4  # SLR
+                temp_dict[f"Stage2 Propellant Mass"]  = 65000      # SLR
+                temp_dict[f"Stage2 Propellant Mass"]  = 0          # Failed launch
+                temp_dict[f"Stage3 Propellant Mass"]  = 0          # Failed launch                
+                
+            # Long March (CZ) 8
+            # https://discosweb.esoc.esa.int/launch-vehicles/102354
+            # https://web.archive.org/web/20220411235209/http://www.spacelaunchreport.com/cz5.html
+            # https://en.wikipedia.org/wiki/Long_March_8
+            if unique_vehicle_name_list[i] == "Long March (CZ) 8":
+                temp_dict[f"Booster Propellant Mass"] = 75500 * 4 # SLR
         
             # Long March (CZ) 11.
             # Ryan22 approximated the propellant masses using the masses from the Vega rocket.
@@ -762,10 +830,10 @@ class import_launches_from_discos:
                 temp_dict[f"Stage2 Fuel Type"] = "Solid"
                 temp_dict[f"Stage3 Fuel Type"] = "Solid"
                 temp_dict[f"Stage4 Fuel Type"] = 'Solid'
-                temp_dict[f"Stage1 Propellant Mass"] = 35000 #From SLR/NB
-                temp_dict[f"Stage2 Propellant Mass"] = 18892 #From approximation
-                temp_dict[f"Stage3 Propellant Mass"] = 5454  #From approximation
-                temp_dict[f"Stage4 Propellant Mass"] = 594   #From approximation
+                temp_dict[f"Stage1 Propellant Mass"] = 35000 # From SLR/NB
+                temp_dict[f"Stage2 Propellant Mass"] = 18892 # From approximation
+                temp_dict[f"Stage3 Propellant Mass"] = 5454  # From approximation
+                temp_dict[f"Stage4 Propellant Mass"] = 594   # From approximation
             
             # Minotaur-4
             # Based on LGM-118 Peacekeeper ICBM.
@@ -783,10 +851,16 @@ class import_launches_from_discos:
                 temp_dict[f"Stage2 Fuel Type"] = "Solid"
                 temp_dict[f"Stage3 Fuel Type"] = "Solid"
                 temp_dict[f"Stage4 Fuel Type"] = "Solid"
-                temp_dict[f"Stage1 Propellant Mass"] = 45370 #SLR
-                temp_dict[f"Stage2 Propellant Mass"] = 24490 #SLR
-                temp_dict[f"Stage3 Propellant Mass"] = 7070  #SLR
-                temp_dict[f"Stage4 Propellant Mass"] = 770   #SLR, overwriting DISCOSweb with 782 to keep this vehicle consistent.           
+                temp_dict[f"Stage1 Propellant Mass"] = 45370 # SLR
+                temp_dict[f"Stage2 Propellant Mass"] = 24490 # SLR
+                temp_dict[f"Stage3 Propellant Mass"] = 7070  # SLR
+                temp_dict[f"Stage4 Propellant Mass"] = 770   # SLR, overwriting DISCOSweb with 782 to keep this vehicle consistent.           
+            
+            if unique_vehicle_name_list[i] == "PSLV-XL":
+                temp_dict[f"Booster Propellant Mass"] = 12200 * 6 # https://www.isro.gov.in/media_isro/pdf/Missions/PSLVC41/PSLVC41.pdf   
+                
+            if unique_vehicle_name_list[i] == "PSLV-DL":
+                temp_dict[f"Booster Propellant Mass"] = 12200 * 2 # https://www.isro.gov.in/media_isro/pdf/Missions/PSLV_C44_LaunchKit.pdf
                 
             # Qased
             # https://en.wikipedia.org/wiki/Qased_(rocket)
@@ -807,9 +881,9 @@ class import_launches_from_discos:
                 temp_dict[f"Stage1 Fuel Type"] = "Solid"
                 temp_dict[f"Stage2 Fuel Type"] = "Solid"
                 temp_dict[f"Stage3 Fuel Type"] = "Solid"
-                temp_dict[f"Stage1 Propellant Mass"] = 12330 #DISCOSweb(wet/dry)/NB
-                temp_dict[f"Stage2 Propellant Mass"] = 1500  #DISCOSweb(wet/dry)/NB 
-                temp_dict[f"Stage3 Propellant Mass"] = 398   #Average
+                temp_dict[f"Stage1 Propellant Mass"] = 12330 # DISCOSweb(wet/dry)/NB
+                temp_dict[f"Stage2 Propellant Mass"] = 1500  # DISCOSweb(wet/dry)/NB 
+                temp_dict[f"Stage3 Propellant Mass"] = 398   # Average
             
             # Shavit (Stage 1-3, no prop mass or type)
             # https://discosweb.esoc.esa.int/launch-vehicles/76
@@ -829,10 +903,10 @@ class import_launches_from_discos:
                 temp_dict[f"Stage2 Fuel Type"] = "Solid"
                 temp_dict[f"Stage3 Fuel Type"] = "Solid"
                 temp_dict[f"Stage4 Fuel Type"] = "Hypergolic"
-                temp_dict[f"Stage1 Propellant Mass"] = 12750 #SLR
-                temp_dict[f"Stage2 Propellant Mass"] = 12750 #SLR
-                temp_dict[f"Stage3 Propellant Mass"] = 1890  #SLR
-                temp_dict[f"Stage4 Propellant Mass"] = 166   #SLR
+                temp_dict[f"Stage1 Propellant Mass"] = 12750 # SLR
+                temp_dict[f"Stage2 Propellant Mass"] = 12750 # SLR
+                temp_dict[f"Stage3 Propellant Mass"] = 1890  # SLR
+                temp_dict[f"Stage4 Propellant Mass"] = 166   # SLR
                 
             # Simorgh
             # https://discosweb.esoc.esa.int/launch-vehicles/88324
@@ -842,10 +916,34 @@ class import_launches_from_discos:
             if unique_vehicle_name_list[i] == "Simorgh":
                 temp_dict[f"Stage3 Propellant Name"] = 'Solid'
                 temp_dict[f"Stage3 Fuel Type"] = "Solid"
-                temp_dict[f"Stage1 Propellant Mass"] = 63000 #SLR (v. similar to DISCOSwb(wet/dry))
-                temp_dict[f"Stage2 Propellant Mass"] = 8000  #SLR (v. similar to DISCOSwb(wet/dry))
-                temp_dict[f"Stage3 Propellant Mass"] = 185   #SLR (v. similar to DISCOSwb(wet/dry)) 
+                temp_dict[f"Stage1 Propellant Mass"] = 63000 # SLR (v. similar to DISCOSwb(wet/dry))
+                temp_dict[f"Stage2 Propellant Mass"] = 8000  # SLR (v. similar to DISCOSwb(wet/dry))
+                temp_dict[f"Stage3 Propellant Mass"] = 185   # SLR (v. similar to DISCOSwb(wet/dry)) 
             
+            # https://www.mach5lowdown.com/wp-content/uploads/PUG/Soyuz-Users-Manual-March-2012.pdf (Booster and 1st two stages)
+            if unique_vehicle_name_list[i] == "Soyuz-2-1A":
+                temp_dict[f"Booster Propellant Mass"] = (27900 + 11260) * 4
+                temp_dict[f"Stage1 Propellant Mass"]  = 63800 + 26300
+                temp_dict[f"Stage2 Propellant Mass"]  = 17800 + 7600
+                
+            # https://www.mach5lowdown.com/wp-content/uploads/PUG/Soyuz-Users-Manual-March-2012.pdf (Booster and 1st two stages)
+            # https://web.archive.org/web/20151226122333/http://www.laspace.ru/rus/fregat_construction.php (Fregat details)
+            if unique_vehicle_name_list[i] == "Soyuz-2-1B Fregat":
+                temp_dict[f"Booster Propellant Mass"] = (27900 + 11260) * 4
+                temp_dict[f"Stage1 Propellant Mass"]  = 63800 + 26300
+                temp_dict[f"Stage2 Propellant Mass"]  = 17800 + 7600
+                temp_dict[f"Stage3 Propellant Mass"]  = 5250
+                    
+            # https://www.mach5lowdown.com/wp-content/uploads/PUG/Soyuz-Users-Manual-March-2012.pdf (Booster and 1st two stages)
+            # https://web.archive.org/web/20151226122333/http://www.laspace.ru/rus/fregat_construction.php (Fregat M details)
+            if unique_vehicle_name_list[i] in ["Soyuz-2-1A Fregat-M",
+                                               "Soyuz-2-1B Fregat-M",
+                                               "Soyuz-ST-A Fregat-M"]:
+                temp_dict[f"Booster Propellant Mass"] = (27900 + 11260) * 4
+                temp_dict[f"Stage1 Propellant Mass"]  = 63800 + 26300
+                temp_dict[f"Stage2 Propellant Mass"]  = 17800 + 7600
+                temp_dict[f"Stage3 Propellant Mass"]  = 5600
+                
             self.unique_rocket_list.append(temp_dict)    
         
     def rocket_info_to_netcdf(self):

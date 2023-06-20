@@ -124,7 +124,8 @@ class RocketData:
         if args.verbose == True:
             print(f'Total reentry NOx emissions             = {sum(self.reentry_nox)*1e-3} tonnes')
         
-        # TODO: Reentries - Need to sort out controlled vs uncontrolled entries.
+        # TODO: Reentries
+        # Need to sort out controlled vs uncontrolled entries.
         # ID String with length of 8 is from rocket launch and should be ignored if not a controlled entry.
         # Something like:
         #           if len(ID)==8 and Controlled=='Y', then calculate 0.175*mass to get NOx
@@ -165,7 +166,7 @@ class RocketData:
         # Read propellant mass per rocket type from the database.
         ##########################################################
 
-        #TODO: Probably need a sanity check here, and also a lot of these are probably not used anymore.
+        #TODO: Sanity Check
         
         # Open Dataset.
         #rocketinfofile = './Databases/Old/rocket_type_propellant_mass_2019_database.nc'
@@ -396,7 +397,6 @@ class OutputEmis:
                                    rocket_data.rocket_type[l_ind]
                                    )
                     
-                    #TODO: Why are we only adding NOx to the monthly emission total?
                     #month_emis += sum(rocket_data.launch_s1_nox[l_ind]+rocket_data.launch_b_nox[l_ind])*1e-3
 
                 ########################################################################
@@ -449,6 +449,7 @@ class OutputEmis:
                     self.save_netcdf()
                     
             #TODO: Sanity Check
+            # Why are we only adding NOx to the monthly emission total?
             #print('Monthly NOx launch emissions (tonnes): ',month_emis)
             
     def make_grid_LL(self, llres, in_extent=[-180, 180, -90, 90], out_extent=[]):
@@ -612,12 +613,26 @@ class OutputEmis:
             i (numpy.int64): longitude index of model gridbox where launch occurs.
             j (numpy.int64): latitude index of model gridbox where launch occurs.
         """        
-
+        # Interpolate the cumulative distribution to work out how much propellant is emitted above the top altitude.
+        # y = y1 + ((x – x1) / (x2 – x1)) * (y2 – y1)
+        h = self.top_alt[-1,j,i]*1e-3
+        for count, i in enumerate(self.ross_alt):
+            value = i-h
+            if value < 0:
+                break
+        ross_ind = count - 1
+        propellant_in_gc = self.ross_cumulative_mass[ross_ind] + ((h - self.ross_alt[ross_ind]) /
+                                        (self.ross_alt[ross_ind-1] - self.ross_alt[ross_ind])) * (self.ross_cumulative_mass[ross_ind-1] - self.ross_cumulative_mass[ross_ind])
+        print(propellant_in_gc)
+        sys.exit()
+        
         # y = y1 + ((x – x1) / (x2 – x1)) * (y2 – y1)
         
         # Define array of percent distribution of propellant mass on GEOS-Chem grid:
         # This sets up an array over number of GEOS-Chem levels (47 or 72).
         gc_relative_mass = np.zeros_like(self.mid_alt[:,j,i])
+        print(shape(gc_relative_mass))
+        sys.exit()
 
         # Loop over GEOS-Chem layers in reverse:
         for l, h in enumerate(reversed(self.mid_alt[:,j,i])):
@@ -634,17 +649,10 @@ class OutputEmis:
         #print(self.mid_alt[:-1,j,i])
         #print(j,i)
         #sys.exit()
-        
-        # Create cumulative distribution of propellant mass
-        self.gc_cumulative_mass = np.zeros_like(gc_relative_mass)
-        for i in range(0,len(gc_relative_mass)):
-            if i == 0:
-                self.gc_cumulative_mass[i] = gc_relative_mass[i]
-            else:
-                self.gc_cumulative_mass[i] = self.gc_cumulative_mass[i-1] + gc_relative_mass[i]
 
         # ~ 30% of emissions are above GC-boundary, but this is only used for relative emissions between layers.
         # So we should normalize so that the array adds to 100%:
+        print(f"Sum is{sum(gc_relative_mass)}")
         self.gc_relative_mass = 1e2 * gc_relative_mass / np.sum(gc_relative_mass)
 
     def process_launch_event_altitudes(self, valid_index, p, q):
@@ -678,16 +686,7 @@ class OutputEmis:
             sys.exit("Incorrect rocket configuration.")
         
         # Now create the vertical mass distributions for each stage, remembering that gc_relative_mass is ordered top to bottom.
-        # First interpolate the cumulative distribution to work out how much propellant is emitted above the top altitude.
-        # y = y1 + ((x – x1) / (x2 – x1)) * (y2 – y1)
-        h = self.top_alt[-1,q,p]*1e-3
-        for count, i in enumerate(self.ross_alt):
-            value = i-h
-            if value < 0:
-                break
-        ross_ind = count - 1
-        percent_cumulative_mass = self.ross_cumulative_mass[ross_ind] + ((h - self.ross_alt[ross_ind]) /
-                                        (self.ross_alt[ross_ind-1] - self.ross_alt[ross_ind])) * (self.ross_cumulative_mass[ross_ind-1] - self.ross_cumulative_mass[ross_ind])
+        
         # Calculate the total propellant mass.
         total_prop_mass = sum([rocket_data.booster_prop_mass[valid_index], 
                 rocket_data.stage1_prop_mass[valid_index],
@@ -806,14 +805,19 @@ class OutputEmis:
                         # Both Kuaizhou-11 successes were LEO launches of satellites. Both failures were SSO launches of satellites. 
                         # Failed launch failed after liftoff, so still include.
                     
-                        # F01 - 09/02/2020 Simorgh (Iran) - 2 stage rocket
+                        # F01 - 09/02/2020 Simorgh (Iran)
                         # First stage operated for 475s correctly, but second stage failed to deploy payload succesfully.
                         # Satellite reached 540 km apogee but only reached 6,400 m/s, just short of 7,400 m/s orbital velocity.
+                        # For the purposes of launch emissions, can include as normal.
     
-                        # F02 - 16/03/2020 Long March 7A (China) - 3 stages, 4 boosters?
-                        # Limited information about what happened on this failed launch. 
-                        # SLR: Failure just after S2 start.
-                        # Wiki: Vehicle disintegrated at first stage separation due to booster LOX pressurization failure leading to engine shutdown and loss of control.
+                        # F02 - 16/03/2020 Long March 7A (China) - 3 stages, 4 boosters
+                        # https://web.archive.org/web/20220411235209/http://www.spacelaunchreport.com/cz5.html
+                        #       A video posted online later showed a possible failure during the early moments of the second stage burn.
+                        # https://en.wikipedia.org/wiki/List_of_Long_March_launches_(2020%E2%80%932029)#2020
+                        #       Vehicle disintegrated at first stage separation due to booster LOX pressurization failure leading to engine shutdown and loss of control.
+                        # https://www.nasaspaceflight.com/2020/03/long-march-7a-fails-xinjishu-yanzheng-6/ 
+                        #       The problem seems to have surfaced when the 3rd stage was to operate.
+                        # Stage 2+3 propellant mass to zero in pull_from_DISCOSweb.
                         
                         # F03 - 09/04/2020 Long March 3B/E (China)
                         # Wiki/SLR: Third stage engine failed to ignite. Failed to put satellite in orbit.
@@ -839,10 +843,12 @@ class OutputEmis:
                         # Moon launch, don't need to include.
                     
 
-                    #For now, exclude all failed launches. # TODO: Go through each failed launch and decide which emissions to include in final inventory. 
+                    #For now, exclude all failed launches. 
+                    # TODO: Go through each failed launch and decide which emissions to include in final inventory. 
                     
                 #TODO: Need to make sure that LauncherOne is handled differently, as this is air-launched.
-                if launch_id[w][-3:-2] == 'F':
+                
+                if launch_id[w][-3:] in ['F02','F03','F04','F05','F06','F07','F08','F09','F10','F11']:
                     print(f'Launch {launch_id[w]} failed. Not processing.')
                     continue
                 
@@ -935,7 +941,7 @@ class OutputEmis:
                 
                 
                 # TODO: When the meco/booster level is zero (when the booster is missing or the level is above GC limit), need to process correctly.
-                # TODO: Only using Booster/Stage1/Stage2 for now, need to add settling of emissions or if stage 2-4 occurs within GC Boundary.       
+                # TODO: Settling of emissions       
                 
                 # Check whether there is a booster:
                 if ( rocket_data.booster_prop_type[valid_index] != '' ):
@@ -1005,8 +1011,8 @@ class OutputEmis:
                 self.hcl_total += np.sum(t_hcl_emis)
                 self.rocket_hcl[int(hour[w]),self.meco_levs[rocket_config_type]::-1,q,p] += t_hcl_emis * 1e-3 / kg_to_kgm2s  
 
-                # Check whether there is a second stage (Long March 5B doesn't have one.):
-                if ( rocket_data.stage2_prop_type[valid_index] != '' ):
+                # Check whether there is a second stage:
+                if rocket_data.stage2_prop_type[valid_index] != '' and launch_id[w][-3:] != 'F03':
                     
                     self.calculate_bc_ei(self.mid_alt[:self.meco_levs[rocket_config_type]:-1,q,p]*1e-3,rocket_data.bc_pei[pei_stage2_index])
                     t_bc_emis = self.ei_bc * rocket_data.stage2_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_stage2
@@ -1044,8 +1050,8 @@ class OutputEmis:
             # Work out vertical distribution for reentry emissions.
             #########################################################
             
-            # TODO: Looks like the nox and al2o3 reentry emissions are just added to the launch emissions. Shall we keep them separate?
-            # TODO: Re-entries (!!!STILL TO UPDATE!!!):
+            # TODO: Re-entries
+            # Looks like the nox and al2o3 reentry emissions are just added to the launch emissions. Shall we keep them separate?
             if emis_type=='reentry':
 
                 # Define temporary ID to get number of characters:
@@ -1129,7 +1135,8 @@ class OutputEmis:
         ###################
         
         # Change (shift) indices on edges of grid:
-        # TODO: What does this section accomplish?
+        # TODO: Code question
+        # What does this section accomplish?
         if self.pmin==0: self.pmin=1
         if self.pmax==0: self.pmax=1
         if self.pmax==self.nlon: self.pmax=self.nlon-1
@@ -1170,7 +1177,8 @@ class OutputEmis:
 
         # Set dimensions (lat, lon, time, lev):
         # Lat and lon data are trimmed.
-        # TODO: Why are lat and lon trimmed?
+        # TODO: Code question
+        # Why are lat and lon trimmed?
         ncout.createDimension('lat', self.qmax-self.qmin+3)
         ncout.createDimension('lon', self.pmax-self.pmin+3)
         ncout.createDimension('lev', self.nlev)
@@ -1288,9 +1296,7 @@ if __name__ == "__main__":
     ##########################################################
     # Read the rocket emissions from the database.
     ##########################################################
-    
-    # TODO: Write re-entry and exhaust databases for 2020.
-    
+       
     # Define rocket emissions data directories:
     year = 2020
     datadir = './Databases/'
@@ -1311,7 +1317,7 @@ if __name__ == "__main__":
     # In 2019, boosters set to extend to ~45 km (layer 44 of the 47-layer model, layer 57 of the 72-layer model).
     # In updated model, booster_cutoff changes depending on number of rocket stages.
     # Stage 1 Cutoff (MECO) and Stage 2 Ignition (SEI) normally occur within 3s of each other.
-    # For the purposes of GEOS-Chem (<80km), only three rocket sizes include MECO and SEI - B+4S, 3S, 4S.
+    # For the purposes of GEOS-Chem (<80km), only three rocket sizes include MECO and SEI - B+4S, 3S, 4S (2S occurs)
     # For these three rocket types, MECO and SEI occur at the same alitudes.
     # Booster Cutoff:
     #       63 km  B+1/2S Layer 46 / 66
@@ -1321,14 +1327,14 @@ if __name__ == "__main__":
     #       163 km B+1/2S Layer N/A
     #       158 km B+3S   Layer N/A
     #       57 km  B+4S   Layer 45 / 63
-    #       86 km  2S     Layer N/A
+    #       73 km  2S     Layer 47 / 70
     #       69 km  3S     Layer 47 / 69 
     #       39 km  4S     Layer 43 / 53
     # Stage 2 Cutoff:
     #       176 km B+1/2S Layer N/A
     #       159 km B+3S   Layer N/A
     #       57  km  B+4S  Layer 45 / 63
-    #       114 km  2S    Layer N/A
+    #       92 km  2S     Layer N/A
     #       69  km  3S    Layer 47 / 69 
     #       39  km  4S    Layer 43 / 53
     
@@ -1401,7 +1407,7 @@ if __name__ == "__main__":
     # Print total emissions of each species.
     ##########################################################
     
-    # TODO: Sanity Check (Final Emissions)
+    # TODO: Sanity Check
     #def print_total_emissions():
     #    print('Total BC emissions (tonnes): ', emis_data.bc_total*1e-6)
     #    print('Total NOx launch emissions (tonnes): ', emis_data.nox_launch_total*1e-6)
