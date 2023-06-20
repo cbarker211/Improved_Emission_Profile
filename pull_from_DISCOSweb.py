@@ -599,8 +599,6 @@ class import_launches_from_discos:
             # Handle any incomplete/incorrect information.
             ##############################################
             
-            # TODO: Still need to check Falcon 9 v1.2 emissions.
-            
             if unique_vehicle_name_list[i] == "Atlas V 411":
                 temp_dict[f"Booster Propellant Mass"] = 42630 * 1 # SLR    
             elif unique_vehicle_name_list[i] == "Atlas V 531":
@@ -679,7 +677,12 @@ class import_launches_from_discos:
                 temp_dict[f"Stage1 Propellant Mass"] = 9250 # Using value from SLR/DISCOSweb(wet/dry) 
                 temp_dict[f"Stage2 Propellant Mass"] = 2050 # Using value from SLR/DISCOSweb(wet/dry) 
                 temp_dict[f"Stage3 Propellant Mass"] = 245  # Using value from DISCOSweb(wet/dry)
-                
+            
+            # This is listed incorrectly on DISCOSweb, as it should actually be Falcon 9 Block 5, not v1.2.    
+            if unique_vehicle_name_list[i] == "Falcon 9 v1.2":
+                temp_dict[f"Stage1 Propellant Mass"] = 418700 # SLR 
+                temp_dict[f"Stage2 Propellant Mass"] = 111500 # SLR  
+            
             if unique_vehicle_name_list[i] == "H-IIA 202":
                 temp_dict[f"Booster Propellant Mass"] = 130000 # https://global.jaxa.jp/projects/rockets/h2a/
                 
@@ -1036,16 +1039,9 @@ if __name__ == "__main__":
     #Create an instance of the class.
     LaunchData = import_launches_from_discos(year)
     
-    #Now we can run class functions. E.g. launch_list = LaunchData.get_yearly_launches()
+    #Now we can run class functions.
     #LaunchData.get_launch_info()
-    #print(LaunchData.rocket_type)
     #LaunchData.launch_info_to_netcdf()
     LaunchData.get_rocket_info()
-    #LaunchData.rocket_info_to_netcdf()
-    
-    #OPTIONAL: Save results to file.
-    #with open(filename, 'a') as f:
-    #   f.write(f'{self.Cospar_Id[count]},{self.launch_time[count]},{self.launch_day[count]},{self.launch_month[count]},{self.latitude[count]},{self.longitude[count]},{self.site_name[count]},{self.rocket_type[count]},\n')
-    #   f.write(f'{year},{fuel_mass},{oxidiser_mass},{solid_mass},{total_mass}\n')
-    #   f.write(f'In {year}, there were {num_payloads} payloads successfully launched.\n')   
+    LaunchData.rocket_info_to_netcdf()
     
