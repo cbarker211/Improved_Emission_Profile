@@ -14,6 +14,7 @@ from os import path
 from netCDF4 import Dataset
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 #sys.path.append('/home/ucfacb0/python/packages/GCPy')
 #from gcpy.grid import make_grid_LL
@@ -307,6 +308,9 @@ class OutputEmis:
         # Have commented out, and now the program will use the full rocket name to find the specific launch vehicle.
         #self.trim_name = [elem[0:5] for elem in rocket_data.rocket_name]
         
+        self.output_for_csv = np.zeros((len(rocket_data.launch_id)*3,self.nlev))
+        self.csv_count = 0
+        
         #################################
         # Loop over each day and month.
         #################################
@@ -333,10 +337,10 @@ class OutputEmis:
             else:
                 self.strmon=str(m+1)
 
-            print('Month processing: ', self.strmon)             
+            print('MONTH = ', self.strmon)             
             
             #Loop over a single day
-            #for d in range(14,15):
+            #for d in range(6,7):
             
             #Loop over all days:
             for d in range(ndays):
@@ -393,7 +397,9 @@ class OutputEmis:
                                    rocket_data.launch_time[l_ind],
                                    'launch',
                                    rocket_data.launch_id[l_ind],
-                                   rocket_data.rocket_type[l_ind]
+                                   rocket_data.rocket_type[l_ind],
+                                   d,
+                                   m,
                                    )
                     
                     #month_emis += sum(rocket_data.launch_s1_nox[l_ind]+rocket_data.launch_b_nox[l_ind])*1e-3
@@ -419,7 +425,9 @@ class OutputEmis:
                                    rocket_data.reentry_time[r_ind],
                                    'reentry',
                                    ' ',
-                                   ' '
+                                   ' ',
+                                   d,
+                                   m,
                                    )
                     
                     # Sum up all re-entry NOx (kg):
@@ -450,6 +458,9 @@ class OutputEmis:
             #TODO: Sanity Check
             # Why are we only adding NOx to the monthly emission total?
             #print('Monthly NOx launch emissions (tonnes): ',month_emis)
+        
+        df = pd.DataFrame(self.output_for_csv)
+        df.to_csv("/home/ucfacb0/Emission_Inventory/Improved_Emission_Profile/Databases/Propellant_Distribution.csv", float_format='%.3f')
             
     def make_grid_LL(self, llres, in_extent=[-180, 180, -90, 90], out_extent=[]):
         """
@@ -710,14 +721,17 @@ class OutputEmis:
         
         else:
             # If SEI occurs below the the GC boundary, then we can use some of the stage 2 emissions.
-            # Find out which layer SEI occurs in.
-            self.SEI_alt_index = np.argmin(np.abs(self.meco_levs[rocket_config_type]*1e3 - self.mid_alt[:,q,p]))
+            # Find out which layer SEI occurs in. If its a 3 or 4 stage rocket with no boosters, then set SEI to occur in the layer above MECO to prevent a spike in emissions.
+            if rocket_config_type in [4,5]:
+                self.SEI_alt_index = self.MECO_alt_index + 1    
+            else:
+                self.SEI_alt_index = np.argmin(np.abs(self.meco_levs[rocket_config_type]*1e3 - self.mid_alt[:,q,p]))
             self.gc_relative_mass_stage2 = np.asarray(self.gc_relative_mass[:self.nlev-self.SEI_alt_index])
             self.gc_relative_mass_stage2 = self.gc_relative_mass_stage2 / (np.sum(self.gc_relative_mass_stage2) + (100 - self.propellant_in_gc)) * 100
             
         return rocket_config_type
               
-    def grid_emis(self,index,lon,lat,hour,emis_type,launch_id,rocket_type):
+    def grid_emis(self,index,lon,lat,hour,emis_type,launch_id,rocket_type,d,m):
         """Grid the data onto the GEOS-Chem horizontal and vertical grid"""
 
         #Loop over each launch/reentry.
@@ -835,6 +849,7 @@ class OutputEmis:
                 
                 if launch_id[w][-3:] in ['F02','F03','F04','F05','F06','F07','F08','F09','F10','F11']:
                     print(f'Launch {launch_id[w]} failed. Not processing.')
+                    self.csv_count += 3
                     continue
                 
                 ############################################
@@ -950,6 +965,17 @@ class OutputEmis:
                 
                 # TODO: Settling of emissions                  
 
+                total_prop_mass = rocket_data.booster_prop_mass[valid_index] + rocket_data.stage1_prop_mass[valid_index] + rocket_data.stage2_prop_mass[valid_index]
+                total_prop_mass += rocket_data.stage3_prop_mass[valid_index] + rocket_data.stage4_prop_mass[valid_index]
+                percent_dis_b = rocket_data.booster_prop_mass[valid_index] / total_prop_mass * 100
+                percent_dis_s1 = rocket_data.stage1_prop_mass[valid_index] / total_prop_mass * 100
+                percent_dis_s2 = rocket_data.stage2_prop_mass[valid_index] / total_prop_mass * 100
+                percent_dis_s3 = rocket_data.stage3_prop_mass[valid_index] / total_prop_mass * 100
+                percent_dis_s4 = rocket_data.stage4_prop_mass[valid_index] / total_prop_mass * 100
+                #print(f"% Distribution is {percent_dis_b:.0f} {percent_dis_s1:.0f} {percent_dis_s2:.0f} {percent_dis_s3:.0f} {percent_dis_s4:.0f}")
+                
+                total_vertical_propellant = np.zeros_like(self.mid_alt[:,q,p])
+                                
                 # Check whether there is a booster:
                 if ( rocket_data.booster_prop_type[valid_index] != '' ):
                     if np.sum(1e-2 * self.gc_relative_mass_booster) > 1.01:
@@ -985,6 +1011,9 @@ class OutputEmis:
                     t_hcl_emis = rocket_data.hcl_pei[pei_booster_index] * rocket_data.booster_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_booster
                     self.hcl_total += np.sum(t_hcl_emis)
                     self.rocket_hcl[int(hour[w]),self.booster_alt_index::-1,q,p] += t_hcl_emis * 1e-3 / kg_to_kgm2s
+                    
+                    vertical_propellant_booster = rocket_data.booster_prop_mass[valid_index] * self.gc_relative_mass_booster
+                    total_vertical_propellant[:self.booster_alt_index+1] += vertical_propellant_booster[::-1]
 
                 # Every rocket has a first stage.
                 if np.sum(1e-2 * self.gc_relative_mass_stage1) > 1.01:
@@ -1020,6 +1049,9 @@ class OutputEmis:
                 t_hcl_emis = rocket_data.hcl_pei[pei_stage1_index] * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_stage1
                 self.hcl_total += np.sum(t_hcl_emis)
                 self.rocket_hcl[int(hour[w]),self.MECO_alt_index::-1,q,p] += t_hcl_emis * 1e-3 / kg_to_kgm2s  
+                
+                vertical_propellant_stage1 = rocket_data.stage1_prop_mass[valid_index] * self.gc_relative_mass_stage1
+                total_vertical_propellant[:self.MECO_alt_index+1] += vertical_propellant_stage1[::-1]
 
                 # Check whether there is a second stage:
                 if rocket_data.stage2_prop_type[valid_index] != '' and launch_id[w][-3:] != 'F03':
@@ -1056,6 +1088,25 @@ class OutputEmis:
                     t_hcl_emis = rocket_data.hcl_pei[pei_stage2_index] * rocket_data.stage2_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_stage2
                     self.hcl_total += np.sum(t_hcl_emis)
                     self.rocket_hcl[int(hour[w]),:self.SEI_alt_index-1:-1,q,p] += t_hcl_emis * 1e-3 / kg_to_kgm2s
+
+                    vertical_propellant_stage2 = rocket_data.stage2_prop_mass[valid_index] * self.gc_relative_mass_stage2
+                    total_vertical_propellant[self.SEI_alt_index:] += vertical_propellant_stage2[::-1]
+                
+                total_vertical_propellant = total_vertical_propellant / total_prop_mass
+                self.output_for_csv[self.csv_count,:] = total_vertical_propellant
+                self.csv_count += 1
+                self.output_for_csv[self.csv_count,:] = self.mid_alt[:,q,p]*1e-3
+                self.csv_count += 1  
+                self.output_for_csv[self.csv_count,:] = self.gc_relative_mass[::-1]
+                self.csv_count += 1     
+                
+                #plt.plot(total_vertical_propellant,self.mid_alt[:,q,p]*1e-3,label=f"")
+                #plt.xlabel("Percent Propellant Consumed / %")
+                #plt.ylabel("Altitude / km")
+                #plt.xlim(0,5)
+                #plt.ylim(0,100)
+                #plt.legend()
+                #plt.savefig("Propellant Distribution - Line.png")
           
             #########################################################
             # Work out vertical distribution for reentry emissions.
@@ -1348,7 +1399,8 @@ if __name__ == "__main__":
     #       69  km  3S     Layer 47 / 69 
     #       39  km  4S     Layer 43 / 53
     
-    # This is the raw altitudes, will work out the layer using box heights later.
+    # These are the raw altitudes, they are converted to a GC layer inside the OutputEmis class.
+    # To stop overlap between MECO and SEI, going to set SEI to start in layer above MECO for last two configs.
     booster_cutoff_alts = [63,63,24,0,0,0]
     MECO_alts           = [163,158,57,73,69,39]
     SEI_alts            = [176,159,57,92,69,39]
@@ -1431,4 +1483,4 @@ if __name__ == "__main__":
         #print('Total Al2O3 re-entry emissions (tonnes): ', emis_data.al2o3_reentry_total*1e-6)
     
     #if args.verbose == True:
-    print_total_emissions()
+    #print_total_emissions()
