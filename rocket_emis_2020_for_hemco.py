@@ -270,8 +270,6 @@ class OutputEmis:
         self.mw_h   = 1.008
         self.mw_h2  = self.mw_h * 2
         self.mw_h2o = self.mw_h2 + 16.00
-        self.mw_co  = 28.01
-        self.mw_co2 = self.mw_co + 16.00
 
         # Get Ross vertical profiles of propellant burned:
         #   self.ross_alt (centre alitiudes of each bin)
@@ -310,6 +308,8 @@ class OutputEmis:
         
         self.output_for_csv = np.zeros((len(rocket_data.launch_id)*3,self.nlev))
         self.csv_count = 0
+        self.output_for_csv_2 = np.zeros((len(rocket_data.launch_id)*7,self.nlev))
+        self.csv_count_2 = 0
         
         #################################
         # Loop over each day and month.
@@ -340,7 +340,7 @@ class OutputEmis:
             print('MONTH = ', self.strmon)             
             
             #Loop over a single day
-            #for d in range(6,7):
+            #for d in range(9,10):
             
             #Loop over all days:
             for d in range(ndays):
@@ -461,6 +461,8 @@ class OutputEmis:
         
         df = pd.DataFrame(self.output_for_csv)
         df.to_csv("/home/ucfacb0/Emission_Inventory/Improved_Emission_Profile/Databases/Propellant_Distribution.csv", float_format='%.3f')
+        df_2 = pd.DataFrame(self.output_for_csv_2)
+        df_2.to_csv("/home/ucfacb0/Emission_Inventory/Improved_Emission_Profile/Databases/Species_Distribution.csv", float_format='%.3f')
             
     def make_grid_LL(self, llres, in_extent=[-180, 180, -90, 90], out_extent=[]):
         """
@@ -612,7 +614,7 @@ class OutputEmis:
                 self.ross_cumulative_mass[i] = 100
             else:
                 self.ross_cumulative_mass[i] = self.ross_cumulative_mass[i-1] - ross_prop_mass[i-1]
-
+            
     def interp_prop_mass(self, i, j):
         """Interpolate proportional propellant mass burned from Ross and Sheaffer
            5-km incremental grid to GEOS-Chem vertical grid.
@@ -628,34 +630,61 @@ class OutputEmis:
         # y = y1 + ((x – x1) / (x2 – x1)) * (y2 – y1)]
         h = self.top_alt[-1,j,i]*1e-3
         for count, ross_alt in enumerate(self.ross_alt):
-            value = ross_alt-h
-            if value < 0:
+            if ross_alt-h < 0:
                 break
         ross_ind = count - 1
         self.propellant_in_gc = self.ross_cumulative_mass[ross_ind] + ((h - self.ross_alt[ross_ind]) /
                                         (self.ross_alt[ross_ind-1] - self.ross_alt[ross_ind])) * (self.ross_cumulative_mass[ross_ind-1] - self.ross_cumulative_mass[ross_ind])
         
+        
         # Define array of percent distribution of propellant mass on GEOS-Chem grid:
         # This sets up an array over number of GEOS-Chem levels (47 or 72).
         gc_relative_mass = np.zeros_like(self.mid_alt[:,j,i])
-
+        count = 0
         # Loop over GEOS-Chem layers in reverse:
         for l, h in enumerate(reversed(self.mid_alt[:,j,i])):
-
             # Find Ross profile layer closest to centre altitude of GEOS-Chem grid:
-            ross_ind = np.argmin(np.abs(h*1e-3 - self.ross_alt))
+            #ross_ind = np.argmin(np.abs(h*1e-3 - self.ross_alt)) # old method, wasn't interpolating properly.
+            for count, ross_alt in enumerate(self.ross_alt):
+                if ross_alt-h*1e-3 < 0:
+                    break
+                if h*1e-3 > 2.5:
+                    ross_ind = count + 1
+                else:
+                    ross_ind = count
 
-            # Interpolate:
-            gc_relative_mass[l] = self.ross_prop_mass[ross_ind-1] + ((h*1e-3 - self.ross_alt[ross_ind-1]) /
-                                                 (self.ross_alt[ross_ind] - self.ross_alt[ross_ind-1])) * (self.ross_prop_mass[ross_ind] - self.ross_prop_mass[ross_ind-1])
-
+            # Interpolate, and clip so that no values are above 17.5%.
+            gc_relative_mass[l] = np.clip(self.ross_prop_mass[ross_ind-1] + ((h*1e-3 - self.ross_alt[ross_ind-1]) /
+                                               (self.ross_alt[ross_ind] - self.ross_alt[ross_ind-1])) * (self.ross_prop_mass[ross_ind] - self.ross_prop_mass[ross_ind-1]),
+                                          None,17.5)
+            
+            # Now scale by the box height and the fact that the Ross altitude is in 5 km bins.
+            gc_relative_mass[l] = gc_relative_mass[l] / 5 * (self.top_alt[self.nlev-l-1,j,i]*1e-3 - self.bot_alt[self.nlev-l-1,j,i]*1e-3)
+            
+        
         # ~ 22% of propellant is consumed above the GC-boundary each time.
         # Normalize so that the portion in GC adds to ~ 68%:
         self.gc_relative_mass = self.propellant_in_gc * gc_relative_mass / np.sum(gc_relative_mass) 
-
-    def process_launch_event_altitudes(self, valid_index, p, q):
-        # Now define the rocket configuration (can this be written in fewer lines?)
         
+        # This routine scales gc_relative_mass by the mass that should be in each bin. Not used, simpler function above used instead.
+        #for count, mid_alt in enumerate(self.ross_alt):
+        #    prop_mass_in_bin = 0
+        #    top_alt = mid_alt + 2.5
+        #    bot_alt = mid_alt - 2.5
+        #    index_range=[]
+        #    for level, gc_alt in enumerate(self.mid_alt[:,j,i]):
+        #        box_height = self.top_alt[level,j,i]-self.bot_alt[level,j,i]
+        #        if bot_alt <= gc_alt*1e-3 <= top_alt:
+        #            prop_mass_in_bin += self.gc_mass_reversed[level]   
+        #            index_range.append(level)
+        #    if len(index_range) > 0:
+        #        if mid_alt == 2.5:
+        #            self.gc_mass_reversed[min(index_range):max(index_range)+1] = self.ross_prop_mass[count] / len(index_range)
+        #        else:
+        #            self.gc_mass_reversed[min(index_range):max(index_range)+1] = self.gc_mass_reversed[min(index_range):max(index_range)+1] * self.ross_prop_mass[count] / prop_mass_in_bin
+        
+    def process_launch_event_altitudes(self, valid_index, p, q, rocket_type):
+        # Now define the rocket configuration (can this be written in fewer lines?)
         if rocket_data.booster_prop_type[valid_index] != '':
             if rocket_data.stage1_prop_type[valid_index] != '' and rocket_data.stage2_prop_type[valid_index] == '' and rocket_data.stage3_prop_type[valid_index] == '' and rocket_data.stage4_prop_type[valid_index] == '':
                 rocket_config_type = 0
@@ -683,6 +712,8 @@ class OutputEmis:
                 rocket_config_type = 4
             elif rocket_data.stage1_prop_type[valid_index] != '' and rocket_data.stage2_prop_type[valid_index] != '' and rocket_data.stage3_prop_type[valid_index] != '' and rocket_data.stage4_prop_type[valid_index] != '':
                 rocket_config_type = 5
+            elif rocket_type == "Chang'e 5 SSQ (Ascent Stage)":
+                rocket_config_type = 0
             else:
                 sys.exit("Incorrect rocket configuration.")
         else:
@@ -733,7 +764,7 @@ class OutputEmis:
               
     def grid_emis(self,index,lon,lat,hour,emis_type,launch_id,rocket_type,d,m):
         """Grid the data onto the GEOS-Chem horizontal and vertical grid"""
-
+        
         #Loop over each launch/reentry.
         for w in range(len(lon)):
             
@@ -783,74 +814,11 @@ class OutputEmis:
 
             if emis_type=='launch':
                 
-                #######################
-                # Skip Failed Launches
-                #######################
+                # TODO: Settling of emissions.
+                # Some of these failures will still include emissions above the GC boundary.
                 
-                    # For 2019, these include all labelled "F" except F04 that failed at stage 3:
-                    # For all failed launches, DISCOSweb does not include objects.
-                    
-                    # For 2019, only get emissions for bottom layer of model for Iranian rocket that exploded before launch:
-                    # TODO: Update for 2020 for rockets that exploded on launchpad.
-                    #if launch_id[w]=='2019/E01':
-                    #    s1_frac[:]=0
-                    #    s1_frac[0]=1.0
-                    #    b_frac[:]=0
-                    #    b_frac[0]=1.0
-                    #    print('Setting launchpad explosion emissions to lowest layer')
-                    
-                    # List of 2020 Failed Launches
-                    
-                        # Both Kuaizhou-11 successes were LEO launches of satellites. Both failures were SSO launches of satellites. 
-                        # Failed launch failed after liftoff, so still include.
-                    
-                        # F01 - 09/02/2020 Simorgh (Iran)
-                        # First stage operated for 475s correctly, but second stage failed to deploy payload succesfully.
-                        # Satellite reached 540 km apogee but only reached 6,400 m/s, just short of 7,400 m/s orbital velocity.
-                        # For the purposes of launch emissions, can include as normal.
-    
-                        # F02 - 16/03/2020 Long March 7A (China) - 3 stages, 4 boosters
-                        # https://web.archive.org/web/20220411235209/http://www.spacelaunchreport.com/cz5.html
-                        #       A video posted online later showed a possible failure during the early moments of the second stage burn.
-                        # https://en.wikipedia.org/wiki/List_of_Long_March_launches_(2020%E2%80%932029)#2020
-                        #       Vehicle disintegrated at first stage separation due to booster LOX pressurization failure leading to engine shutdown and loss of control.
-                        # https://www.nasaspaceflight.com/2020/03/long-march-7a-fails-xinjishu-yanzheng-6/ 
-                        #       The problem seems to have surfaced when the 3rd stage was to operate.
-                        # Stage 2+3 propellant mass to zero in pull_from_DISCOSweb.
-                        
-                        # F03 - 09/04/2020 Long March 3B/E (China)
-                        # Wiki/SLR: Third stage engine failed to ignite. Failed to put satellite in orbit.
-                        
-                        # F04 - 25/05/2020 LauncherOne ()
-                        # https://spaceflightnow.com/2020/05/25/virgin-orbits-air-launched-rocket-fails-on-first-test-flight/
-                        # Failed after ignition of 1st stage, so probably should include something.
-                
-                        # F05 - 04/07/2020 Electron (Curie) ()
-                        # F06 - 10/07/2020 Kuaizhou-11 ()
-                        # https://spaceflightnow.com/2020/07/10/new-chinese-satellite-launcher-fails-on-first-flight/
-                        
-                        # F07 - 12/09/2020 Astra Rocket 3 ()
-                        # Engines shut down by safety officer after 30s.
-                        
-                        # F08 - 12/09/2020 Kuaizhou-11 ()
-                        # F09 - 17/11/2020 Vega ()
-                        
-                        # F10 - 15/12/2020 Astra Rocket 3 ()
-                        # Rocket passed Karman line and reached orbital altitude, but didn't reach stable orbit.
-                        
-                        # F11 - 03/12/2020 Chang'e 5 SSQ (Ascent Stage)
-                        # Moon launch, don't need to include.
-                    
-
-                    #For now, exclude all failed launches. 
-                    # TODO: Go through each failed launch and decide which emissions to include in final inventory. 
-                    
-                #TODO: Need to make sure that LauncherOne is handled differently, as this is air-launched.
-                
-                if launch_id[w][-3:] in ['F02','F03','F04','F05','F06','F07','F08','F09','F10','F11']:
-                    print(f'Launch {launch_id[w]} failed. Not processing.')
-                    self.csv_count += 3
-                    continue
+                # TODO: Reentries.
+                # For all failed launches, DISCOSweb does not include objects, so may need to manually add.
                 
                 ############################################
                 # Interpolate propellant mass distribution.
@@ -879,7 +847,6 @@ class OutputEmis:
                         valid_index=ll
                         print(f"Rocket name is {rocket_type[w]}")
                         break
-
                 # Catch any missing rocket propellant masses:
                 if rocket_found == False:
                     print('No propellant mass found for ' + rocket_type[w])
@@ -890,7 +857,24 @@ class OutputEmis:
                 pei_stage1_index  = np.where( rocket_data.pei_fuel_type == rocket_data.stage1_prop_type[valid_index] )[0]
                 pei_stage2_index  = np.where( rocket_data.pei_fuel_type == rocket_data.stage2_prop_type[valid_index] )[0]
                 
-                rocket_config_type = self.process_launch_event_altitudes(valid_index, p, q)
+                rocket_config_type = self.process_launch_event_altitudes(valid_index, p, q, rocket_type[w])
+                
+                # Treat failed launches. Most failures are for upper stages, and so can be treated as normal here.
+                # Full information is provided in README.txt
+                if launch_id[w][-3:] in ['F04','F11']:
+                    print(f'Launch {launch_id[w]} failed. Not processing.')
+                    self.csv_count += 3
+                    continue
+                elif launch_id[w][-3:] in ['F05']:
+                    self.gc_relative_mass_stage2 = np.asarray([0])
+                    self.SEI_alt_index = self.nlev
+                elif launch_id[w][-3:] in ['F07']:
+                    # Stage 2 is already above GC.
+                    # Find altitude nearest 0.9 km, and make all relative mass 0 above this point.
+                    cutoff_ind = np.argmin(np.abs(900 - self.mid_alt[::-1,q,p]))
+                    self.gc_relative_mass_stage1[:cutoff_ind+1] = np.zeros((len(self.gc_relative_mass_stage1[:cutoff_ind+1])))
+                
+                # TODO: Speak to Eloise about F04 and F05.
                 
                 ##################################################
                 # Sanity Checks for Propellant Mass Distributions
@@ -919,50 +903,12 @@ class OutputEmis:
                     if (np.abs(stage1_prop_consumed - rocket_data.stage1_prop_mass[valid_index]) / rocket_data.stage1_prop_mass[valid_index] * 100) > 1:
                         sys.exit("Error with Stage 1 emissions.") 
                         
-                # If the rocket type is 2 stages, then MECO occurs just above the GC boundary, and 95% of the emissions should be in GC.     
+                # If the rocket type is 2 stages, then MECO occurs just above the GC boundary, and 95% of the emissions should be in GC.    
+                # The error is suppressed for F07, where the Astra Rocket failed after 22s. 
                 if rocket_config_type in [3]:
-                    if np.abs(100 - stage1_prop_consumed / rocket_data.stage1_prop_mass[valid_index] * 100) > 5:
+                    if (launch_id[w][-3:] not in ['F07']) and (np.abs(100 - stage1_prop_consumed / rocket_data.stage1_prop_mass[valid_index] * 100) > 5):
                         sys.exit("Error with Stage 1 emissions.") 
-                
-                ###############################
-                # Notes on Emission Indices
-                ###############################
-                
-                    ##########################################################
-                    # Apply emission indices:
-                    # Calculate emission indices of individual pollutants:
-                    # These are given in g pollutant per kg propellant.
-                    # Methodology is from https://crp.trb.org/uat/acrp0356/wp-content/uploads/sites/26/2021/07/ACRP-Web-Only-51-Commercial-Space-Vehicle-Emissions-Modeling.pdf
-                    # General structure is this for each species:
-                    #       0) Check if species is emitted
-                    #       1) calculate vertical profile of emission indices (g(xx) / kg(propellant)) using function self.calculate_xx_ei
-                    #       2) multiply propellant mass by (0.01 * ei * vertical mass profile) to get mass vertical profile (in g)
-                    #       3) add vertical mass profile (in g) to sanity check total
-                    #       3) convert vertical mass profile from kg to kgm2s and add to output variable
-                    ##########################################################
                     
-                    # NOx:
-                    # In 2019, only Virgin Galactic space plane has primary NOx emissions of 4g/kg.
-                    # Now in 2020, updated so all propellants produce secondary NOx, but only N-containing fuels (hypergolic/solid) produce primary NOx.
-                    # NOx emissions calculate using the same of booster and stage 1 propellant mass calculated earlier.
-                    
-                    # H2O:
-                    # Use formula:
-                    # E_f(H2O) = E_p(H2O) + E_P(H)*MW_H2O/MW_H + E_p(H2)*MW_H2O/MW_H2 + E_p(OH) - James 2021
-                    # No H or OH primary emissions, so ignore that term (Would be present for Starship (Methane) and Minotaur I (APCP PBAN)).
-                    # E_f(H2O) = E_p(H2O) + E_p(H2) * MW_H2O / MW_H2
-                        
-                    # Alumina:   
-                    # TODO: This code remains from the 2019 version. Need to improve the understanding of Al2O3 size distribution to improve this.
-                    # Also only represent 8% of alumina mass, as this is the portion
-                    # that by mass that is estimated to contribute to ozone loss,
-                    # according to Schmid et al. (2003), https://agupubs.onlinelibrary.wiley.com/doi/pdf/10.1029/2002JD002486:
-                    #self.rocket_al = self.rocket_al*8e-2
-                        
-                    # Chlorine:
-                    # TODO: Chlorine species do have a vertical profile, where HCl is oxidised to Cl and Cl2 at higher altitudes.
-                    # According to James21, this contains a lot of uncertainty, so could combine into a single chlorine index?
-                
                 # TODO: Settling of emissions                  
 
                 total_prop_mass = rocket_data.booster_prop_mass[valid_index] + rocket_data.stage1_prop_mass[valid_index] + rocket_data.stage2_prop_mass[valid_index]
@@ -975,6 +921,13 @@ class OutputEmis:
                 #print(f"% Distribution is {percent_dis_b:.0f} {percent_dis_s1:.0f} {percent_dis_s2:.0f} {percent_dis_s3:.0f} {percent_dis_s4:.0f}")
                 
                 total_vertical_propellant = np.zeros_like(self.mid_alt[:,q,p])
+                total_bc_propellant       = np.zeros_like(self.mid_alt[:,q,p])
+                total_co_propellant       = np.zeros_like(self.mid_alt[:,q,p])
+                total_nox_propellant      = np.zeros_like(self.mid_alt[:,q,p])
+                total_h2o_propellant      = np.zeros_like(self.mid_alt[:,q,p])
+                total_al2o3_propellant    = np.zeros_like(self.mid_alt[:,q,p])
+                total_cl_propellant       = np.zeros_like(self.mid_alt[:,q,p])
+                total_hcl_propellant      = np.zeros_like(self.mid_alt[:,q,p])
                                 
                 # Check whether there is a booster:
                 if ( rocket_data.booster_prop_type[valid_index] != '' ):
@@ -1012,8 +965,16 @@ class OutputEmis:
                     self.hcl_total += np.sum(t_hcl_emis)
                     self.rocket_hcl[int(hour[w]),self.booster_alt_index::-1,q,p] += t_hcl_emis * 1e-3 / kg_to_kgm2s
                     
+                    # These are all for viewing the individual propellant / species vertical distribution per launch.
                     vertical_propellant_booster = rocket_data.booster_prop_mass[valid_index] * self.gc_relative_mass_booster
                     total_vertical_propellant[:self.booster_alt_index+1] += vertical_propellant_booster[::-1]
+                    total_bc_propellant[:self.booster_alt_index+1]    += t_bc_emis[::-1]
+                    total_co_propellant[:self.booster_alt_index+1]    += t_co_emis[::-1]
+                    total_nox_propellant[:self.booster_alt_index+1]   += t_nox_emis[::-1]
+                    total_h2o_propellant[:self.booster_alt_index+1]   += t_h2o_emis[::-1]
+                    total_al2o3_propellant[:self.booster_alt_index+1] += t_al2o3_emis[::-1]
+                    total_cl_propellant[:self.booster_alt_index+1]    += t_cl_emis[::-1]
+                    total_hcl_propellant[:self.booster_alt_index+1]   += t_hcl_emis[::-1]
 
                 # Every rocket has a first stage.
                 if np.sum(1e-2 * self.gc_relative_mass_stage1) > 1.01:
@@ -1050,8 +1011,16 @@ class OutputEmis:
                 self.hcl_total += np.sum(t_hcl_emis)
                 self.rocket_hcl[int(hour[w]),self.MECO_alt_index::-1,q,p] += t_hcl_emis * 1e-3 / kg_to_kgm2s  
                 
+                # These are all for viewing the individual propellant / species vertical distribution per launch.
                 vertical_propellant_stage1 = rocket_data.stage1_prop_mass[valid_index] * self.gc_relative_mass_stage1
                 total_vertical_propellant[:self.MECO_alt_index+1] += vertical_propellant_stage1[::-1]
+                total_bc_propellant[:self.MECO_alt_index+1]    += t_bc_emis[::-1]
+                total_co_propellant[:self.MECO_alt_index+1]    += t_co_emis[::-1]
+                total_nox_propellant[:self.MECO_alt_index+1]   += t_nox_emis[::-1]
+                total_h2o_propellant[:self.MECO_alt_index+1]   += t_h2o_emis[::-1]
+                total_al2o3_propellant[:self.MECO_alt_index+1] += t_al2o3_emis[::-1]
+                total_cl_propellant[:self.MECO_alt_index+1]    += t_cl_emis[::-1]
+                total_hcl_propellant[:self.MECO_alt_index+1]   += t_hcl_emis[::-1]
 
                 # Check whether there is a second stage:
                 if rocket_data.stage2_prop_type[valid_index] != '' and launch_id[w][-3:] != 'F03':
@@ -1089,24 +1058,39 @@ class OutputEmis:
                     self.hcl_total += np.sum(t_hcl_emis)
                     self.rocket_hcl[int(hour[w]),:self.SEI_alt_index-1:-1,q,p] += t_hcl_emis * 1e-3 / kg_to_kgm2s
 
+                    # These are all for viewing the individual propellant / species vertical distribution per launch.
                     vertical_propellant_stage2 = rocket_data.stage2_prop_mass[valid_index] * self.gc_relative_mass_stage2
                     total_vertical_propellant[self.SEI_alt_index:] += vertical_propellant_stage2[::-1]
-                
+                    total_bc_propellant[self.SEI_alt_index:]    += t_bc_emis[::-1]
+                    total_co_propellant[self.SEI_alt_index:]    += t_co_emis[::-1]
+                    total_nox_propellant[self.SEI_alt_index:]   += t_nox_emis[::-1]
+                    total_h2o_propellant[self.SEI_alt_index:]   += t_h2o_emis[::-1]
+                    total_al2o3_propellant[self.SEI_alt_index:] += t_al2o3_emis[::-1]
+                    total_cl_propellant[self.SEI_alt_index:]    += t_cl_emis[::-1]
+                    total_hcl_propellant[self.SEI_alt_index:]   += t_hcl_emis[::-1]
+                    
                 total_vertical_propellant = total_vertical_propellant / total_prop_mass
                 self.output_for_csv[self.csv_count,:] = total_vertical_propellant
                 self.csv_count += 1
                 self.output_for_csv[self.csv_count,:] = self.mid_alt[:,q,p]*1e-3
                 self.csv_count += 1  
                 self.output_for_csv[self.csv_count,:] = self.gc_relative_mass[::-1]
-                self.csv_count += 1     
+                self.csv_count += 1 
                 
-                #plt.plot(total_vertical_propellant,self.mid_alt[:,q,p]*1e-3,label=f"")
-                #plt.xlabel("Percent Propellant Consumed / %")
-                #plt.ylabel("Altitude / km")
-                #plt.xlim(0,5)
-                #plt.ylim(0,100)
-                #plt.legend()
-                #plt.savefig("Propellant Distribution - Line.png")
+                self.output_for_csv_2[self.csv_count_2,:] = total_bc_propellant
+                self.csv_count_2 += 1 
+                self.output_for_csv_2[self.csv_count_2,:] = total_co_propellant
+                self.csv_count_2 += 1 
+                self.output_for_csv_2[self.csv_count_2,:] = total_nox_propellant
+                self.csv_count_2 += 1 
+                self.output_for_csv_2[self.csv_count_2,:] = total_h2o_propellant
+                self.csv_count_2 += 1 
+                self.output_for_csv_2[self.csv_count_2,:] = total_al2o3_propellant
+                self.csv_count_2 += 1 
+                self.output_for_csv_2[self.csv_count_2,:] = total_cl_propellant
+                self.csv_count_2 += 1 
+                self.output_for_csv_2[self.csv_count_2,:] = total_hcl_propellant
+                self.csv_count_2 += 1    
           
             #########################################################
             # Work out vertical distribution for reentry emissions.
