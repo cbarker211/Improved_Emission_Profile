@@ -19,7 +19,6 @@
         NOx:
         In 2019, only Virgin Galactic space plane has primary NOx emissions of 4g/kg.
         Now in 2020, updated so all propellants produce secondary NOx, but only N-containing fuels (hypergolic/solid) produce primary NOx.
-        NOx emissions calculate using the same of booster and stage 1 propellant mass calculated earlier
 
         H2O:
         E_f(H2O) = E_p(H2O) + E_P(H)*MW_H2O/MW_H + E_p(H2)*MW_H2O/MW_H2 + E_p(OH) - James 2021
@@ -27,13 +26,10 @@
         E_f(H2O) = E_p(H2O) + E_p(H2) * MW_H2O / MW_H2
 
         Alumina:   
-        Also only represent 8% of alumina mass, as this is the portion
-        that by mass that is estimated to contribute to ozone loss,
-        according to Schmid et al. (2003), https://agupubs.onlinelibrary.wiley.com/doi/pdf/10.1029/2002JD002486:
-        self.rocket_al = self.rocket_al*8e-2
+        Represented by a trimodal distribution, ongoing...
         
         Chlorine:
-        According to James21, this contains a lot of uncertainty, so could combine into a single chlorine index?
+        See calculate_cl_ei function in main script.
 
 #######################
 # Failed Launches

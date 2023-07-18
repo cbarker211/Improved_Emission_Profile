@@ -529,7 +529,7 @@ class import_launches_from_discos:
                     print(f"Warning: Couldn't find any propellant for {stage_number} of {unique_vehicle_name_list[i]}.")
                     
             elif response.status_code == 429:
-                message = f"On launch {i+1} of {len(unique_vehicle_name_list)} in {self.year}."
+                message = f"On rocket {i+1} of {len(unique_vehicle_name_list)} in {self.year}."
                 self.response_error_handler(response,message)
                 continue
             else:
@@ -554,7 +554,7 @@ class import_launches_from_discos:
             
         #Loop over all rockets, and pull the information for each.
         
-        #unique_vehicle_name_list = unique_vehicle_name_list[29:31]
+        #unique_vehicle_name_list = unique_vehicle_name_list[0:5]
         for i in range(0,len(unique_vehicle_name_list)):
             
             temp_vehicle_id = vehicle_id_list[np.where(vehicle_name_list == unique_vehicle_name_list[i])[0][0]]
@@ -588,7 +588,7 @@ class import_launches_from_discos:
                         #pprint(temp_dict) 
                                                
                 elif response.status_code == 429:
-                    message = f"On launch {i+1} of {len(unique_vehicle_name_list)} in {self.year}."
+                    message = f"On rocket {i+1} of {len(unique_vehicle_name_list)} in {self.year}."
                     self.response_error_handler(response,message)
                     continue
                 else:
@@ -1020,7 +1020,7 @@ class import_launches_from_discos:
         ds['Stage4_PropMass']       = data_da_stage4_propmass
         ds['Stage4_Fuel_Type']      = data_da_stage4_fuel_type
         ds['Stage4_PropName']       = data_da_stage4_propname
-
+        ds['Total_Prop_Mass']       = np.sum(booster_propmass_list) + np.sum(data_da_stage1_propmass) + np.sum(data_da_stage2_propmass) + np.sum(data_da_stage3_propmass) + np.sum(data_da_stage4_propmass) 
              
         #Save to file and close the DataSet     
         ds.to_netcdf(f'./Databases/rocket_info_{year}.nc')
