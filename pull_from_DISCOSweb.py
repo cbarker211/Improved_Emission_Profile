@@ -300,6 +300,7 @@ class import_launches_from_discos:
         self.site_name = []
         self.rocket_type = []
         self.vehicle_id = []
+        self.mcs_check = []
         
         #self.full_launch_list = self.full_launch_list[:6]
         for count, launch in enumerate(self.full_launch_list):
@@ -315,7 +316,30 @@ class import_launches_from_discos:
             sec = int(temp_launch_time[7:9])
             time_utc = np.float64(hour + minute / 60 + sec / 3600)
             self.launch_time.append(time_utc)
-
+            
+            # Look for any payloads with the name 'Starlink' or 'Oneweb', and denote them as MCS.
+            params={
+                    'filter' : "(eq(objectClass,Payload))&(or(contains(name,Starlink),contains(name,OneWeb)))",
+                    'sort' : 'id'         
+                }
+            while True:
+                response = self.server_request(params,f'/launches/{launch["id"]}/objects')
+                if response.ok:
+                    doc = response.json()
+                    temp_object_list = doc['data']
+                    if len(temp_object_list) > 0:
+                        self.mcs_check.append(True)
+                        print(f"{int(self.launch_day[-1])}/{int(self.launch_month[-1])}")  
+                    else:
+                        self.mcs_check.append(False)   
+                elif response.status_code == 429:
+                    message = f"On launch {count} of {len(self.full_launch_list)} in {self.year}."
+                    self.response_error_handler(response,message)
+                    continue
+                else:
+                    self.response_error_handler(response,"")
+                break
+            
             # Get the launch site info.
             while True:
                 response = self.server_request({},f'/launches/{launch["id"]}/site')
@@ -350,7 +374,7 @@ class import_launches_from_discos:
                     self.response_error_handler(response,"")
                 break
                     
-        return [self.Cospar_Id, self.launch_time, self.launch_day, self.launch_month, self.latitude, self.longitude, self.site_name, self.rocket_type]
+        return [self.Cospar_Id, self.launch_time, self.launch_day, self.launch_month, self.latitude, self.longitude, self.site_name, self.rocket_type, self.mcs_check]
             
     def launch_info_to_netcdf(self):
         """This saves the launch information as a NetCDF file for later processing for GEOS-Chem.
@@ -406,6 +430,11 @@ class import_launches_from_discos:
                        short_name="Vehicle ID",
                        ))
         
+        data_da_launch_MCS = xr.DataArray(self.mcs_check, dims=dims,
+            attrs=dict(long_name="MCS Launch Check",
+                       short_name="MCS Launch Check",
+                       ))
+        
         # Create an xarray Dataset from the DataArrays.
         ds = xr.Dataset()
         ds['COSPAR_ID'] = data_da_cospar_id
@@ -417,6 +446,7 @@ class import_launches_from_discos:
         ds['Launch_Site'] = data_da_launch_site
         ds['Rocket_Type'] = data_da_rocket_type
         ds['Vehicle_ID'] = data_da_vehicle_id
+        ds['MCS_Check'] = data_da_launch_MCS
              
         #Save to file and close the DataSet     
         ds.to_netcdf(f'./Databases/launch_info_{year}.nc')
@@ -1040,8 +1070,8 @@ if __name__ == "__main__":
     LaunchData = import_launches_from_discos(year)
     
     #Now we can run class functions.
-    #LaunchData.get_launch_info()
-    #LaunchData.launch_info_to_netcdf()
-    LaunchData.get_rocket_info()
-    LaunchData.rocket_info_to_netcdf()
+    LaunchData.get_launch_info()
+    LaunchData.launch_info_to_netcdf()
+    #LaunchData.get_rocket_info()
+    #LaunchData.rocket_info_to_netcdf()
     
