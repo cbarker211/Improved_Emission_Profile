@@ -227,6 +227,7 @@ class OutputEmis:
         self.ross_alt, self.ross_prop_mass, self.ross_cumulative_mass = get_ross_profiles()
 
         # Create variables for totals for a future sanity check:
+        # TODO: Might be a bit less clear, but these 10 1D arrays could be merged into one 2D array.
         self.nox_launch_total = 0.0
         self.bc_total  = 0.0
         self.h2o_total = 0.0
@@ -257,11 +258,7 @@ class OutputEmis:
         #self.lon2d = X
         #self.lat2d = Y
         
-        # Trim the rocket names in the propellant mass database. This was added in 2019 script.
-        # Eloise said this may have been to do with condensing the names from Chloe's excel file?
-        # Have commented out, and now the program will use the full rocket name to find the specific launch vehicle.
-        #self.trim_name = [elem[0:5] for elem in rocket_data.rocket_name]
-        
+        # Create the arrays for the output file to check prop/species distribution.
         self.output_for_csv = np.zeros((len(rocket_data.launch_id)*3,self.nlev))
         self.csv_count = 0
         self.output_for_csv_2 = np.zeros((len(rocket_data.launch_id)*8,self.nlev))
@@ -292,12 +289,11 @@ class OutputEmis:
             print('MONTH = ', self.strmon)             
             
             #Loop over a single day
-            #for d in range(0,1):
+            #for d in range(6,9):
             
             #Loop over all days:
             for d in range(ndays):
-           
-
+                
                 # Get day string:
                 if d+1<=9:
                     self.strday='0'+str(d+1)
@@ -340,7 +336,12 @@ class OutputEmis:
                 # Call grid_emis function to calculate distribution from launches
                 ########################################################################
                 
+                # Use this when outputting MCS and Non_MCS separately.
                 l_ind=np.where((rocket_data.launch_month==(m+1))&(rocket_data.launch_day==(d+1))&(~np.isnan(rocket_data.launch_time))&(rocket_data.launch_mcs==self.include_mcs))[0]
+                
+                # Use this when outputting all launches as a single file
+                #l_ind=np.where((rocket_data.launch_month==(m+1))&(rocket_data.launch_day==(d+1))&(~np.isnan(rocket_data.launch_time)))[0]
+                
                 if len(l_ind)>0:
                     print('----> Day processing: ',self.strday,f"{len(l_ind)} Launches.")
                     self.grid_emis(l_ind,
@@ -399,7 +400,6 @@ class OutputEmis:
                     self.qmin,self.qmax=int(lat_ind),int(lat_ind)
                     lon_ind=np.argmin(abs(self.lon-0))
                     self.pmin,self.pmax=int(lon_ind),int(lon_ind)
-                    
                     self.save_netcdf()
         
         df = pd.DataFrame(self.output_for_csv)
@@ -432,42 +432,6 @@ class OutputEmis:
 
         for i, h in enumerate(height):
             self.ei_co[i] = min(co_pei, 0.0025*np.exp(0.067*h)*(co2_pei + co_pei))
-                
-    def calculate_cl_ei_old(self, height, cly_pei):
-        """Calculate emission indices for all chlorine species in g per kg propellant burned.
-           Using data from Gomberg, Zittel and Leone, refs originally obtained from James2021."""
-        
-        lit_alt = np.asarray([0.7, 6, 10, 15, 20, 30, 40])
-        cl_mass_frac = np.asarray([0.09797571, 0.37944013, 1.22129252, 2.93772332, 1.87681504, 4.53166338, 23.44299425])
-        cl2_mass_frac = np.asarray([7.06500364, 8.03296568, 10.62827697, 17.29888424, 29.61138669, 52.1746513, 45.15366282])
-        hcl_mass_frac = np.asarray([92.83702064, 91.58759419, 88.15043051, 79.76339245, 68.51179827, 43.29368532, 31.40334294])
-        
-        self.ei_cl = np.zeros_like(height)
-        self.ei_cl2 = np.zeros_like(height)
-        self.ei_hcl = np.zeros_like(height)
-
-        for i, h in enumerate(height):
-            # At each altitude, interpolate the mass_frac arrays to get the % of each chlorine species.
-            if h > 40:
-                self.ei_cl[i]  = cl_mass_frac[-1]
-                self.ei_cl2[i] = cl2_mass_frac[-1]
-                self.ei_hcl[i] = hcl_mass_frac[-1]
-            else:
-                self.ei_cl[i]  = np.interp(h,lit_alt,cl_mass_frac)
-                self.ei_cl2[i] = np.interp(h,lit_alt,cl2_mass_frac)
-                self.ei_hcl[i] = np.interp(h,lit_alt,hcl_mass_frac)
-            if 99.99 <= self.ei_cl[i]+self.ei_cl2[i]+self.ei_hcl[i] <= 100.01:
-                self.ei_cl[i] = self.ei_cl[i] / 100 * cly_pei
-                self.ei_cl2[i] = self.ei_cl2[i] / 100 * cly_pei
-                self.ei_hcl[i] = self.ei_hcl[i] / 100 * cly_pei
-            else:
-                print(self.ei_cl[i]+self.ei_cl2[i]+self.ei_hcl[i])
-                sys.exit(f"Warning, chlorine didn't add to 100%.")
-                
-        plt.plot(height,self.ei_cl,'-xr')
-        plt.plot(height,self.ei_cl2,'-xk')
-        plt.plot(height,self.ei_hcl,'-xb')
-        plt.savefig("Cl.png")
             
     def calculate_cl_ei(self, height, cly_pei):
         """Calculate emission indices for all chlorine species in g per kg propellant burned.
@@ -513,9 +477,9 @@ class OutputEmis:
                 sys.exit(f"Warning, Cly didn't add to 100%.")
         
         if (np.sum(self.ei_cl) + np.sum(self.ei_cl2) + np.sum(self.ei_hcl)) > 0:  
-            plt.plot(height,self.ei_cl,'-xr')
-            plt.plot(height,self.ei_cl2,'-xk')
-            plt.plot(height,self.ei_hcl,'-xb')
+            plt.plot(height,self.ei_cl,'-',color='orange')
+            plt.plot(height,self.ei_cl2,'-',color='aqua')
+            plt.plot(height,self.ei_hcl,'-',color='black')
             plt.xlim(0,80)
             plt.ylim(0,200)
             plt.xlabel("Altitude / km")
@@ -599,11 +563,16 @@ class OutputEmis:
         
         else:
             # If SEI occurs below the the GC boundary, then we can use some of the stage 2 emissions.
-            # Find out which layer SEI occurs in. If its a 3 or 4 stage rocket with no boosters, then set SEI to occur in the layer above MECO to prevent a spike in emissions.
-            if rocket_config_type in [2,4,5]:
-                self.SEI_alt_index = self.MECO_alt_index + 1    
-            else:
-                self.SEI_alt_index = np.argmin(np.abs(self.meco_levs[rocket_config_type]*1e3 - self.mid_alt[:,q,p]))
+            
+            # This code works out if MECO and SEI occur at the same time, and if so then sets SEI to occur in the layer above MECO to prevent a spike in emissions.
+            # Removed 28/7/23, as emissions from each stage should always be released into the proper altitude regardless of the other stages.
+            #if rocket_config_type in [2,4,5]:
+            #    print(self.MECO_alt_index)
+            #    self.SEI_alt_index = self.MECO_alt_index + 1    
+            #else:
+            #    self.SEI_alt_index = np.argmin(np.abs(self.meco_levs[rocket_config_type]*1e3 - self.mid_alt[:,q,p]))
+            
+            self.SEI_alt_index = np.argmin(np.abs(self.meco_levs[rocket_config_type]*1e3 - self.mid_alt[:,q,p]))
             self.gc_relative_mass_stage2 = np.asarray(self.gc_relative_mass[:self.nlev-self.SEI_alt_index])
             self.gc_relative_mass_stage2 = self.gc_relative_mass_stage2 / (np.sum(self.gc_relative_mass_stage2) + (100 - self.propellant_in_gc)) * 100
 
@@ -621,7 +590,74 @@ class OutputEmis:
             self.gc_relative_mass_landing = self.gc_relative_mass_landing / np.sum(self.gc_relative_mass_landing) * 1.2
         
         return rocket_config_type
-              
+    
+    def calc_emis(self,start_ind,stop_ind,pei_index,prop_mass,vertical_profile,time_index, q, p, kg_to_kgm2s, total_vertical_propellant):
+        self.calculate_bc_ei(self.mid_alt[start_ind:stop_ind:-1,q,p]*1e-3,rocket_data.bc_pei[pei_index])
+        t_bc_emis = self.ei_bc * prop_mass * 1e-2 * vertical_profile
+        self.bc_total += np.sum(t_bc_emis)
+        self.rocket_bc[time_index,start_ind:stop_ind:-1,q,p] += t_bc_emis * 1e-3 / kg_to_kgm2s
+        
+        self.calculate_co_ei(self.mid_alt[start_ind:stop_ind:-1,q,p]*1e-3, rocket_data.co_pei[pei_index], rocket_data.co2_pei[pei_index])
+        t_co_emis = self.ei_co * prop_mass * 1e-2 * vertical_profile
+        self.co_total += np.sum(t_co_emis)
+        self.rocket_co[time_index,start_ind:stop_ind:-1,q,p] += t_co_emis * 1e-3 / kg_to_kgm2s
+        
+        self.calculate_nox_ei(self.mid_alt[start_ind:stop_ind:-1,q,p]*1e-3)
+        t_launch_nox_emis = self.ei_sec_nox * prop_mass * 1e-2 * vertical_profile
+        self.nox_launch_total += np.sum(t_launch_nox_emis)
+        self.rocket_launch_nox[time_index,start_ind:stop_ind:-1,q,p] = t_launch_nox_emis * 1e-3 / kg_to_kgm2s
+        
+        t_fuel_nox_emis = rocket_data.nox_pei[pei_index] * prop_mass * 1e-2 * vertical_profile
+        self.nox_launch_total += np.sum(t_fuel_nox_emis)
+        self.rocket_fuel_nox[time_index,start_ind:stop_ind:-1,q,p] += t_fuel_nox_emis * 1e-3 / kg_to_kgm2s
+        
+        self.ei_h2o =  rocket_data.h2o_pei[pei_index] + rocket_data.h2_pei[pei_index] * self.mw_h2o / self.mw_h2 
+        t_h2o_emis = self.ei_h2o * prop_mass * 1e-2 * vertical_profile
+        self.h2o_total += np.sum(t_h2o_emis)
+        self.rocket_h2o[time_index,start_ind:stop_ind:-1,q,p] += t_h2o_emis * 1e-3 / kg_to_kgm2s
+        
+        t_al2o3_emis = rocket_data.al2o3_pei[pei_index] * prop_mass * 1e-2 * vertical_profile
+        self.al2o3_launch_total += np.sum(t_al2o3_emis)
+        self.rocket_launch_al[time_index,start_ind:stop_ind:-1,q,p] += t_al2o3_emis * 1e-3 / kg_to_kgm2s
+        
+        self.calculate_cl_ei(self.mid_alt[start_ind:stop_ind:-1,q,p]*1e-3, rocket_data.cly_pei[pei_index])  
+        
+        t_cl_emis = self.ei_cl * prop_mass * 1e-2 * vertical_profile
+        self.cl_total += np.sum(t_cl_emis)
+        self.rocket_cl[time_index,start_ind:stop_ind:-1,q,p] += t_cl_emis * 1e-3 / kg_to_kgm2s
+
+        t_hcl_emis = self.ei_hcl * prop_mass * 1e-2 * vertical_profile
+        self.hcl_total += np.sum(t_hcl_emis)
+        self.rocket_hcl[time_index,start_ind:stop_ind:-1,q,p] += t_hcl_emis * 1e-3 / kg_to_kgm2s
+        
+        t_cl2_emis = self.ei_cl2 * prop_mass * 1e-2 * vertical_profile
+        self.cl2_total += np.sum(t_cl2_emis)
+        self.rocket_cl2[time_index,start_ind:stop_ind:-1,q,p] += t_cl2_emis * 1e-3 / kg_to_kgm2s
+        
+        # These are all for viewing the individual propellant / species vertical distribution per launch.
+        
+        if stop_ind != None:
+            stop_index_mod = stop_ind + 1
+        else:
+            stop_index_mod = stop_ind
+        if start_ind != None:
+            start_index_mod = start_ind + 1
+        else:
+            start_index_mod = start_ind
+            
+        vertical_propellant = prop_mass * vertical_profile
+        total_vertical_propellant[stop_index_mod:start_index_mod,0]   += vertical_propellant[::-1]
+        total_vertical_propellant[stop_index_mod:start_index_mod,1]   += t_bc_emis[::-1]
+        total_vertical_propellant[stop_index_mod:start_index_mod,2]   += t_co_emis[::-1]
+        total_vertical_propellant[stop_index_mod:start_index_mod,3]   += (t_launch_nox_emis[::-1] + t_fuel_nox_emis[::-1])
+        total_vertical_propellant[stop_index_mod:start_index_mod,4]   += t_h2o_emis[::-1]
+        total_vertical_propellant[stop_index_mod:start_index_mod,5]   += t_al2o3_emis[::-1]
+        total_vertical_propellant[stop_index_mod:start_index_mod,6]   += t_cl_emis[::-1]
+        total_vertical_propellant[stop_index_mod:start_index_mod,7]   += t_hcl_emis[::-1]
+        total_vertical_propellant[stop_index_mod:start_index_mod,8]   += t_cl2_emis[::-1]
+        
+        return total_vertical_propellant
+        
     def grid_emis(self,index,lon,lat,hour,emis_type,launch_id,launch_rocket,d,m):
         """Grid the data onto the GEOS-Chem horizontal and vertical grid"""
         
@@ -684,8 +720,8 @@ class OutputEmis:
                 # Format the time of the event.
                 ############################################
                 
-                print(hour[w])
-                print(hour[w]*60*60)
+                #time_index = int(hour[w]*60*60)//self.ts
+                time_index = int(hour[w])
                 
                 ############################################
                 # Interpolate propellant mass distribution.
@@ -714,8 +750,9 @@ class OutputEmis:
                     if launch_rocket[w] == rocket_data.rocket_name[ll]:
                         rocket_found = True
                         valid_index=ll
-                        #print(f"Rocket name is {launch_rocket[w]}")
+                        print(f"Rocket name is {launch_rocket[w]}")
                         break
+                    
                 # Catch any missing rocket propellant masses:
                 if rocket_found == False:
                     sys.exit(f"No propellant mass found for {launch_rocket[w]}. Exiting programme.")
@@ -730,8 +767,12 @@ class OutputEmis:
                 pei_stage2_index  = np.where( rocket_data.pei_fuel_type == rocket_data.stage2_prop_type[valid_index] )[0]
                 
                 rocket_config_type = self.process_launch_event_altitudes(valid_index, p, q, launch_rocket[w])
+
+                ##############################################
+                # Deal with failed launches.
+                ############################################## 
                 
-                # Treat failed launches. Most failures are for upper stages, and so can be treated as normal here.
+                # Most failures are for upper stages, and so can be treated as normal here.
                 # Full information is provided in README.txt
                 if launch_id[w][-3:] in ['F04','F11']:
                     print(f'Launch {launch_id[w]} failed. Not processing.')
@@ -790,300 +831,107 @@ class OutputEmis:
                 #percent_dis_s4 = rocket_data.stage4_prop_mass[valid_index] / total_prop_mass * 100
                 #print(f"% Distribution is {percent_dis_b:.0f} {percent_dis_s1:.0f} {percent_dis_s2:.0f} {percent_dis_s3:.0f} {percent_dis_s4:.0f}")
                 
-                total_vertical_propellant = np.zeros_like(self.mid_alt[:,q,p])
-                total_bc_propellant       = np.zeros_like(self.mid_alt[:,q,p])
-                total_co_propellant       = np.zeros_like(self.mid_alt[:,q,p])
-                total_nox_propellant      = np.zeros_like(self.mid_alt[:,q,p])
-                total_h2o_propellant      = np.zeros_like(self.mid_alt[:,q,p])
-                total_al2o3_propellant    = np.zeros_like(self.mid_alt[:,q,p])
-                total_cl_propellant       = np.zeros_like(self.mid_alt[:,q,p])
-                total_hcl_propellant      = np.zeros_like(self.mid_alt[:,q,p])
-                total_cl2_propellant      = np.zeros_like(self.mid_alt[:,q,p])
-                
                 ##############################################
                 # Calculate the emissions for each species.
-                ##############################################              
+                ##############################################     
+                
+                # Creating a 2d array for the prop output.
+                # Total prop, bc, co, nox, h2o, al2o3, cl, hcl, cl2
+                total_vertical_propellant = np.zeros((len(self.mid_alt[:,q,p]),9))      
                                 
                 # Check whether there is a booster:
                 if ( rocket_data.booster_prop_type[valid_index] != '' ):
                     if np.sum(1e-2 * self.gc_relative_mass_booster) > 1.01:
                         sys.exit("Error with Boosters. Propellant distribution exceeds unity.")
                         
-                    self.calculate_bc_ei(self.mid_alt[self.booster_alt_index::-1,q,p]*1e-3,rocket_data.bc_pei[pei_booster_index])
-                    t_bc_emis = self.ei_bc * rocket_data.booster_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_booster
-                    self.bc_total += np.sum(t_bc_emis)
-                    self.rocket_bc[int(hour[w]),self.booster_alt_index::-1,q,p] += t_bc_emis * 1e-3 / kg_to_kgm2s
-                    
-                    self.calculate_co_ei(self.mid_alt[self.booster_alt_index::-1,q,p]*1e-3, rocket_data.co_pei[pei_booster_index], rocket_data.co2_pei[pei_booster_index])
-                    t_co_emis = self.ei_co * rocket_data.booster_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_booster
-                    self.co_total += np.sum(t_co_emis)
-                    self.rocket_co[int(hour[w]),self.booster_alt_index::-1,q,p] += t_co_emis * 1e-3 / kg_to_kgm2s
-                    
-                    self.calculate_nox_ei(self.mid_alt[self.booster_alt_index::-1,q,p]*1e-3)
-                    t_launch_nox_emis = self.ei_sec_nox * rocket_data.booster_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_booster
-                    self.nox_launch_total += np.sum(t_launch_nox_emis)
-                    self.rocket_launch_nox[int(hour[w]),self.booster_alt_index::-1,q,p] = t_launch_nox_emis * 1e-3 / kg_to_kgm2s
-                    
-                    t_fuel_nox_emis = rocket_data.nox_pei[pei_booster_index] * rocket_data.booster_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_booster
-                    self.nox_launch_total += np.sum(t_fuel_nox_emis)
-                    self.rocket_fuel_nox[int(hour[w]),self.booster_alt_index::-1,q,p] += t_fuel_nox_emis * 1e-3 / kg_to_kgm2s
-                    
-                    self.ei_h2o =  rocket_data.h2o_pei[pei_booster_index] + rocket_data.h2_pei[pei_booster_index] * self.mw_h2o / self.mw_h2 
-                    t_h2o_emis = self.ei_h2o * rocket_data.booster_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_booster
-                    self.h2o_total += np.sum(t_h2o_emis)
-                    self.rocket_h2o[int(hour[w]),self.booster_alt_index::-1,q,p] += t_h2o_emis * 1e-3 / kg_to_kgm2s
-                    
-                    t_al2o3_emis = rocket_data.al2o3_pei[pei_booster_index] * rocket_data.booster_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_booster
-                    self.al2o3_launch_total += np.sum(t_al2o3_emis)
-                    self.rocket_launch_al[int(hour[w]),self.booster_alt_index::-1,q,p] += t_al2o3_emis * 1e-3 / kg_to_kgm2s
-                    
-                    self.calculate_cl_ei(self.mid_alt[self.booster_alt_index::-1,q,p]*1e-3, rocket_data.cly_pei[pei_booster_index])  
-                    
-                    t_cl_emis = self.ei_cl * rocket_data.booster_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_booster
-                    self.cl_total += np.sum(t_cl_emis)
-                    self.rocket_cl[int(hour[w]),self.booster_alt_index::-1,q,p] += t_cl_emis * 1e-3 / kg_to_kgm2s
-
-                    t_hcl_emis = self.ei_hcl * rocket_data.booster_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_booster
-                    self.hcl_total += np.sum(t_hcl_emis)
-                    self.rocket_hcl[int(hour[w]),self.booster_alt_index::-1,q,p] += t_hcl_emis * 1e-3 / kg_to_kgm2s
-                    
-                    t_cl2_emis = self.ei_cl2 * rocket_data.booster_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_booster
-                    self.cl2_total += np.sum(t_cl2_emis)
-                    self.rocket_cl2[int(hour[w]),self.booster_alt_index::-1,q,p] += t_cl2_emis * 1e-3 / kg_to_kgm2s
-                    
-                    # These are all for viewing the individual propellant / species vertical distribution per launch.
-                    vertical_propellant_booster = rocket_data.booster_prop_mass[valid_index] * self.gc_relative_mass_booster
-                    total_vertical_propellant[:self.booster_alt_index+1] += vertical_propellant_booster[::-1]
-                    total_bc_propellant[:self.booster_alt_index+1]    += t_bc_emis[::-1]
-                    total_co_propellant[:self.booster_alt_index+1]    += t_co_emis[::-1]
-                    total_nox_propellant[:self.booster_alt_index+1]   += (t_launch_nox_emis[::-1] + t_fuel_nox_emis[::-1])
-                    total_h2o_propellant[:self.booster_alt_index+1]   += t_h2o_emis[::-1]
-                    total_al2o3_propellant[:self.booster_alt_index+1] += t_al2o3_emis[::-1]
-                    total_cl_propellant[:self.booster_alt_index+1]    += t_cl_emis[::-1]
-                    total_hcl_propellant[:self.booster_alt_index+1]   += t_hcl_emis[::-1]
-                    total_cl2_propellant[:self.booster_alt_index+1]   += t_cl2_emis[::-1]
+                    total_vertical_propellant = self.calc_emis(self.booster_alt_index,
+                                   None,
+                                   pei_booster_index,
+                                   rocket_data.booster_prop_mass[valid_index],
+                                   self.gc_relative_mass_booster,
+                                   time_index, 
+                                   q, 
+                                   p, 
+                                   kg_to_kgm2s,
+                                   total_vertical_propellant)
+                        
 
                 # Every rocket has a first stage.
                 if np.sum(1e-2 * self.gc_relative_mass_stage1) > 1.01:
                     sys.exit("Error with Stage 1. Propellant distribution exceeds unity.")
-
-                self.calculate_bc_ei(self.mid_alt[self.MECO_alt_index::-1,q,p]*1e-3,rocket_data.bc_pei[pei_stage1_index])
-                t_bc_emis = self.ei_bc * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_stage1
-                self.bc_total += np.sum(t_bc_emis)
-                self.rocket_bc[int(hour[w]),self.MECO_alt_index::-1,q,p] += t_bc_emis*1e-3 / kg_to_kgm2s
-
-                self.calculate_co_ei(self.mid_alt[self.MECO_alt_index::-1,q,p]*1e-3, rocket_data.co_pei[pei_stage1_index], rocket_data.co2_pei[pei_stage1_index])
-                t_co_emis = self.ei_co * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_stage1
-                self.co_total += np.sum(t_co_emis)
-                self.rocket_co[int(hour[w]),self.MECO_alt_index::-1,q,p] += t_co_emis * 1e-3 / kg_to_kgm2s
-                
-                self.calculate_nox_ei(self.mid_alt[self.MECO_alt_index::-1,q,p]*1e-3)
-                t_launch_nox_emis = self.ei_sec_nox * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_stage1
-                self.nox_launch_total += np.sum(t_launch_nox_emis)
-                self.rocket_launch_nox[int(hour[w]),self.MECO_alt_index::-1,q,p] = t_launch_nox_emis * 1e-3 / kg_to_kgm2s
-                
-                t_fuel_nox_emis = rocket_data.nox_pei[pei_stage1_index] * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_stage1
-                self.nox_launch_total += np.sum(t_fuel_nox_emis)
-                self.rocket_fuel_nox[int(hour[w]),self.MECO_alt_index::-1,q,p] += t_fuel_nox_emis * 1e-3 / kg_to_kgm2s
-                
-                self.ei_h2o =  rocket_data.h2o_pei[pei_stage1_index] + rocket_data.h2_pei[pei_stage1_index] * self.mw_h2o / self.mw_h2 
-                t_h2o_emis = self.ei_h2o * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_stage1
-                self.h2o_total += np.sum(t_h2o_emis)
-                self.rocket_h2o[int(hour[w]),self.MECO_alt_index::-1,q,p] += t_h2o_emis * 1e-3 / kg_to_kgm2s
-                
-                t_al2o3_emis = rocket_data.al2o3_pei[pei_stage1_index] * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_stage1
-                self.al2o3_launch_total += np.sum(t_al2o3_emis)
-                self.rocket_launch_al[int(hour[w]),self.MECO_alt_index::-1,q,p] += t_al2o3_emis * 1e-3 / kg_to_kgm2s
-                
-                self.calculate_cl_ei(self.mid_alt[self.MECO_alt_index::-1,q,p]*1e-3,rocket_data.cly_pei[pei_stage1_index])  
-                      
-                t_cl_emis = self.ei_cl * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_stage1
-                self.cl_total += np.sum(t_cl_emis)
-                self.rocket_cl[int(hour[w]),self.MECO_alt_index::-1,q,p] += t_cl_emis * 1e-3 / kg_to_kgm2s
-
-                t_hcl_emis = self.ei_hcl * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_stage1
-                self.hcl_total += np.sum(t_hcl_emis)
-                self.rocket_hcl[int(hour[w]),self.MECO_alt_index::-1,q,p] += t_hcl_emis * 1e-3 / kg_to_kgm2s 
-                
-                t_cl2_emis = self.ei_cl2 * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_stage1
-                self.cl2_total += np.sum(t_cl2_emis)
-                self.rocket_cl2[int(hour[w]),self.MECO_alt_index::-1,q,p] += t_cl2_emis * 1e-3 / kg_to_kgm2s 
-                
-                # These are all for viewing the individual propellant / species vertical distribution per launch.
-                vertical_propellant_stage1 = rocket_data.stage1_prop_mass[valid_index] * self.gc_relative_mass_stage1
-                total_vertical_propellant[:self.MECO_alt_index+1] += vertical_propellant_stage1[::-1]
-                total_bc_propellant[:self.MECO_alt_index+1]    += t_bc_emis[::-1]
-                total_co_propellant[:self.MECO_alt_index+1]    += t_co_emis[::-1]
-                total_nox_propellant[:self.MECO_alt_index+1]   += (t_launch_nox_emis[::-1] + t_fuel_nox_emis[::-1])
-                total_h2o_propellant[:self.MECO_alt_index+1]   += t_h2o_emis[::-1]
-                total_al2o3_propellant[:self.MECO_alt_index+1] += t_al2o3_emis[::-1]
-                total_cl_propellant[:self.MECO_alt_index+1]    += t_cl_emis[::-1]
-                total_hcl_propellant[:self.MECO_alt_index+1]   += t_hcl_emis[::-1]
-                total_cl2_propellant[:self.MECO_alt_index+1]   += t_cl2_emis[::-1]
+                    
+                total_vertical_propellant = self.calc_emis(self.MECO_alt_index,
+                                None,
+                                pei_stage1_index,
+                                rocket_data.stage1_prop_mass[valid_index],
+                                self.gc_relative_mass_stage1,
+                                time_index, 
+                                q, 
+                                p, 
+                                kg_to_kgm2s,
+                                total_vertical_propellant)
 
                 # Check whether there is a second stage:
                 if rocket_data.stage2_prop_type[valid_index] != '' and launch_id[w][-3:] != 'F03':
                     if np.sum(1e-2 * self.gc_relative_mass_stage2) > 1.01:
                         sys.exit("Error with Stage 2. Propellant distribution exceeds unity.")
-                    self.calculate_bc_ei(self.mid_alt[:self.SEI_alt_index-1:-1,q,p]*1e-3,rocket_data.bc_pei[pei_stage2_index])
-                    t_bc_emis = self.ei_bc * rocket_data.stage2_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_stage2
-                    self.bc_total += np.sum(t_bc_emis)
-                    self.rocket_bc[int(hour[w]),:self.SEI_alt_index-1:-1,q,p] += t_bc_emis * 1e-3 / kg_to_kgm2s
-                    
-                    self.calculate_co_ei(self.mid_alt[:self.SEI_alt_index-1:-1,q,p]*1e-3, rocket_data.co_pei[pei_stage2_index], rocket_data.co2_pei[pei_stage2_index])
-                    t_co_emis = self.ei_co * rocket_data.stage2_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_stage2
-                    self.co_total += np.sum(t_co_emis)
-                    self.rocket_co[int(hour[w]),:self.SEI_alt_index-1:-1,q,p] += t_co_emis * 1e-3 / kg_to_kgm2s
-                    
-                    self.calculate_nox_ei(self.mid_alt[:self.SEI_alt_index-1:-1,q,p]*1e-3)
-                    t_launch_nox_emis = self.ei_sec_nox * rocket_data.stage2_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_stage2
-                    self.nox_launch_total += np.sum(t_launch_nox_emis)
-                    self.rocket_launch_nox[int(hour[w]),:self.SEI_alt_index-1:-1,q,p] = t_launch_nox_emis * 1e-3 / kg_to_kgm2s
-                    
-                    t_fuel_nox_emis = rocket_data.nox_pei[pei_stage2_index] * rocket_data.stage2_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_stage2
-                    self.nox_launch_total += np.sum(t_fuel_nox_emis)
-                    self.rocket_fuel_nox[int(hour[w]),:self.SEI_alt_index-1:-1,q,p] += t_fuel_nox_emis * 1e-3 / kg_to_kgm2s
-                    
-                    self.ei_h2o =  rocket_data.h2o_pei[pei_stage2_index] + rocket_data.h2_pei[pei_stage2_index] * self.mw_h2o / self.mw_h2 
-                    t_h2o_emis = self.ei_h2o * rocket_data.stage2_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_stage2
-                    self.h2o_total += np.sum(t_h2o_emis)
-                    self.rocket_h2o[int(hour[w]),:self.SEI_alt_index-1:-1,q,p] += t_h2o_emis * 1e-3 / kg_to_kgm2s
-                    
-                    t_al2o3_emis = rocket_data.al2o3_pei[pei_stage2_index] * rocket_data.stage2_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_stage2
-                    self.al2o3_launch_total += np.sum(t_al2o3_emis)
-                    self.rocket_launch_al[int(hour[w]),:self.SEI_alt_index-1:-1,q,p] += t_al2o3_emis * 1e-3 / kg_to_kgm2s
-                    
-                    self.calculate_cl_ei(self.mid_alt[:self.SEI_alt_index-1:-1,q,p]*1e-3,rocket_data.cly_pei[pei_stage2_index])
-                    
-                    t_cl_emis = self.ei_cl * rocket_data.stage2_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_stage2
-                    self.cl_total += np.sum(t_cl_emis)
-                    self.rocket_cl[int(hour[w]),:self.SEI_alt_index-1:-1,q,p] += t_cl_emis * 1e-3 / kg_to_kgm2s
-
-                    t_hcl_emis = self.ei_hcl * rocket_data.stage2_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_stage2
-                    self.hcl_total += np.sum(t_hcl_emis)
-                    self.rocket_hcl[int(hour[w]),:self.SEI_alt_index-1:-1,q,p] += t_hcl_emis * 1e-3 / kg_to_kgm2s
-                    
-                    t_cl2_emis = self.ei_cl2 * rocket_data.stage2_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_stage2
-                    self.cl2_total += np.sum(t_cl2_emis)
-                    self.rocket_cl2[int(hour[w]),:self.SEI_alt_index-1:-1,q,p] += t_cl2_emis * 1e-3 / kg_to_kgm2s
-
-                    # These are all for viewing the individual propellant / species vertical distribution per launch.
-                    vertical_propellant_stage2 = rocket_data.stage2_prop_mass[valid_index] * self.gc_relative_mass_stage2
-                    total_vertical_propellant[self.SEI_alt_index:] += vertical_propellant_stage2[::-1]
-                    total_bc_propellant[self.SEI_alt_index:]    += t_bc_emis[::-1]
-                    total_co_propellant[self.SEI_alt_index:]    += t_co_emis[::-1]
-                    total_nox_propellant[self.SEI_alt_index:]   += (t_launch_nox_emis[::-1] + t_fuel_nox_emis[::-1])
-                    total_h2o_propellant[self.SEI_alt_index:]   += t_h2o_emis[::-1]
-                    total_al2o3_propellant[self.SEI_alt_index:] += t_al2o3_emis[::-1]
-                    total_cl_propellant[self.SEI_alt_index:]    += t_cl_emis[::-1]
-                    total_hcl_propellant[self.SEI_alt_index:]   += t_hcl_emis[::-1]
-                    total_cl2_propellant[self.SEI_alt_index:]   += t_cl2_emis[::-1]
+                        
+                    total_vertical_propellant = self.calc_emis(None,
+                                self.SEI_alt_index-1,
+                                pei_stage2_index,
+                                rocket_data.stage2_prop_mass[valid_index],
+                                self.gc_relative_mass_stage2,
+                                time_index, 
+                                q, 
+                                p, 
+                                kg_to_kgm2s,
+                                total_vertical_propellant)
                     
                 # If the rocket is a Falcon 9, then add the landing emissions. Kerosene, so no Al2O3 or Cly.
                 if rocket_data.rocket_name[valid_index] == "Falcon 9 v1.2" and self.include_landing == True:
                     if np.sum(self.gc_relative_mass_entry) + np.sum(self.gc_relative_mass_landing) > 7:
                         sys.exit("Error with Stage 1 Landing. Propellant distribution exceeds what is expected.")
                     
-                    ############################
                     # First the entry emissions.
-                    ############################
+                    total_vertical_propellant = self.calc_emis(self.entry_top,
+                                self.entry_bot-1,
+                                pei_stage1_index,
+                                rocket_data.stage1_prop_mass[valid_index],
+                                self.gc_relative_mass_entry,
+                                time_index, 
+                                q, 
+                                p, 
+                                kg_to_kgm2s,
+                                total_vertical_propellant)
                         
-                    self.calculate_bc_ei(self.mid_alt[self.entry_top:self.entry_bot-1:-1,q,p]*1e-3,rocket_data.bc_pei[pei_stage1_index])
-                    t_bc_emis = self.ei_bc * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_entry
-                    self.bc_total += np.sum(t_bc_emis)
-                    self.rocket_bc[int(hour[w]),self.entry_top:self.entry_bot-1:-1,q,p] += t_bc_emis * 1e-3 / kg_to_kgm2s
                     
-                    self.calculate_co_ei(self.mid_alt[self.entry_top:self.entry_bot-1:-1,q,p]*1e-3, rocket_data.co_pei[pei_stage1_index], rocket_data.co2_pei[pei_stage1_index])
-                    t_co_emis = self.ei_co * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_entry
-                    self.co_total += np.sum(t_co_emis)
-                    self.rocket_co[int(hour[w]),self.entry_top:self.entry_bot-1:-1,q,p] += t_co_emis * 1e-3 / kg_to_kgm2s
-                    
-                    self.calculate_nox_ei(self.mid_alt[self.entry_top:self.entry_bot-1:-1,q,p]*1e-3)
-                    t_launch_nox_emis = self.ei_sec_nox * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_entry
-                    self.nox_launch_total += np.sum(t_launch_nox_emis)
-                    self.rocket_launch_nox[int(hour[w]),self.entry_top:self.entry_bot-1:-1,q,p] = t_launch_nox_emis * 1e-3 / kg_to_kgm2s
-                    
-                    t_fuel_nox_emis = rocket_data.nox_pei[pei_stage1_index] * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_entry
-                    self.nox_launch_total += np.sum(t_fuel_nox_emis)
-                    self.rocket_fuel_nox[int(hour[w]),self.entry_top:self.entry_bot-1:-1,q,p] += t_fuel_nox_emis * 1e-3 / kg_to_kgm2s
-                    
-                    self.ei_h2o =  rocket_data.h2o_pei[pei_stage1_index] + rocket_data.h2_pei[pei_stage1_index] * self.mw_h2o / self.mw_h2 
-                    t_h2o_emis = self.ei_h2o * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_entry
-                    self.h2o_total += np.sum(t_h2o_emis)
-                    self.rocket_h2o[int(hour[w]),self.entry_top:self.entry_bot-1:-1,q,p] += t_h2o_emis * 1e-3 / kg_to_kgm2s
-                    
-                    # These are all for viewing the individual propellant / species vertical distribution per launch.
-                    vertical_propellant_entry = rocket_data.stage1_prop_mass[valid_index] * self.gc_relative_mass_entry
-                    total_vertical_propellant[self.entry_bot:self.entry_top+1] += vertical_propellant_entry[::-1]
-                    total_bc_propellant[self.entry_bot:self.entry_top+1]    += t_bc_emis[::-1]
-                    total_co_propellant[self.entry_bot:self.entry_top+1]    += t_co_emis[::-1]
-                    total_nox_propellant[self.entry_bot:self.entry_top+1]   += (t_launch_nox_emis[::-1] + t_fuel_nox_emis[::-1])
-                    total_h2o_propellant[self.entry_bot:self.entry_top+1]   += t_h2o_emis[::-1]
-                    
-                    #############################
                     # Now the landing emissions.
-                    #############################
-                        
-                    self.calculate_bc_ei(self.mid_alt[self.landing_top::-1,q,p]*1e-3,rocket_data.bc_pei[pei_stage1_index])
-                    t_bc_emis = self.ei_bc * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_landing
-                    self.bc_total += np.sum(t_bc_emis)
-                    self.rocket_bc[int(hour[w]),self.landing_top::-1,q,p] += t_bc_emis * 1e-3 / kg_to_kgm2s
-                    
-                    self.calculate_co_ei(self.mid_alt[self.landing_top::-1,q,p]*1e-3, rocket_data.co_pei[pei_stage1_index], rocket_data.co2_pei[pei_stage1_index])
-                    t_co_emis = self.ei_co * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_landing
-                    self.co_total += np.sum(t_co_emis)
-                    self.rocket_co[int(hour[w]),self.landing_top::-1,q,p] += t_co_emis * 1e-3 / kg_to_kgm2s
-                    
-                    self.calculate_nox_ei(self.mid_alt[self.landing_top::-1,q,p]*1e-3)
-                    t_launch_nox_emis = self.ei_sec_nox * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_landing
-                    self.nox_launch_total += np.sum(t_launch_nox_emis)
-                    self.rocket_launch_nox[int(hour[w]),self.landing_top::-1,q,p] = t_launch_nox_emis * 1e-3 / kg_to_kgm2s
-                    
-                    t_fuel_nox_emis = rocket_data.nox_pei[pei_stage1_index] * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_landing
-                    self.nox_launch_total += np.sum(t_fuel_nox_emis)
-                    self.rocket_fuel_nox[int(hour[w]),self.landing_top::-1,q,p] += t_fuel_nox_emis * 1e-3 / kg_to_kgm2s
-                    
-                    self.ei_h2o =  rocket_data.h2o_pei[pei_stage1_index] + rocket_data.h2_pei[pei_stage1_index] * self.mw_h2o / self.mw_h2 
-                    t_h2o_emis = self.ei_h2o * rocket_data.stage1_prop_mass[valid_index] * 1e-2 * self.gc_relative_mass_landing
-                    self.h2o_total += np.sum(t_h2o_emis)
-                    self.rocket_h2o[int(hour[w]),self.landing_top::-1,q,p] += t_h2o_emis * 1e-3 / kg_to_kgm2s
-                    
-                    # These are all for viewing the individual propellant / species vertical distribution per launch.
-                    vertical_propellant_landing = rocket_data.stage1_prop_mass[valid_index] * self.gc_relative_mass_landing
-                    total_vertical_propellant[0:self.landing_top+1] += vertical_propellant_landing[::-1]
-                    total_bc_propellant[0:self.landing_top+1]    += t_bc_emis[::-1]
-                    total_co_propellant[0:self.landing_top+1]    += t_co_emis[::-1]
-                    total_nox_propellant[0:self.landing_top+1]   += (t_launch_nox_emis[::-1] + t_fuel_nox_emis[::-1])
-                    total_h2o_propellant[0:self.landing_top+1]   += t_h2o_emis[::-1]
+                    total_vertical_propellant = self.calc_emis(self.landing_top,
+                                None,
+                                pei_stage1_index,
+                                rocket_data.stage1_prop_mass[valid_index],
+                                self.gc_relative_mass_landing,
+                                time_index, 
+                                q, 
+                                p, 
+                                kg_to_kgm2s,
+                                total_vertical_propellant)
                 
                 ##############################################
                 # Output the emissions to a file for viewing.
                 ##############################################                  
                     
-                total_vertical_propellant = total_vertical_propellant / total_prop_mass
-                self.output_for_csv[self.csv_count,:] = total_vertical_propellant
+                total_vertical_propellant[:,0] = total_vertical_propellant[:,0] / total_prop_mass
+                self.output_for_csv[self.csv_count,:] = total_vertical_propellant[:,0]
                 self.csv_count += 1
                 self.output_for_csv[self.csv_count,:] = self.mid_alt[:,q,p]*1e-3
                 self.csv_count += 1  
                 self.output_for_csv[self.csv_count,:] = self.gc_relative_mass[::-1]
                 self.csv_count += 1 
                 
-                self.output_for_csv_2[self.csv_count_2,:] = total_bc_propellant
-                self.csv_count_2 += 1 
-                self.output_for_csv_2[self.csv_count_2,:] = total_co_propellant
-                self.csv_count_2 += 1 
-                self.output_for_csv_2[self.csv_count_2,:] = total_nox_propellant
-                self.csv_count_2 += 1 
-                self.output_for_csv_2[self.csv_count_2,:] = total_h2o_propellant
-                self.csv_count_2 += 1 
-                self.output_for_csv_2[self.csv_count_2,:] = total_al2o3_propellant
-                self.csv_count_2 += 1 
-                self.output_for_csv_2[self.csv_count_2,:] = total_cl_propellant
-                self.csv_count_2 += 1 
-                self.output_for_csv_2[self.csv_count_2,:] = total_hcl_propellant
-                self.csv_count_2 += 1    
-                self.output_for_csv_2[self.csv_count_2,:] = total_cl2_propellant
-                self.csv_count_2 += 1 
+                for i in range(1,9):
+                    self.output_for_csv_2[self.csv_count_2,:] = total_vertical_propellant[:,i]
+                    self.csv_count_2 += 1 
 
                 self.launch_count += 1
                 
@@ -1173,7 +1021,6 @@ class OutputEmis:
         ###################
         # Set up range.
         ###################
-        
         # Change (shift) indices on edges of grid:
         if self.pmin==0: self.pmin=1
         if self.pmax==0: self.pmax=1
@@ -1207,10 +1054,6 @@ class OutputEmis:
         # Open Dataset and set up dimensions.
         ########################################
         
-        # TODO: Need to split emissions into categories:
-        #       - Crewed
-        #       - Satellites
-        #       - Megaconstellations
         # define dataset:
         ncout = Dataset(self.outfile_rocket_emis, mode='w', format='NETCDF4')
 
@@ -1221,6 +1064,7 @@ class OutputEmis:
         ncout.createDimension('lon', self.pmax-self.pmin+3)
         ncout.createDimension('lev', self.nlev)
         ncout.createDimension('time', self.nhours)
+        #ncout.createDimension('time', self.nhours*3)
         
         ######################################
         # Create variables for the dimensions.
@@ -1231,9 +1075,11 @@ class OutputEmis:
         time = ncout.createVariable('time', np.int64, ('time',))
         time.long_name = 'time'
         time.units = 'hours since 2020-'+self.strmon+'-'+self.strday+' 00:00:00'
+        #time.units = 'seconds since 2020-'+self.strmon+'-'+self.strday+' 00:00:00'
         time.calendar = 'standard'
         time.axis = 'T'
-        time[:] = np.arange(0,24)
+        time[:] = np.arange(0,self.nhours)
+        #time[:] = np.arange(0,self.nhours*3600,1200)
 
         # Longitude:
         lon = ncout.createVariable('lon', np.float32, ('lon',))
@@ -1343,7 +1189,6 @@ class OutputEmis:
         # Close the file:
         ncout.close()
     
-
 # Main section of the program
 if __name__ == "__main__":
 
@@ -1430,7 +1275,7 @@ if __name__ == "__main__":
     # Define timesteps.
     grid_res = args.grid_res
     if grid_res == '2x2.5': 
-        timestep = 1800 #sec
+        timestep = 3600 #sec
     elif grid_res == '4x5':
         timestep = 3600 #sec
     else:

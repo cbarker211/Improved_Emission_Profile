@@ -5,6 +5,7 @@ import time
 import sys
 import numpy as np
 import xarray as xr
+import argparse
 
 """ Script to request data from the DISCOSweb database. 
 NB: Each request is limited to 30 results, and there is a maximum limit of requests in a certain timeframe (20 requests per 60s).
@@ -1063,15 +1064,42 @@ if __name__ == "__main__":
     e.g. import_launches_from_discos.launches_per_year(start_year,end_year)
     """         
     
-    #Set up the year and filename.
-    year = 2020
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-yl', "--yearly_launches", action='store_true', help="Get yearly launches.")
+    parser.add_argument('-ypa', "--yearly_payloads", action='store_true', help='Get yearly launched payloads.')
+    parser.add_argument('-ypr', "--yearly_propellant", action='store_true', help='Get yearly propellant.')
+    parser.add_argument('-li', "--launch_info", action='store_true', help='Get launch info.')
+    parser.add_argument('-sli', "--save_launch_info", action='store_true', help='Save launch info.')
+    parser.add_argument('-ri', "--rocket_info", action='store_true', help='Get rocket info.')
+    parser.add_argument('-sri', "--save_rocket_info", action='store_true', help='Save launch info.')
     
-    #Create an instance of the class.
-    LaunchData = import_launches_from_discos(year)
+    parser.add_argument('-sy', "--start_year", default = "2019", choices=str(np.arange(1957,2023)), help='Start Year.')
+    parser.add_argument('-fy', "--final_year", default = "2022", choices=str(np.arange(1957,2023)), help='Final Year.')
+    args = parser.parse_args()
     
-    #Now we can run class functions.
-    LaunchData.get_launch_info()
-    LaunchData.launch_info_to_netcdf()
-    #LaunchData.get_rocket_info()
-    #LaunchData.rocket_info_to_netcdf()
+    # Sort out the year range.
+    start_year = int(args.start_year)
+    final_year = int(args.final_year)
+    if start_year > final_year:
+        final_year = start_year + 1
+    print(f"Processing from year {start_year} to {final_year}.")
+    year_range = np.arange(start_year,final_year+1)    
+    
+    #Loop over all years.
+    for year in year_range:
+        LaunchData = import_launches_from_discos(year)    
+        if args.yearly_launches == True:
+            LaunchData.get_yearly_launches()
+        if args.yearly_payloads == True:
+            LaunchData.payloads_launched_per_year()
+        if args.yearly_propellant == True:
+            LaunchData.propellant_per_year()
+        if args.launch_info == True:
+            LaunchData.get_launch_info()      
+            if args.save_launch_info == True:
+                LaunchData.launch_info_to_netcdf()              
+        if args.rocket_info == True:
+            LaunchData.get_rocket_info()      
+            if args.save_rocket_info == True:
+                LaunchData.rocket_info_to_netcdf()  
     
