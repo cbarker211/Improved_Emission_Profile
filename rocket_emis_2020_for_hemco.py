@@ -940,8 +940,7 @@ class OutputEmis:
             #########################################################
             
             # TODO: Re-entries.
-            # Looks like the nox and al2o3 reentry emissions are just added to the launch emissions. Shall we keep them separate?
-            # Make sure to output to separate arrays than for launches.
+
             if emis_type=='reentry':
 
                 # Define temporary ID to get number of characters:
@@ -1229,8 +1228,8 @@ if __name__ == "__main__":
     # In 2019, boosters set to extend to ~45 km (layer 44 of the 47-layer model, layer 57 of the 72-layer model).
     # In updated model, booster_cutoff changes depending on number of rocket stages.
     # Stage 1 Cutoff (MECO) and Stage 2 Ignition (SEI) normally occur within 3s of each other.
-    # For the purposes of GEOS-Chem (<80km), only three rocket sizes include MECO and SEI - B+4S, 3S, 4S (2S occurs)
-    # For these three rocket types, MECO and SEI occur at the same alitudes.
+    # For the purposes of GEOS-Chem (<80km), only three rocket sizes include MECO and SEI - B+4S, 3S, 4S (2S only MECO)
+    # For these three rocket types, MECO and SEI occur at the same altitudes.
     # Booster Cutoff:
     #       63 km  B+1/2S  Layer 46 / 66
     #       63 km  B+3S    Layer 46 / 66
