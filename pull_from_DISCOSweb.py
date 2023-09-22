@@ -304,7 +304,7 @@ class import_launches_from_discos:
         self.vehicle_id = []
         self.mcs_check = []
         
-        #self.full_launch_list = self.full_launch_list[:6]
+        #self.full_launch_list = self.full_launch_list[:10]
         for count, launch in enumerate(self.full_launch_list):
             
             self.Cospar_Id.append(launch["attributes"]["cosparLaunchNo"])
@@ -319,19 +319,27 @@ class import_launches_from_discos:
             time_utc = np.float64(hour + minute / 60 + sec / 3600)
             self.launch_time.append(time_utc)
             
-            # Look for any payloads with the name 'Starlink' or 'Oneweb', and denote them as MCS.
+            # Look for any payloads with the name 'Starlink', 'Oneweb', or 'Yinhe', and denote them as MCS.
             params={
-                    'filter' : "(eq(objectClass,Payload))&(or(contains(name,Starlink),contains(name,OneWeb)))",
+                    'filter' : "(eq(objectClass,Payload))&(contains(name,Starlink)|contains(name,OneWeb)|contains(name,Yinhe))",
                     'sort' : 'id'         
                 }
             while True:
                 response = self.server_request(params,f'/launches/{launch["id"]}/objects')
+                
                 if response.ok:
                     doc = response.json()
                     temp_object_list = doc['data']
+                    # This code was to get all objects and then filter, but it takes too long.
+                    #for count,payload in temp_object_list:
+                    #    if any([x in temp_object_list[count]["attributes"]["name"] for x in ["Starlink","Yinhe","OneWeb"]]):
+                    #        self.mcs_check.append(True)
+                    #        print(temp_object_list[count]["attributes"]["name"])
+                    #        print(f"{int(self.launch_day[-1])}/{int(self.launch_month[-1])}")
+                    #    else:
+                    #        self.mcs_check.append(False)
                     if len(temp_object_list) > 0:
-                        self.mcs_check.append(True)
-                        print(f"{int(self.launch_day[-1])}/{int(self.launch_month[-1])}")  
+                        self.mcs_check.append(True)  
                     else:
                         self.mcs_check.append(False)   
                 elif response.status_code == 429:
@@ -1101,14 +1109,14 @@ class import_launches_from_discos:
                     starlink_count += 1
                       
             else:
-                geolocated_mass += (reentry["booster_mass"] + reentry["stage1_mass"] + reentry["stage2_mass"] + reentry["stage3_mass"] + reentry["stage4_mass"] + reentry["payload_mass"])
+                geolocated_mass += reentry["mass"]
             if reentry["time"] == 0:
                 non_time_count_notdebris += 1
-            if (reentry["booster_mass"] + reentry["stage1_mass"] + reentry["stage2_mass"] + reentry["stage3_mass"] + reentry["stage4_mass"] + reentry["payload_mass"]) == 0:
+            if reentry["mass"] == 0:
                 non_mass_count_notdebris += 1
                    
 
-            total_mass += (reentry["booster_mass"] + reentry["stage1_mass"] + reentry["stage2_mass"] + reentry["stage3_mass"] + reentry["stage4_mass"] + reentry["payload_mass"])
+            total_mass += reentry["mass"]
                 
         
         geo_percent_all = (len(self.unique_reentry_list)-non_geo_count_notdebris) / (len(self.unique_reentry_list)) * 100
@@ -1206,14 +1214,31 @@ class import_launches_from_discos:
         #Save to file and close the DataSet     
         ds.to_netcdf(f'./Databases/discosweb_reentries_{year}.nc')
         ds.close()
-       
+    
+    def add_failed_launch(self,cospar_id,stages,pieces,masses,types,names,time_utc,mon,day,lat,lon):
+        for count,i in enumerate(stages):
+                temp_reentry_dict = {
+                    "id"           : f"2020-{cospar_id}{pieces[count]}",
+                    "name"         : names[count],
+                    "type"         : types[count],
+                    "controlled"   : "N",
+                    "reentry_stage": i,
+                    "time"         : time_utc,
+                    "mon"          : mon,
+                    "day"          : day,
+                    "lat"          : lat,
+                    "lon"          : lon,
+                    "mass"         : masses[count],
+                    "MCS"          : False
+                }
+                
+        self.unique_reentry_list.append(temp_reentry_dict)    
+        
     def get_reentry_info(self):
             
         # TODO: Need to handle all of the failed launches correctly. Currently no objects from failed launches. 
         # TODO: Assign controlled vs uncontrolled. This is basically all resuable components and returning crewed capsules.
-        # TODO: Needs to have some way of differentiating MCS / Non-MCS.
-        # TODO: Go through and sanity-check / fill in missing information.
-        # TODO: Only missing non-component mass is for Ceres-1 upperstage, can probably find this information somewhere.
+        # TODO: Go through and sanity-check / fill in missing information (only missing non-component mass is for Ceres-1 upperstage)
         
         #######################################
         # Load in all JSR Re-entries
@@ -1241,7 +1266,9 @@ class import_launches_from_discos:
         
         # Now left with a dataframe of 397 reentries that occured in 2020, but only 54 are geolocated.
         for reentry_count in range(len(jsr_data_stripped_2020)):
-            masses = [0,0,0,0,0,0]
+            
+            mass = np.float64(jsr_data_stripped_2020["DryMass"][reentry_count]) 
+            
             if jsr_data_stripped_2020["Type"][reentry_count][:1] == "R":
                 
                 # Sort out the rocket stages. All stages are 2-4, except for 2020-027C, which is 1st stage.
@@ -1252,14 +1279,12 @@ class import_launches_from_discos:
                     reentry_stage = 3
                 elif jsr_data_stripped_2020["Piece"][reentry_count] == "2020-028C":
                     reentry_stage = 4  
-                    
-                      
                 reentry_type = "R/B"
-                masses[int(reentry_stage)] = np.float64(jsr_data_stripped_2020["DryMass"][reentry_count])  
-                          
+                 
+            
+            # These categories are P for Payload (for orbital attempt), and C for Component. 
             elif jsr_data_stripped_2020["Type"][reentry_count][:1] in ["C","P"]:
                 reentry_stage = 5
-                masses[5] = np.float64(jsr_data_stripped_2020["DryMass"][reentry_count])
                 if jsr_data_stripped_2020["Type"][reentry_count][:1] == "C":
                     reentry_type = "Component"
                 elif jsr_data_stripped_2020["Type"][reentry_count][:1] == "P":
@@ -1340,14 +1365,8 @@ class import_launches_from_discos:
                     "day"          : daystr,
                     "lat"          : lat,
                     "lon"          : lon,
-                    "booster_mass" : masses[0], 
-                    "stage1_mass"  : masses[1], 
-                    "stage2_mass"  : masses[2],
-                    "stage3_mass"  : masses[3],
-                    "stage4_mass"  : masses[4],
-                    "payload_mass" : masses[5],
+                    "mass"         : mass, 
                 }
-                print("adding")
                 self.unique_reentry_list.append(temp_reentry_dict) 
         
         # Print statistics on the current database.
@@ -1366,14 +1385,15 @@ class import_launches_from_discos:
         for reentry in (self.unique_reentry_list):
             jsr_id_list.append(reentry["id"])
         
-        # Add remaining re-entries from Aerospace Corp.
+        # Add time information from Aerospace Corp for any JSR entries missing time information (20 items).
         for reentry in (self.unique_reentry_list):
             if reentry["time"] == 0:
                 for reentry_count in range(len(aerospace_corp_data)): 
                     if aerospace_corp_data["International Designator"][reentry_count] == reentry["id"]:
                         reentry_time = aerospace_corp_data["Aerospace Reentry Prediction (UTC)"][reentry_count][11:16]
                         reentry["time"] = np.float64(int(reentry_time[0:2]) + int(reentry_time[3:5]) / 60)
-                
+        
+        # Now add any new entries.
         for reentry_count in range(len(aerospace_corp_data)):  
             if aerospace_corp_data["International Designator"][reentry_count] not in jsr_id_list:
                 
@@ -1396,12 +1416,7 @@ class import_launches_from_discos:
                         "day"          : aerospace_corp_data["Aerospace Reentry Prediction (UTC)"][reentry_count][8:10],
                         "lat"          : 0,
                         "lon"          : 0,
-                        "booster_mass" : 0, 
-                        "stage1_mass"  : 0, 
-                        "stage2_mass"  : 0,
-                        "stage3_mass"  : 2080, # From JSR.
-                        "stage4_mass"  : 0,
-                        "payload_mass" : 0,
+                        "mass"         : 2080, # From JSR.
                     }  
                     
                     self.unique_reentry_list.append(temp_reentry_dict)      
@@ -1421,6 +1436,8 @@ class import_launches_from_discos:
         # All DISCOSweb data is contained within a netcdf file.
         print("Searching for DISCOSweb re-entries.")
         ds_dw = xr.open_dataset("/home/ucfacb0/Emission_Inventory/Improved_Emission_Profile/Databases/discosweb_reentries_2020.nc", decode_times=False)
+        dsr = xr.open_dataset("/home/ucfacb0/Emission_Inventory/Improved_Emission_Profile/Databases/rocket_info_2020.nc", decode_times=False)
+        dsl = xr.open_dataset("/home/ucfacb0/Emission_Inventory/Improved_Emission_Profile/Databases/launch_info_2020.nc", decode_times=False)
         for reentry_count in range(len(ds_dw["DISCOSweb_Reentry_ID"].values)):
             
             # Excluding Debris
@@ -1428,17 +1445,25 @@ class import_launches_from_discos:
             
             if (ds_dw["DISCOSweb_Reentry_ID"].values[reentry_count] not in jsr_ac_id_list) and ds_dw["DISCOSweb_Reentry_Class"].values[reentry_count] in valid_types:
                 
-                #print("New reentry, id =", ds_dw["DISCOSweb_Reentry_ID"].values[reentry_count], ds_dw["DISCOSweb_Reentry_Class"].values[reentry_count])
-                
                 # Sort type, stage, mass.
-                masses = [0,0,0,0,0,0]
                 if ds_dw["DISCOSweb_Reentry_Class"].values[reentry_count] == "Rocket Body":
                     reentry_type = "R/B"
-                    # TODO: Need to individually define reentry_stage, just 0 for now.
-                    reentry_stage = 0
-                    masses[int(reentry_stage)] = ds_dw["DISCOSweb_Reentry_Mass"].values[reentry_count]
-                    if np.isnan(masses[int(reentry_stage)]):
-                        masses[int(reentry_stage)] = 0
+                    # TODO: Identify which are controlled entries.
+                    
+                    if ds_dw["DISCOSweb_Reentry_Name"].values[reentry_count] in ["Falcon 9 Merlin-V (1D+) (Falcon 9 v1.2)","H-II LE-5B (H-IIB)",
+                                                                                 "L-53 (YF24B) (Long March (CZ) 2D)","CZ-5-HO (Long March (CZ) 5)"]:
+                        reentry_stage = 2
+                    elif ds_dw["DISCOSweb_Reentry_Name"].values[reentry_count] in ["Fregat-M (Soyuz-ST-A Fregat-M)","Fregat (Soyuz-2-1B Fregat)", "Fregat-M (Soyuz-2-1B Fregat-M)"]:
+                        reentry_stage = 3
+                    elif ds_dw["DISCOSweb_Reentry_Name"].values[reentry_count] in ["AVUM (Vega)","Ceres-1 upperstage"]:
+                        reentry_stage = 4
+                    else:
+                        print("Missing stage designation for : ",ds_dw["DISCOSweb_Reentry_ID"].values[reentry_count], ds_dw["DISCOSweb_Reentry_Name"].values[reentry_count])
+                        reentry_stage = 0
+                
+                    mass = ds_dw["DISCOSweb_Reentry_Mass"].values[reentry_count]
+                    if np.isnan(mass):
+                        mass = 0
                         
                 elif ds_dw["DISCOSweb_Reentry_Class"].values[reentry_count] in ["Rocket Mission Related Object","Payload Mission Related Object","Payload"]:
                     if ds_dw["DISCOSweb_Reentry_Class"].values[reentry_count] in ["Rocket Mission Related Object","Payload Mission Related Object"]:
@@ -1446,27 +1471,36 @@ class import_launches_from_discos:
                     else: 
                         reentry_type = "Payload"
                     reentry_stage = 5
-                    masses[5] = ds_dw["DISCOSweb_Reentry_Mass"].values[reentry_count]
-                    if np.isnan(masses[5]):
-                        masses[5] = 0
+                    mass = ds_dw["DISCOSweb_Reentry_Mass"].values[reentry_count]
+                    if np.isnan(mass):
+                        mass = 0
                 
+                day = int(ds_dw["DISCOSweb_Reentry_Epoch"].values[reentry_count][8:10])
+                mon = int(ds_dw["DISCOSweb_Reentry_Epoch"].values[reentry_count][5:7])
+                time_utc = 0
+                
+                # For all 2020 launches, if the reentry occurs on the same day as the launch, we can set the time to the launch time. For all pre-2020, 0 is sufficient.
+                if ds_dw["DISCOSweb_Reentry_ID"].values[reentry_count][0:4] == "2020":
+                    # Need to find the launch entry in the database and extract the time.
+                    launch_ind = np.where(dsl["COSPAR_ID"].values == ds_dw["DISCOSweb_Reentry_ID"].values[reentry_count][0:8])
+                    if len(launch_ind) > 1:
+                        sys.exit("Multiple database entries found for a single launch.")
+                    else:
+                        if (day == int(dsl["Day"].values[launch_ind[0]])) and (mon == int(dsl["Month"].values[launch_ind[0]])):
+                            time_utc = dsl["Time(UTC)"].values[launch_ind][0]
+
                 temp_reentry_dict = {
                         "id"           : ds_dw["DISCOSweb_Reentry_ID"].values[reentry_count],
                         "name"         : ds_dw["DISCOSweb_Reentry_Name"].values[reentry_count],
                         "type"         : reentry_type,
-                        "controlled"  : "",
+                        "controlled"   : "",
                         "reentry_stage": reentry_stage, # -1 is nothing, 0 = Booster, 1-4 = Stage Number, 5 = Payload/Debris
-                        "time"         : 0, # No time info for DISCOSweb.
-                        "mon"          : ds_dw["DISCOSweb_Reentry_Epoch"].values[reentry_count][5:7],
-                        "day"          : ds_dw["DISCOSweb_Reentry_Epoch"].values[reentry_count][8:10],
+                        "time"         : time_utc,
+                        "mon"          : mon,
+                        "day"          : day,
                         "lat"          : 0, # No lat/lon info for DISCOSweb.
                         "lon"          : 0,
-                        "booster_mass" : masses[0], 
-                        "stage1_mass"  : masses[1], 
-                        "stage2_mass"  : masses[2],
-                        "stage3_mass"  : masses[3],
-                        "stage4_mass"  : masses[4],
-                        "payload_mass" : masses[5],
+                        "mass"         : mass, 
                 }
                 
                 self.unique_reentry_list.append(temp_reentry_dict)  
@@ -1493,7 +1527,6 @@ class import_launches_from_discos:
         
         # TODO: Configure the times so the reentries aren't set before the launch.
                
-        
         ## For all rocket stages from 2020 launches, add the mass info using the databases previously outputted.
         #if (temp_reentry_dict["id"][:4] == "2020"):
         #    for i in range(len(dsl["COSPAR_ID"])):
@@ -1525,8 +1558,7 @@ class import_launches_from_discos:
         ## Cut the ID number so all rocket body reentries have a consistent formatting system.
         #temp_reentry_dict["id"] = temp_reentry_dict["id"][:8]
        
-           
-       # Define which stages the rocket re-entries refer to (2020). For pre-2020 launches, the mass is set to payload
+        ## Define which stages the rocket re-entries refer to (2020). For pre-2020 launches, the mass is set to payload
         #if temp_reentry_dict["id"] == "2020-027C":
         #    temp_reentry_dict["reentry_stage"] = 1
         #elif temp_reentry_dict["id"] in ["2020-007C","2020-011C","2020-012B","2020-050B","2020-070BS"]:
@@ -1537,7 +1569,6 @@ class import_launches_from_discos:
         #    temp_reentry_dict["reentry_stage"] = 4
         #        
 
-
         ##########################################
         # Add remaining missing rocket launches.
         ##########################################
@@ -1547,51 +1578,163 @@ class import_launches_from_discos:
         # Only considering 
         
         # Lastly, add an entry for every missing rocket launch, and populate using the launch and rocket databases.
-        final_rocket_body_list = []
-        dsr = xr.open_dataset("/home/ucfacb0/Emission_Inventory/Improved_Emission_Profile/Databases/rocket_info_2020.nc", decode_times=False)
-        dsl = xr.open_dataset("/home/ucfacb0/Emission_Inventory/Improved_Emission_Profile/Databases/launch_info_2020.nc", decode_times=False)
+        #final_rocket_body_list = []
         
-        for count, reentry in enumerate(self.unique_reentry_list):
-            if (reentry["id"][:4] == "2020") and (reentry["type"] == "R/B"):
-                final_rocket_body_list.append(reentry["id"][:8])
+        #for count, reentry in enumerate(self.unique_reentry_list):
+        #    if (reentry["id"][:4] == "2020") and (reentry["type"] == "R/B"):
+        #        final_rocket_body_list.append(reentry["id"])
+        
+        #pprint(final_rocket_body_list)
               
-        for i in range(len(dsl["COSPAR_ID"])):
-            if (dsl["COSPAR_ID"].values[i] not in final_rocket_body_list) and (dsl["COSPAR_ID"].values[i][5] != "F"):
-                for count, rocket_name in enumerate(dsr["Rocket_Name"].values):
-                    if rocket_name == dsl["Rocket_Type"].values[i]:                   
-                        temp_reentry_dict = {
-                            "id"           : dsl["COSPAR_ID"].values[i],
-                            "name"         : dsl["Rocket_Type"].values[i],
-                            "type"         : "R/B",
-                            "controlled"   : "",
-                            "reentry_stage": -1, # -1 is nothing, 0 = Booster, 1-4 = Stage Number, 5 = Payload
-                            "time"         : dsl["Time(UTC)"].values[i],
-                            "mon"          : dsl["Month"].values[i],
-                            "day"          : dsl["Day"].values[i],
-                            "lat"          : dsl["Latitude"].values[i],
-                            "lon"          : dsl["Longitude"].values[i],
-                            "booster_mass" : dsr["Booster_StageMass"].values[count], 
-                            "stage1_mass"  : dsr["Stage1_StageMass"].values[count], 
-                            "stage2_mass"  : 0, 
-                            "stage3_mass"  : 0,
-                            "stage4_mass"  : 0,
-                            "payload_mass" : 0,
-                        }
-                        if np.isnan(dsr["Booster_StageMass"].values[count]):
-                            temp_reentry_dict["booster_mass"] = 0
-                        if np.isnan(dsr["Stage1_StageMass"].values[count]):
-                            temp_reentry_dict["stage1_mass"] = 0
+        # Loop over all 2020 launches, and check that there are reentries for each rocket stage.
+        # TODO: How can we define which stages should reenter on the same day?
+        #for i in range(len(dsl["COSPAR_ID"])):
+        #    if (dsl["COSPAR_ID"].values[i] not in final_rocket_body_list) and (dsl["COSPAR_ID"].values[i][5] != "F"):
+        #        for count, rocket_name in enumerate(dsr["Rocket_Name"].values):
+        #            if rocket_name == dsl["Rocket_Type"].values[i]:                   
+        #                temp_reentry_dict = {
+        #                    "id"           : dsl["COSPAR_ID"].values[i],
+        #                    "name"         : dsl["Rocket_Type"].values[i],
+        #                    "type"         : "R/B",
+        #                    "controlled"   : "",
+        #                    "reentry_stage": -1, # -1 is nothing, 0 = Booster, 1-4 = Stage Number, 5 = Payload
+        #                    "time"         : dsl["Time(UTC)"].values[i],
+        #                    "mon"          : dsl["Month"].values[i],
+        #                    "day"          : dsl["Day"].values[i],
+        #                    "lat"          : dsl["Latitude"].values[i],
+        #                    "lon"          : dsl["Longitude"].values[i],
+        #                    "booster_mass" : dsr["Booster_StageMass"].values[count], 
+        #                    "stage1_mass"  : dsr["Stage1_StageMass"].values[count], 
+        #                    "stage2_mass"  : 0, 
+        #                    "stage3_mass"  : 0,
+        #                    "stage4_mass"  : 0,
+        #                    "payload_mass" : 0,
+        #                }
+        #                if np.isnan(dsr["Booster_StageMass"].values[count]):
+        #                    temp_reentry_dict["booster_mass"] = 0
+        #                if np.isnan(dsr["Stage1_StageMass"].values[count]):
+        #                    temp_reentry_dict["stage1_mass"] = 0
+        #                
+        #                self.unique_reentry_list.append(temp_reentry_dict)
                         
-                        self.unique_reentry_list.append(temp_reentry_dict)
-                        
-        self.print_stats()     
-        ##########################################
-        # Add any remaining payload re-entries.
-        ##########################################
-                                
-        dsl.close()
-        dsr.close()      
+        self.print_stats()
+        
            
+         
+        ###########################################################
+        # Sort out MCS vs. Non MCS and Uncontrolled vs. Controlled
+        ###########################################################
+        
+        # Create a list of all MCS-related launches (from launch database), then assign all items from that launch as MCS.
+        mcs_dict = {}
+        for i in range(len(dsl["COSPAR_ID"])):
+            mcs_dict[dsl["COSPAR_ID"].values[i]] = dsl["MCS_Check"].values[i]
+        
+        for reentry in (self.unique_reentry_list):
+            try:
+                reentry["MCS"] = mcs_dict[reentry["id"][:8]]
+            except:
+                if reentry["id"][:8] in ["2018-020","2019-029","2019-074"]:
+                    reentry["MCS"] = True
+                else:
+                    reentry["MCS"] = False
+                    
+        dsl.close()
+        dsr.close()             
+        ###########################################################
+        # Add reentries for failed launches.
+        ###########################################################
+        
+        # First check if any are already included.
+        for reentry in self.unique_reentry_list:
+            if reentry["id"][5:6] == "F":
+                sys.exit("Failed launch included in reentry databases. Code needs rewrite.")
+        
+        # TODO: Add masses.
+        # TODO: When adding payload reentry, if it wasn't deployed then just add to wet mass of the upper stage.
+        
+        add_failed_launches = True
+        if add_failed_launches == True:
+            
+            # F01. Simorgh payload didn't reach orbit, failed during second or third flight.
+            # Adding reentries from payload and all stages (dry mass).
+            cospar_id = "F01"
+            stages, pieces, masses = [5,1,2,3], ["A","B","C","D"], [0,0,0,0] 
+            types, names = ["Payload","R/B","R/B","R/B"], ["Zafar 1","Simorgh S1","Simorgh S2","Simorgh S3"]
+            time_utc, day, mon = np.float64(15 + 50/60), 9, 2
+            lat, lon = 35.234338, 53.920601
+            self.add_failed_launch(cospar_id,stages,pieces,masses,types,names,time_utc,mon,day,lat,lon)
+            
+            # F02. Long March 7A (4 boosters plus first, second, third stage) failed near to start of second stage burn.
+            # Adding payload reentries, dry mass reentry for first stage and boosters, and wet mass reentry for second and third stage.
+            cospar_id = "F02"
+            stages, pieces, masses = [5,0,1,2,3], ["A","B","C","D","E"], [0,0,0,0,0]
+            types, names = ["Payload","R/B","R/B","R/B","R/B"], ["XJY-6-01","Long March 7A B","Long March 7A S1","Long March 7A S2","Long March 7A S3"]
+            time_utc, day, mon = np.float64(13 + 40/60), 16, 3
+            lat, lon = 19.6,111
+            self.add_failed_launch(cospar_id,stages,pieces,masses,types,names,time_utc,mon,day,lat,lon)
+            
+            # F03. Long March 3B/E (4 boosters plus first, second, third stage) failed at third stage.
+            # Adding payload reentries, dry mass reentry for first and second stage and boosters, and wet mass reentry for third stage.
+            cospar_id = "F03"
+            stages, pieces, masses = [5,0,1,2,3], ["A","B","C","D","E"], [0,0,0,0,0] # Mass info for payload (may need checking) at https://www.nasaspaceflight.com/2020/04/long-march-3b-launches-indonesian-satellite/ 
+            types, names = ["Payload","R/B","R/B","R/B","R/B"], ["Palapa-N1","Long March 3B/E B","Long March 3B/E S1","Long March 3B/E S2","Long March 3B/E S3"]
+            time_utc, day, mon = np.float64(11 + 45/60), 9, 4
+            lat, lon = 28.2,102
+            self.add_failed_launch(cospar_id,stages,pieces,masses,types,names,time_utc,mon,day,lat,lon)
+            
+            # F04. LauncherOne (2 stages, air launched) failed after a few seconds of 1st stage burn. This occured at ~ 10.7km (https://web.archive.org/web/20220406013823/http://www.spacelaunchreport.com/launcherone.html)
+            # Therefore we can safely ignore as it did not reach an altitude where reentry is possible.
+
+            # F05. Electron (Curie) (3 stages) failed at second stage.
+            # Adding payload reentries, dry mass reentry for first stage and wet mass reentry for second stage.
+            cospar_id = "F05"
+            stages, pieces, masses = [5,5,5,1,2], ["A","B","C","D","E"], [0,0,0,0,0]
+            types, names = ["Payload","Payload","Payload","R/B","R/B"], ["CE-SAT-IB","SuperDovex5","Faraday 1","Electron (Curie) S1","Electron (Curie) S2"]
+            time_utc, day, mon = np.float64(21 + 21/60), 4, 7
+            lat, lon = -39.2609,177.8655
+            self.add_failed_launch(cospar_id,stages,pieces,masses,types,names,time_utc,mon,day,lat,lon)
+            
+            # F06. Kuaizhou-11 (3 stages) failed at second stage.
+            # Adding payload reentries, dry mass reentry for first and second stage and wet mass reentry for third stage.
+            cospar_id = "F06"
+            stages, pieces, masses = [5,1,2,3], ["A","B","C","D"], [0,0,0,0]
+            types, names = ["Payload","R/B","R/B","R/B"], ["GeeSAT-1A/1B","Kuaizhou-11 S1","Kuaizhou-11 S2","Kuaizhou-11 S3"]
+            time_utc, day, mon = np.float64(4 + 19/60), 10, 7
+            lat, lon = 41.3,100.3
+            self.add_failed_launch(cospar_id,stages,pieces,masses,types,names,time_utc,mon,day,lat,lon)
+            
+            # F07. Astra Rocket 3 (2 stages) shut off after 20s, fell to Earth near landing site. Ignoring.
+            
+            # F08. Kuaizhou-1A (4 stages) failed at upper stage. 1st stage is potentially too low for reentry so ignoring.
+            # Adding payload reentries, dry mass reentry for second and third stage and wet mass reentry for fourth stage.
+            cospar_id = "F08"
+            stages, pieces, masses = [5,2,3,4], ["A","B","C","D"], [0,0,0,0]
+            types, names = ["Payload","R/B","R/B","R/B"], ["Jilin-1 Gaofen-02C","Kuaizhou-1A S2","Kuaizhou-1A S3","Kuaizhou-1A S4"]
+            time_utc, day, mon = np.float64(5 + 2/60), 12, 9
+            lat, lon = 41.3,100.3
+            self.add_failed_launch(cospar_id,stages,pieces,masses,types,names,time_utc,mon,day,lat,lon)
+            
+            # F09. Vega (4 stages) failed at upper stage. 1st stage is potentially too low for reentry so ignoring.
+            # Adding payload reentries, dry mass reentry for second and third stage and wet mass reentry for fourth stage.
+            cospar_id = "F09"
+            stages, pieces, masses = [5,5,2,3,4], ["A","B","C","D","E"], [0,0,0,0,0]
+            types, names = ["Payload","Payload","R/B","R/B","R/B"], ["SEOSat-Ingenio","TARANIS","Vega S2","Vega S3","Vega S4"]
+            time_utc, day, mon = np.float64(1 + 55/60), 17, 11
+            lat, lon = 5.2,-52.8
+            self.add_failed_launch(cospar_id,stages,pieces,masses,types,names,time_utc,mon,day,lat,lon)
+            
+            # F10. Astra Rocket 3 (2 stages), stage 2 depleted propellant 15-20 seconds early, falling short of orbit. No payloads.
+            # Adding dry mass reentry for first and second stage.
+            cospar_id = "F10"
+            stages, pieces, masses = [1,2], ["A","B"], [0,0]
+            types, names = ["R/B","R/B"], ["Astra Rocket 3 S1","Astra Rocket 3 S2"]
+            time_utc, day, mon = np.float64(20 + 52/60), 15, 12
+            lat, lon = 57.6,-152.2
+            self.add_failed_launch(cospar_id,stages,pieces,masses,types,names,time_utc,mon,day,lat,lon)
+            
+            # F11. Moon launch so ignoring.
+  
     def reentry_info_to_netcdf(self):
         """This saves the reentry information as a NetCDF file for later processing for GEOS-Chem.
         This is only needed if using GEOS-Chem. Recommended to ignore if you don't need this.
@@ -1602,8 +1745,7 @@ class import_launches_from_discos:
         #Set up the data
         id_list, name_list, type_list, controlled_list = [], [], [], []
         stage_list, time_list,  mon_list , day_list  = [], [], [], []
-        lat_list,  lon_list,  booster_mass_list , stage1_mass_list  = [], [], [], []
-        stage2_mass_list,  stage3_mass_list,  stage4_mass_list , payload_mass_list  = [], [], [], []
+        lat_list,  lon_list,  mass_list, mcs_list  = [], [], [], []
         
         for reentry in self.unique_reentry_list:
             id_list.append(reentry["id"])
@@ -1616,32 +1758,24 @@ class import_launches_from_discos:
             day_list.append(reentry["day"])
             lat_list.append(reentry["lat"])
             lon_list.append(reentry["lon"])
-            booster_mass_list.append(reentry["booster_mass"])
-            stage1_mass_list.append(reentry["stage1_mass"])
-            stage2_mass_list.append(reentry["stage2_mass"])
-            stage3_mass_list.append(reentry["stage3_mass"])
-            stage4_mass_list.append(reentry["stage4_mass"])
-            payload_mass_list.append(reentry["payload_mass"])
+            mass_list.append(reentry["mass"])
+            mcs_list.append(reentry["MCS"])
             
         #print(type(id_list),id_list)
             
         #Create the DataArrays.
-        data_da_id            = xr.DataArray(id_list,           dims=dims, attrs=dict(long_name="Reentry ID"))
-        data_da_name          = xr.DataArray(name_list,         dims=dims, attrs=dict(long_name="Reentry Name"))
-        data_da_type          = xr.DataArray(type_list,         dims=dims, attrs=dict(long_name="Reentry Type"))
-        data_da_controlled    = xr.DataArray(controlled_list,   dims=dims, attrs=dict(long_name="Reentry Controlled Flag"))
-        data_da_stage         = xr.DataArray(stage_list,        dims=dims, attrs=dict(long_name="Reentry Stage"))
-        data_da_time          = xr.DataArray(time_list,         dims=dims, attrs=dict(long_name="Reentry Time (UTC)"))
-        data_da_mon           = xr.DataArray(mon_list,          dims=dims, attrs=dict(long_name="Reentry Month"))
-        data_da_day           = xr.DataArray(day_list,          dims=dims, attrs=dict(long_name="Reentry Day"))
-        data_da_lat           = xr.DataArray(lat_list,          dims=dims, attrs=dict(long_name="Reentry Latitude", units="Degrees"))
-        data_da_lon           = xr.DataArray(lon_list,          dims=dims, attrs=dict(long_name="Reentry Longitude", units="Degrees"))
-        data_da_booster_mass  = xr.DataArray(booster_mass_list, dims=dims, attrs=dict(long_name="Reentry Booster Mass", units="kg"))
-        data_da_stage1_mass   = xr.DataArray(stage1_mass_list,  dims=dims, attrs=dict(long_name="Reentry Stage 1 Mass", units="kg"))
-        data_da_stage2_mass   = xr.DataArray(stage2_mass_list,  dims=dims, attrs=dict(long_name="Reentry Stage 2 Mass", units="kg"))
-        data_da_stage3_mass   = xr.DataArray(stage3_mass_list,  dims=dims, attrs=dict(long_name="Reentry Stage 3 Mass", units="kg"))
-        data_da_stage4_mass   = xr.DataArray(stage4_mass_list,  dims=dims, attrs=dict(long_name="Reentry Stage 4 Mass", units="kg"))
-        data_da_payload_mass  = xr.DataArray(payload_mass_list, dims=dims, attrs=dict(long_name="Reentry Payload Mass", units="kg"))
+        data_da_id           = xr.DataArray(id_list,         dims=dims, attrs=dict(long_name="Reentry ID"))
+        data_da_name         = xr.DataArray(name_list,       dims=dims, attrs=dict(long_name="Reentry Name"))
+        data_da_type         = xr.DataArray(type_list,       dims=dims, attrs=dict(long_name="Reentry Type"))
+        data_da_controlled   = xr.DataArray(controlled_list, dims=dims, attrs=dict(long_name="Reentry Controlled Flag"))
+        data_da_stage        = xr.DataArray(stage_list,      dims=dims, attrs=dict(long_name="Reentry Stage"))
+        data_da_time         = xr.DataArray(time_list,       dims=dims, attrs=dict(long_name="Reentry Time (UTC)"))
+        data_da_mon          = xr.DataArray(mon_list,        dims=dims, attrs=dict(long_name="Reentry Month"))
+        data_da_day          = xr.DataArray(day_list,        dims=dims, attrs=dict(long_name="Reentry Day"))
+        data_da_lat          = xr.DataArray(lat_list,        dims=dims, attrs=dict(long_name="Reentry Latitude", units="Degrees"))
+        data_da_lon          = xr.DataArray(lon_list,        dims=dims, attrs=dict(long_name="Reentry Longitude", units="Degrees"))
+        data_da_mass         = xr.DataArray(mass_list,       dims=dims, attrs=dict(long_name="Reentry Booster Mass", units="kg"))
+        data_da_mcs          = xr.DataArray(mcs_list,        dims=dims, attrs=dict(long_name="Reentry MCS Check"))
     
         # Create an xarray Dataset from the DataArrays.
         ds = xr.Dataset()
@@ -1655,12 +1789,8 @@ class import_launches_from_discos:
         ds['RE_Day']         = data_da_day
         ds['RE_Lat']         = data_da_lat
         ds['RE_Lon']         = data_da_lon
-        ds['RE_BMass']       = data_da_booster_mass
-        ds['RE_S1Mass']      = data_da_stage1_mass
-        ds['RE_S2Mass']      = data_da_stage2_mass
-        ds['RE_S3Mass']      = data_da_stage3_mass
-        ds['RE_S4Mass']      = data_da_stage4_mass
-        ds['RE_PayloadMass'] = data_da_payload_mass 
+        ds['RE_Mass']        = data_da_mass
+        ds['RE_MCS']         = data_da_mcs
              
         #Save to file and close the DataSet     
         ds.to_netcdf(f'./Databases/reentry_info_{year}.nc')
