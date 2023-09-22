@@ -1236,9 +1236,8 @@ class import_launches_from_discos:
             self.unique_reentry_list.append(temp_reentry_dict)    
         
     def get_reentry_info(self):
-            
-        # TODO: Need to handle all of the failed launches correctly. Currently no objects from failed launches. 
-        # TODO: Go through and sanity-check / fill in missing information (only missing non-component mass is for Ceres-1 upperstage)
+             
+        # TODO: Go through and sanity-check / fill in missing information (only missing non-component mass is for Ceres-1 upperstage).
         # TODO: What about fairing reeentry? And other things from the launch?
         
         #######################################
@@ -1524,105 +1523,33 @@ class import_launches_from_discos:
         # Print statistics on the current database.
         ds_dw.close()      
            
-        ###################################################
-        # Use DISCOSweb to fill in missing info.
-        ###################################################   
+        #########################################################
+        # Use DISCOSweb to fill in missing time and lat/lon info.
+        #########################################################  
         
-        # TODO: Deal with the masses/reentries of the other missing rocket stages. Do we want to cut the ID to just the launch?
-        
-        # TODO: Configure the times so the reentries aren't set before the launch.
-               
-        ## For all rocket stages from 2020 launches, add the mass info using the databases previously outputted.
-        #if (temp_reentry_dict["id"][:4] == "2020"):
-        #    for i in range(len(dsl["COSPAR_ID"])):
-        #        
-        #        # Add the mass info.
-        #        for count, rocket_name in enumerate(dsr["Rocket_Name"].values):
-        #            if rocket_name == dsl["Rocket_Type"].values[i]:                        
-        #                temp_reentry_dict["booster_mass"] = dsr["Booster_StageMass"].values[count]
-        #                temp_reentry_dict["stage1_mass"]  = dsr["Stage1_StageMass"].values[count]
-        #                temp_reentry_dict["stage2_mass"]  = dsr["Stage2_StageMass"].values[count]
-        #                temp_reentry_dict["stage3_mass"]  = dsr["Stage3_StageMass"].values[count]
-        #                temp_reentry_dict["stage4_mass"]  = dsr["Stage4_StageMass"].values[count]  
-        #                
-        #        # Add the lat/lon and time info.
-        #        # Time is added if the launch and re-entry occur on the same day, if not then set to midnight.
-        #        # Add the lat/lon info.
-        #        if temp_reentry_dict["id"][:8] == dsl["COSPAR_ID"].values[i]: 
-        #            if temp_reentry_dict["lat"] == 0:                   
-        #                temp_reentry_dict["lat"] = dsl["Latitude"].values[i]
-        #            if temp_reentry_dict["lon"] == 0:
-        #                temp_reentry_dict["lon"] = dsl["Longitude"].values[i]
-        #        if temp_reentry_dict["id"][:8] == dsl["COSPAR_ID"].values[i]:                     
-        #            temp_reentry_dict["lat"]  = dsl["Latitude"].values[i]
-        #            temp_reentry_dict["lon"]  = dsl["Longitude"].values[i]
-        #            if (int(dsl["Month"].values[i]) == int(temp_reentry_dict["mon"])) and (int(dsl["Day"].values[i]) == int(temp_reentry_dict["day"])):
-        #                temp_reentry_dict["time"] = dsl["Time(UTC)"].values[i]
-        #                
-        #    
-        ## Cut the ID number so all rocket body reentries have a consistent formatting system.
-        #temp_reentry_dict["id"] = temp_reentry_dict["id"][:8]
-       
-        ## Define which stages the rocket re-entries refer to (2020). For pre-2020 launches, the mass is set to payload
-        #if temp_reentry_dict["id"] == "2020-027C":
-        #    temp_reentry_dict["reentry_stage"] = 1
-        #elif temp_reentry_dict["id"] in ["2020-007C","2020-011C","2020-012B","2020-050B","2020-070BS"]:
-        #    temp_reentry_dict["reentry_stage"] = 2
-        #elif temp_reentry_dict["id"] == "2020-079Q":
-        #    temp_reentry_dict["reentry_stage"] = 3
-        #elif temp_reentry_dict["id"] == "2020-028C":
-        #    temp_reentry_dict["reentry_stage"] = 4
-        #        
-
-        ##########################################
-        # Add remaining missing rocket launches.
-        ##########################################
-        
-        # TODO: Add a reentry event for every stage individually.
-        # So need to loop over every rocket launch in 2020, and check for missing stages.
-        # Only considering 
-        
-        # Lastly, add an entry for every missing rocket launch, and populate using the launch and rocket databases.
-        #final_rocket_body_list = []
-        
-        #for count, reentry in enumerate(self.unique_reentry_list):
-        #    if (reentry["id"][:4] == "2020") and (reentry["type"] == "R/B"):
-        #        final_rocket_body_list.append(reentry["id"])
-        
-        #pprint(final_rocket_body_list)
-              
-        # Loop over all 2020 launches, and check that there are reentries for each rocket stage.
-        # TODO: How can we define which stages should reenter on the same day?
-        #for i in range(len(dsl["COSPAR_ID"])):
-        #    if (dsl["COSPAR_ID"].values[i] not in final_rocket_body_list) and (dsl["COSPAR_ID"].values[i][5] != "F"):
-        #        for count, rocket_name in enumerate(dsr["Rocket_Name"].values):
-        #            if rocket_name == dsl["Rocket_Type"].values[i]:                   
-        #                temp_reentry_dict = {
-        #                    "id"           : dsl["COSPAR_ID"].values[i],
-        #                    "name"         : dsl["Rocket_Type"].values[i],
-        #                    "type"         : "R/B",
-        #                    "controlled"   : False,
-        #                    "reentry_stage": -1, # -1 is nothing, 0 = Booster, 1-4 = Stage Number, 5 = Payload
-        #                    "time"         : dsl["Time(UTC)"].values[i],
-        #                    "mon"          : dsl["Month"].values[i],
-        #                    "day"          : dsl["Day"].values[i],
-        #                    "lat"          : dsl["Latitude"].values[i],
-        #                    "lon"          : dsl["Longitude"].values[i],
-        #                    "booster_mass" : dsr["Booster_StageMass"].values[count], 
-        #                    "stage1_mass"  : dsr["Stage1_StageMass"].values[count], 
-        #                    "stage2_mass"  : 0, 
-        #                    "stage3_mass"  : 0,
-        #                    "stage4_mass"  : 0,
-        #                    "payload_mass" : 0,
-        #                }
-        #                if np.isnan(dsr["Booster_StageMass"].values[count]):
-        #                    temp_reentry_dict["booster_mass"] = 0
-        #                if np.isnan(dsr["Stage1_StageMass"].values[count]):
-        #                    temp_reentry_dict["stage1_mass"] = 0
-        #                
-        #                self.unique_reentry_list.append(temp_reentry_dict)
+        # TODO: Check if this is required.               
+        # For all rocket stages from 2020 launches, add the mass info using the databases previously outputted.
+        for reentry in self.unique_reentry_list:
+            
+            if reentry["lat"] == 0:
+                print(reentry)
+            
+            if (reentry["id"][:4] == "2020") and (reentry["type"] == "R/B") and (reentry["mass"] == 0):
+                launch_ind = np.where(dsl["COSPAR_ID"] == reentry["id"][:8])[0]
+                
+                # Add the lat/lon and time info.
+                # Time is added if the launch and re-entry occur on the same day, if not then set to midnight.
+                #if temp_reentry_dict["id"][:8] == dsl["COSPAR_ID"].values[i]: 
+                #    if temp_reentry_dict["lat"] == 0:                   
+                #        temp_reentry_dict["lat"] = dsl["Latitude"].values[i]
+                #    if temp_reentry_dict["lon"] == 0:
+                #        temp_reentry_dict["lon"] = dsl["Longitude"].values[i]
+                #if temp_reentry_dict["id"][:8] == dsl["COSPAR_ID"].values[i]:                     
+                #    temp_reentry_dict["lat"]  = dsl["Latitude"].values[i]
+                #    temp_reentry_dict["lon"]  = dsl["Longitude"].values[i]
+                #    if (int(dsl["Month"].values[i]) == int(temp_reentry_dict["mon"])) and (int(dsl["Day"].values[i]) == int(temp_reentry_dict["day"])):
+                #        temp_reentry_dict["time"] = dsl["Time(UTC)"].values[i]
                         
-        self.print_stats()
         
         ##########################################
         # Assign as controlled vs. uncontrolled.
@@ -1767,7 +1694,83 @@ class import_launches_from_discos:
             
             # F11. Moon launch so ignoring.
 
+        ##########################################
+        # Add remaining missing rocket launches.
+        ##########################################
+        
+        # Based on rocket configurations, boosters will cutoff and detach above 50km for all configs except B+4S.  
+        # So for B+1/2S and B+3S, we need a reentry event for each lost booster at the launch site.
+        # For B+4S, 2S and 3S, the 1st stage will cutoff and detach within 100 km altitude, so we need a reentry event for each of these.
 
+        # This just checks what boosters have been added, its currently 0.
+        booster_list = []
+        for count, reentry in enumerate(self.unique_reentry_list):
+            if (reentry["id"][:4] == "2020") and (reentry["type"] == "R/B") and (reentry["reentry_stage"] == 0) and (reentry["id"][5] != "F"):
+                booster_list.append(reentry["id"][:8])
+        
+        # This just checks what 1st stages have been added, its currently all the Falcon reentries. 
+        first_stage_list = []
+        for count, reentry in enumerate(self.unique_reentry_list):
+            if (reentry["id"][:4] == "2020") and (reentry["type"] == "R/B") and (reentry["reentry_stage"] == 1) and (reentry["id"][5] != "F"):
+                first_stage_list.append(reentry["id"][:8])               
+                      
+        for i in range(len(dsl["COSPAR_ID"])):
+            # First add the boosters.
+            for count, rocket_name in enumerate(dsr["Rocket_Name"].values):
+                if rocket_name == dsl["Rocket_Type"].values[i]: 
+                    
+                    # Filter to only B+1/2S and B+3S rockets and add all boosters (all missing in original inventories).
+                    if (dsr["Booster_PropMass"].values[count] != 0) and (dsr["Stage4_PropMass"].values[count] == 0) and (dsl["COSPAR_ID"].values[i][:8] not in booster_list):
+                        
+                        mass = dsr["Booster_StageMass"].values[count]
+                        if np.isnan(mass):
+                            mass = 0
+                            
+                        temp_reentry_dict = {
+                            "id"           : f'{dsl["COSPAR_ID"].values[i]}B',
+                            "name"         : f"{dsl['Rocket_Type'].values[i]} Booster",
+                            "type"         : "R/B",
+                            "controlled"   : False,
+                            "reentry_stage": 0, # -1 is nothing, 0 = Booster, 1-4 = Stage Number, 5 = Payload/Debris
+                            "time"         : dsl["Time(UTC)"].values[i],
+                            "mon"          : int(dsl["Month"].values[i]),
+                            "day"          : int(dsl["Day"].values[i]),
+                            "lat"          : dsl["Latitude"].values[i],
+                            "lon"          : dsl["Longitude"].values[i],
+                            "mass"         : mass,
+                            "MCS"          : False
+                        }
+
+                        self.unique_reentry_list.append(temp_reentry_dict)
+                    
+                    # Filter to only B+4S, 2S and 3S rockets and add all missing 1st stages (all missing in original inventories).
+                    if (dsl["COSPAR_ID"].values[i][:8] not in first_stage_list) and (dsl["COSPAR_ID"].values[i][5] != "F"):
+                        if ((dsr["Booster_PropMass"].values[count] == 0) and (dsr["Stage4_PropMass"].values[count] == 0)) or ((dsr["Booster_PropMass"].values[count] != 0) and (dsr["Stage4_PropMass"].values[count] != 0)):
+                            print(dsl["COSPAR_ID"].values[i])
+                    
+                            mass = dsr["Stage1_StageMass"].values[count]
+                            if np.isnan(mass):
+                                mass = 0
+                                
+                            temp_reentry_dict = {
+                                "id"           : f'{dsl["COSPAR_ID"].values[i]}S1',
+                                "name"         : f"{dsl['Rocket_Type'].values[i]} Stage 1",
+                                "type"         : "R/B",
+                                "controlled"   : False,
+                                "reentry_stage": 1, # -1 is nothing, 0 = Booster, 1-4 = Stage Number, 5 = Payload/Debris
+                                "time"         : dsl["Time(UTC)"].values[i],
+                                "mon"          : int(dsl["Month"].values[i]),
+                                "day"          : int(dsl["Day"].values[i]),
+                                "lat"          : dsl["Latitude"].values[i],
+                                "lon"          : dsl["Longitude"].values[i],
+                                "mass"         : mass,
+                                "MCS"          : False
+                            }
+
+                            self.unique_reentry_list.append(temp_reentry_dict)
+                        
+        self.print_stats()
+        
     def reentry_info_to_netcdf(self):
         """This saves the reentry information as a NetCDF file for later processing for GEOS-Chem.
         This is only needed if using GEOS-Chem. Recommended to ignore if you don't need this.
