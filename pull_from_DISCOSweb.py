@@ -1362,7 +1362,8 @@ class import_launches_from_discos:
                 "lat"          : lat,
                 "lon"          : lon,
                 "mass"         : masses[count],
-                "MCS"          : False
+                "MCS"          : False,
+                "manual_loc"   : True,
             }    
             self.unique_reentry_list.append(temp_reentry_dict)    
         
@@ -1495,8 +1496,8 @@ class import_launches_from_discos:
                     "lon"          : lon,
                     "mass"         : mass, 
                 }
+                
                 self.unique_reentry_list.append(temp_reentry_dict) 
-        
         ########################################
         # Load in all Aerospace Corp re-entries
         ########################################      
@@ -1615,6 +1616,7 @@ class import_launches_from_discos:
                             time_utc = dsl["Time(UTC)"].values[launch_ind][0]
                             lat = dsl["Latitude"].values[launch_ind][0]
                             lon = dsl["Longitude"].values[launch_ind][0]
+                            manual_loc = True
                 elif int(ds_dw["DISCOSweb_Reentry_ID"].values[reentry_count][0:4]) < 2020:
                     time_utc = 0
 
@@ -1630,6 +1632,7 @@ class import_launches_from_discos:
                     "lat"          : lat,
                     "lon"          : lon,
                     "mass"         : mass, 
+                    "manual_loc"   : manual_loc, 
                 }
                 
                 self.unique_reentry_list.append(temp_reentry_dict)  
@@ -1658,7 +1661,7 @@ class import_launches_from_discos:
                     "id"           : f'{dsl["COSPAR_ID"].values[i]}S1',
                     "name"         : f"{dsl['Rocket_Type'].values[i]} Stage 1",
                     "type"         : "R/B",
-                    "burnup"   : "Partial",
+                    "burnup"       : "Partial",
                     "reentry_stage": 1, # -1 is nothing, 0 = Booster, 1-4 = Stage Number, 5 = Payload/Debris
                     "time"         : dsl["Time(UTC)"].values[i],
                     "mon"          : int(dsl["Month"].values[i]),
@@ -1876,7 +1879,8 @@ class import_launches_from_discos:
                             "lat"          : dsl["Latitude"].values[i],
                             "lon"          : dsl["Longitude"].values[i],
                             "mass"         : mass,
-                            "MCS"          : False
+                            "MCS"          : False,
+                            "manual_loc"   : True,
                         }
 
                         self.unique_reentry_list.append(temp_reentry_dict)
@@ -1900,7 +1904,8 @@ class import_launches_from_discos:
                                 "lat"          : dsl["Latitude"].values[i],
                                 "lon"          : dsl["Longitude"].values[i],
                                 "mass"         : mass,
-                                "MCS"          : False
+                                "MCS"          : False,
+                                "manual_loc"   : True,
                             }
 
                             self.unique_reentry_list.append(temp_reentry_dict)
@@ -1912,6 +1917,8 @@ class import_launches_from_discos:
             if reentry["name"] == "CZ-2C sep motor cover":
                 # The same item is also listed as weighing 1 kg.
                 reentry["mass"] = 1
+            if reentry["id"] == "2020-086B":
+                reentry["lon"] = 179.9
             if reentry["name"] == "Ceres-1 upperstage":
                 reentry["mass"] = 200 
             # Set time to midnight whenever the reentry is occurs on a different day than the launch and no time info is available.
@@ -1922,11 +1929,13 @@ class import_launches_from_discos:
                             pass
                         else:    
                             reentry["time"] = 0
+            if "manual_loc" not in reentry:
+                reentry["manual_loc"] = False
 
         dsl.close()
         dsr.close()
         ds_dw.close()
-             
+        
         self.print_stats()
         
     def reentry_info_to_netcdf(self):
@@ -1939,7 +1948,7 @@ class import_launches_from_discos:
         #Set up the data
         id_list, name_list, type_list, burnup_list = [], [], [], []
         stage_list, time_list,  mon_list , day_list  = [], [], [], []
-        lat_list,  lon_list,  mass_list, mcs_list  = [], [], [], []
+        lat_list,  lon_list,  mass_list, mcs_list, manual_loc_list  = [], [], [], [], []
         
         for reentry in self.unique_reentry_list:
             id_list.append(reentry["id"])
@@ -1954,14 +1963,14 @@ class import_launches_from_discos:
             lon_list.append(reentry["lon"])
             mass_list.append(reentry["mass"])
             mcs_list.append(reentry["MCS"])
-            
+            manual_loc_list.append(reentry["manual_loc"])    
         #print(type(id_list),id_list)
             
         #Create the DataArrays.
         data_da_id           = xr.DataArray(id_list,         dims=dims, attrs=dict(long_name="Reentry ID"))
         data_da_name         = xr.DataArray(name_list,       dims=dims, attrs=dict(long_name="Reentry Name"))
         data_da_type         = xr.DataArray(type_list,       dims=dims, attrs=dict(long_name="Reentry Type"))
-        data_da_burnup       = xr.DataArray(burnup_list, dims=dims, attrs=dict(long_name="Reentry Burnup Flag"))
+        data_da_burnup       = xr.DataArray(burnup_list,     dims=dims, attrs=dict(long_name="Reentry Burnup Flag"))
         data_da_stage        = xr.DataArray(stage_list,      dims=dims, attrs=dict(long_name="Reentry Stage"))
         data_da_time         = xr.DataArray(time_list,       dims=dims, attrs=dict(long_name="Reentry Time (UTC)"))
         data_da_mon          = xr.DataArray(mon_list,        dims=dims, attrs=dict(long_name="Reentry Month"))
@@ -1970,13 +1979,14 @@ class import_launches_from_discos:
         data_da_lon          = xr.DataArray(lon_list,        dims=dims, attrs=dict(long_name="Reentry Longitude", units="Degrees"))
         data_da_mass         = xr.DataArray(mass_list,       dims=dims, attrs=dict(long_name="Reentry Booster Mass", units="kg"))
         data_da_mcs          = xr.DataArray(mcs_list,        dims=dims, attrs=dict(long_name="Reentry MCS Check"))
+        data_da_manual_loc   = xr.DataArray(manual_loc_list, dims=dims, attrs=dict(long_name="Reentry Manual Location Check"))
     
         # Create an xarray Dataset from the DataArrays.
         ds = xr.Dataset()
         ds['RE_ID']          = data_da_id
         ds['RE_Name']        = data_da_name
         ds['RE_Type']        = data_da_type
-        ds['RE_Burnup']     = data_da_burnup
+        ds['RE_Burnup']      = data_da_burnup
         ds['RE_Stage']       = data_da_stage
         ds['RE_Time']        = data_da_time
         ds['RE_Mon']         = data_da_mon
@@ -1985,6 +1995,7 @@ class import_launches_from_discos:
         ds['RE_Lon']         = data_da_lon
         ds['RE_Mass']        = data_da_mass
         ds['RE_MCS']         = data_da_mcs
+        ds['RE_Manual_Loc']  = data_da_manual_loc
              
         #Save to file and close the DataSet     
         ds.to_netcdf(f'./Databases/reentry_info_{year}.nc')
