@@ -5,6 +5,7 @@
    
 
 # TODO: Add a comment about what files are input.
+# TODO: Should probably split this script into smaller scripts.
 
 # Import relevant packages:
 import argparse
@@ -37,14 +38,14 @@ class RocketData:
         fh = Dataset(launchfile, mode='r')
         
         #Extract variables.
-        self.launch_lons = fh.variables['Longitude'][:]
-        self.launch_lats = fh.variables['Latitude'][:]
-        self.launch_time = fh.variables['Time(UTC)'][:]  # UTC hours
-        self.launch_month = fh.variables['Month'][:]
-        self.launch_day = fh.variables['Day'][:]
-        self.launch_id = fh.variables['COSPAR_ID'][:]
+        self.launch_lons   = fh.variables['Longitude'][:]
+        self.launch_lats   = fh.variables['Latitude'][:]
+        self.launch_time   = fh.variables['Time(UTC)'][:]  # UTC hours
+        self.launch_month  = fh.variables['Month'][:]
+        self.launch_day    = fh.variables['Day'][:]
+        self.launch_id     = fh.variables['COSPAR_ID'][:]
         self.launch_rocket = fh.variables['Rocket_Type'][:]
-        self.launch_mcs = fh.variables['MCS_Check'][:]
+        self.launch_mcs    = fh.variables['MCS_Check'][:]
         
         print("Successfully loaded launch information.")
         
@@ -65,40 +66,20 @@ class RocketData:
         fg = Dataset(reentryfile, mode='r')
         
         # Extract variables:
-        self.reentry_id = fg.variables['ID'][:]
-        self.reentry_type = fg.variables['Controlled?'][:]
-        self.reentry_lons = fg.variables['Longitude'][:]
-        self.reentry_lats = fg.variables['Latitude'][:]
-        self.reentry_time = fg.variables['Time (UTC)'][:]   # UTC hours
-        self.reentry_month = fg.variables['Month'][:]
-        self.reentry_day = fg.variables['Day'][:]
-        self.reentry_mass = fg.variables['Total Mass'][:]
-        self.reentry_nox = fg.variables['NOx from re-entry'][:]  # in tonnes
-        self.reentry_booster_mass = fg.variables['Booster mass'][:]
-        self.reentry_stage1_mass = fg.variables['First stage mass'][:]
-        self.reentry_stage2_mass = fg.variables['Second stage mass'][:]
-        
+        self.reentry_id           = fg.variables['RE_ID'][:]
+        self.reentry_name         = fg.variables['RE_Name'][:]
+        self.reentry_type         = fg.variables['RE_Type'][:]
+        self.reentry_burnup       = fg.variables['RE_Burnup'][:]
+        self.reentry_stage        = fg.variables['RE_Stage'][:]
+        self.reentry_lats         = fg.variables['RE_Lat'][:]
+        self.reentry_lons         = fg.variables['RE_Lon'][:]
+        self.reentry_month        = fg.variables['RE_Mon'][:].astype(int)
+        self.reentry_day          = fg.variables['RE_Day'][:].astype(int)
+        self.reentry_time         = fg.variables['RE_Time'][:] # UTC hours
+        self.reentry_mass         = fg.variables['RE_Mass'][:]
+        self.reentry_mcs          = fg.variables['RE_MCS'][:]
         #Close Dataset.
         fg.close()
-        
-        # TODO: Reentries.
-        # Sort this sanity check out when reentries have been dealt with.
-        if args.verbose == True:
-            print(f'Total reentry NOx emissions             = {sum(self.reentry_nox)*1e-3} tonnes')
-        
-        # TODO: Reentries.
-        # Need to sort out controlled vs uncontrolled entries.
-        # ID String with length of 8 is from rocket launch and should be ignored if not a controlled entry.
-        # Something like:
-        #           if len(ID)==8 and Controlled=='Y', then calculate 0.175*mass to get NOx
-        #           if len(ID)==8 and Controlled=='Y', then don't calculate re-entry NOx.
-        
-        
-        # Can use this to check the totals after database is complete.
-        # However, the input file contains lots of empty data for the booster, stage 1 and stage 2 mass. 
-        # Therefore the total from all three is very different from the total mass.
-        if args.verbose == True:
-            print(f'Total Reentry Check (NOx)               = {(np.nansum(self.reentry_booster_mass+self.reentry_stage1_mass+self.reentry_stage2_mass)-sum(self.reentry_mass))*1e-3} tonnes')
             
     def define_scale_factors(self):
         ###############################################################################
@@ -227,20 +208,10 @@ class OutputEmis:
         self.ross_alt, self.ross_prop_mass, self.ross_cumulative_mass = get_ross_profiles()
 
         # Create variables for totals for a future sanity check:
-        # TODO: Might be a bit less clear, but these 10 1D arrays could be merged into one 2D array.
-        self.nox_launch_total = 0.0
-        self.bc_total  = 0.0
-        self.h2o_total = 0.0
-        self.co_total = 0.0
-        self.al2o3_launch_total = 0.0
-        self.cl_total = 0.0
-        self.hcl_total = 0.0
-        self.cl2_total = 0.0
-        self.nox_reentry_total = 0.0
-        self.al2o3_reentry_total = 0.0
-        self.booster_prop_consumed = np.zeros(len(self.launch_id))
-        self.stage1_prop_consumed = np.zeros(len(self.launch_id))
-        self.stage2_prop_consumed = np.zeros(len(self.launch_id))
+        self.nox_launch_total, self.bc_total, self.h2o_total = 0.0, 0.0, 0.0
+        self.co_total,self.al2o3_launch_total, self.cl_total = 0.0, 0.0, 0.0
+        self.hcl_total, self.cl2_total, self.nox_reentry_total, self.al2o3_reentry_total = 0.0, 0.0, 0.0, 0.0
+        self.booster_prop_consumed, self.stage1_prop_consumed, self.stage2_prop_consumed = np.zeros(len(self.launch_id)), np.zeros(len(self.launch_id)), np.zeros(len(self.launch_id))
         self.total_prop_consumed = np.zeros((4,3))
         self.launch_count = 0
         
@@ -259,9 +230,9 @@ class OutputEmis:
         #self.lat2d = Y
         
         # Create the arrays for the output file to check prop/species distribution.
-        self.output_for_csv = np.zeros((len(rocket_data.launch_id)*3,self.nlev))
+        self.output_for_csv = np.zeros(((len(rocket_data.launch_id)+len(rocket_data.reentry_id))*3,self.nlev))
         self.csv_count = 0
-        self.output_for_csv_2 = np.zeros((len(rocket_data.launch_id)*8,self.nlev))
+        self.output_for_csv_2 = np.zeros(((len(rocket_data.launch_id)+len(rocket_data.reentry_id))*8,self.nlev))
         self.csv_count_2 = 0
         
         #################################
@@ -337,13 +308,13 @@ class OutputEmis:
                 ########################################################################
                 
                 # Use this when outputting MCS and Non_MCS separately.
-                l_ind=np.where((rocket_data.launch_month==(m+1))&(rocket_data.launch_day==(d+1))&(~np.isnan(rocket_data.launch_time))&(rocket_data.launch_mcs==self.include_mcs))[0]
+                #l_ind=np.where((rocket_data.launch_month==(m+1))&(rocket_data.launch_day==(d+1))&(~np.isnan(rocket_data.launch_time))&(rocket_data.launch_mcs==self.include_mcs))[0]
                 
                 # Use this when outputting all launches as a single file
-                #l_ind=np.where((rocket_data.launch_month==(m+1))&(rocket_data.launch_day==(d+1))&(~np.isnan(rocket_data.launch_time)))[0]
+                l_ind=np.where((rocket_data.launch_month==(m+1))&(rocket_data.launch_day==(d+1))&(~np.isnan(rocket_data.launch_time)))[0]
                 
                 if len(l_ind)>0:
-                    print('----> Day processing: ',self.strday,f"{len(l_ind)} Launches.")
+                    #print('----> Day processing: ',self.strday,f"{len(l_ind)} Launches.")
                     self.grid_emis(l_ind,
                                    rocket_data.launch_lons[l_ind],
                                    rocket_data.launch_lats[l_ind],
@@ -359,28 +330,24 @@ class OutputEmis:
                 # Call grid_emis function to calculate distribution from re-entries
                 ########################################################################
                 
+                # Use this when outputting MCS and Non_MCS separately.
+                #r_ind=np.where((rocket_data.reentry_month==(m+1))&(rocket_data.reentry_day==(d+1))&(~np.isnan(rocket_data.reentry_time))&(rocket_data.reentry_mcs==self.include_mcs))[0]
+                
+                # Use this when outputting all reentries as a single file
                 r_ind=np.where((rocket_data.reentry_month==(m+1))&(rocket_data.reentry_day==(d+1)))[0]
                 
-                # This code is used to skip any non-controlled re-entry of immediately launched
-                # rocket, as this was an error in the original inventory. Might not be necessary for 
-                # future fixed inventories.
-                #if len(r_ind)>0:
-                #    tmp_id = (','.join(rocket_data.reentry_id[r_ind]))
-                #if (len(tmp_id)==8 and rocket_data.reentry_type[r_ind]=='N'):
-                #    r_ind=[]
                 if len(r_ind)>0:
-                    pass
-                    #print("Processing Reentries.")
-                    #self.grid_emis(r_ind,
-                    #               rocket_data.reentry_lons[r_ind],
-                    #               rocket_data.reentry_lats[r_ind],
-                    #               rocket_data.reentry_time[r_ind],
-                    #               'reentry',
-                    #               ' ',
-                    #               ' ',
-                    #               d,
-                    #               m,
-                    #               )
+                    #print('----> Day processing: ',self.strday,f"{len(r_ind)} Re-entries.")
+                    self.grid_emis(r_ind,
+                                   rocket_data.reentry_lons[r_ind],
+                                   rocket_data.reentry_lats[r_ind],
+                                   rocket_data.reentry_time[r_ind],
+                                   'reentry',
+                                   ' ',
+                                   ' ',
+                                   d,
+                                   m,
+                                   )
                     
                     # Sum up all re-entry NOx (kg):
                     #self.nox_reentry_total += sum(rocket_data.reentry_nox[r_ind])
@@ -389,10 +356,8 @@ class OutputEmis:
                 # Save file as NetCDF
                 ####################################
                 
-                # TODO: Change this once reentries are added.
-                #if len(l_ind)>0 or len(r_ind)>0:
-                if len(l_ind)>0:
-                    # If there are launches, then save file normally.
+                if len(l_ind)>0 or len(r_ind)>0:
+                    # If there are launches or reentries, then save file normally.
                     self.save_netcdf()
                 else:
                     # If there are no launches, create a dummy file to accommodate HEMCO file reading.
@@ -403,7 +368,7 @@ class OutputEmis:
                     self.save_netcdf()
         
         df = pd.DataFrame(self.output_for_csv)
-        df.to_csv("/home/ucfacb0/Emission_Inventory/Improved_Emission_Profile/Databases/Propellant_Distribution.csv", float_format='%.3f')
+        df.to_csv("/home/ucfacb0/Emission_Inventory/Improved_Emission_Profile/Databases/Emission_Distribution.csv", float_format='%.3f')
         df_2 = pd.DataFrame(self.output_for_csv_2)
         df_2.to_csv("/home/ucfacb0/Emission_Inventory/Improved_Emission_Profile/Databases/Species_Distribution.csv", float_format='%.3f')
              
@@ -704,6 +669,13 @@ class OutputEmis:
             # NOTE: GEOS-Chem data is provided as [lat,lon,lev], where
             #       levels go from surface to top-of-atmosphere
             
+            ############################################
+            # Format the time of the event.
+            ############################################
+                
+            #time_index = int(hour[w]*60*60)//self.ts
+            time_index = int(hour[w])
+            
             #########################################################
             # Work out vertical distribution for launch emissions.
             #########################################################
@@ -712,16 +684,6 @@ class OutputEmis:
                 
                 # TODO: Settling of emissions.
                 # Some of these failures will still include emissions above the GC boundary.
-                
-                # TODO: Reentries.
-                # For all failed launches, DISCOSweb does not include objects, so may need to manually add.
-                
-                ############################################
-                # Format the time of the event.
-                ############################################
-                
-                #time_index = int(hour[w]*60*60)//self.ts
-                time_index = int(hour[w])
                 
                 ############################################
                 # Interpolate propellant mass distribution.
@@ -750,7 +712,7 @@ class OutputEmis:
                     if launch_rocket[w] == rocket_data.rocket_name[ll]:
                         rocket_found = True
                         valid_index=ll
-                        print(f"Rocket name is {launch_rocket[w]}")
+                        #print(f"Rocket name is {launch_rocket[w]}")
                         break
                     
                 # Catch any missing rocket propellant masses:
@@ -778,9 +740,9 @@ class OutputEmis:
                     print(f'Launch {launch_id[w]} failed. Not processing.')
                     self.csv_count += 3
                     continue
-                elif launch_id[w][-3:] in ['F05']:
+                elif launch_id[w][-3:] in ['F02','F05']:
                     self.gc_relative_mass_stage2 = np.asarray([0])
-                    self.SEI_alt_index = self.nlev
+                    self.SEI_alt_index = self.nlev                    
                 elif launch_id[w][-3:] in ['F07']:
                     # Stage 2 is already above GC.
                     # Find altitude nearest 0.9 km, and make all relative mass 0 above this point.
@@ -803,7 +765,7 @@ class OutputEmis:
                 # For all rockets, the propellant consumed for each stage should never be bigger than the total propellant in each stage.
                 if (self.stage1_prop_consumed[self.launch_count] - rocket_data.stage1_prop_mass[valid_index]) > 0.1:
                     sys.exit(f"Error with Stage 1 emissions - 1.")
-                elif (self.stage1_prop_consumed[self.launch_count] - rocket_data.stage1_prop_mass[valid_index]) > 0 and (self.stage1_prop_consumed[self.launch_count] - rocket_data.stage1_prop_mass[valid_index]) < 0.1:
+                elif (self.stage1_prop_consumed[self.launch_count] - rocket_data.stage1_prop_mass[valid_index]) > 0.05 and (self.stage1_prop_consumed[self.launch_count] - rocket_data.stage1_prop_mass[valid_index]) < 0.1:
                     print(f"Warning: Floating point difference of {np.abs(self.stage1_prop_consumed[self.launch_count] - rocket_data.stage1_prop_mass[valid_index])}")
                 if (self.stage2_prop_consumed[self.launch_count] - rocket_data.stage2_prop_mass[valid_index]) > 0.1:
                     sys.exit("Error with Stage 2 emissions.")
@@ -939,81 +901,41 @@ class OutputEmis:
             # Work out vertical distribution for reentry emissions.
             #########################################################
             
-            # TODO: Re-entries.
-
             if emis_type=='reentry':
-
-                # Define temporary ID to get number of characters:
-                tmp_id = rocket_data.reentry_id[index[w]]
-                #if (tmp_id[0:8]=='2016-001998-010'):
-                #    print('Re-entry ID', tmp_id)
-                #    print(len(tmp_id))
-                    #sys.exit()
-                #print(len(tmp_id))
-                #sys.exit()
-                #tmp_id = (','.join(rocket_data.reentry_id[index[w]]))
-                #print(len(tmp_id))
-
-                #if self.rocket_reentry_nox[int(hour[w]),self.bot_reenter,q,p]!=0:
-                #    print('Data already assigned')
-                #    sys.exit()
-
-                # Sum the re-entry emissions, as some of these are close in time (a few seconds apart due to re-entry of multiple rocket stages):
-                # (1) NOx:
-                # Uncontrolled re-entry of returning debris:
-                if not(len(tmp_id)==8 and rocket_data.reentry_type[index[w]]=='N'):
-                    #print(rocket_data.reentry_id[index[w]], rocket_data.reentry_type[index[w]])
-                    self.nox_reentry_total += rocket_data.reentry_nox[index[w]]
-                    self.rocket_reentry_nox[int(hour[w]),self.bot_reenter:self.top_reenter+1,q,p] += rocket_data.reentry_nox[index[w]]/self.n_reenter_levs/kg_to_kgm2s
-                #self.rocket_reentry_nox[int(hour[w]),self.top_reenter,q,p] += rocket_data.reentry_nox[index[w]]/2/kg_to_kgm2s
-                # Exception for re-entry that has 8 characters:
-                if (tmp_id=='2016-00C'):
-                    self.nox_reentry_total += rocket_data.reentry_nox[index[w]]
-                    self.rocket_reentry_nox[int(hour[w]),self.bot_reenter:self.top_reenter+1,q,p] += rocket_data.reentry_nox[index[w]]/self.n_reenter_levs/kg_to_kgm2s
                 
-                # (2) Al2O3:
-                # Calculate for all non-controlled re-entering objects:
-                if (len(tmp_id)>8 and rocket_data.reentry_type[index[w]]=='N'):
-                    #print(rocket_data.reentry_id[index[w]], rocket_data.reentry_type[index[w]])
-                    tmp_reentry_al = rocket_data.reentry_mass[index[w]]*0.9
-                    #print('Al2O3 reentry emis: ', tmp_reentry_al)
-                    self.al2o3_reentry_total += tmp_reentry_al
-                    # Initially with crude assumption that 90% of returning object is
-                    # aluminum and that it is all converted to Al2O3.
-                    self.rocket_reentry_al[int(hour[w]),self.bot_reenter:self.top_reenter+1,q,p] += tmp_reentry_al/self.n_reenter_levs/kg_to_kgm2s
-                # Calculate proportion (17.5%, same as NOx) for all controlled re-entering objects (Soyuz):
-                if (len(tmp_id)==9 and rocket_data.reentry_type[index[w]]=='Y'):
-                    #print(rocket_data.reentry_id[index[w]], rocket_data.reentry_type[index[w]])
-                    tmp_reentry_al = rocket_data.reentry_mass[index[w]]*0.9*0.175
-                    #print('Al2O3 reentry emis: ', tmp_reentry_al)
-                    self.al2o3_reentry_total += tmp_reentry_al
-                    # Initially with crude assumption that 90% of returning object is
-                    # aluminum and that it is all converted to Al2O3.
-                    self.rocket_reentry_al[int(hour[w]),self.bot_reenter:self.top_reenter+1,q,p] += tmp_reentry_al/self.n_reenter_levs/kg_to_kgm2s
-                # Calculate proportion (17.5%, same as NOx) for Crew Dragon:
-                if (tmp_id=='2019-011' and rocket_data.reentry_type[index[w]]=='Y'):
-                    #print(rocket_data.reentry_id[index[w]], rocket_data.reentry_type[index[w]])
-                    tmp_reentry_al = rocket_data.reentry_mass[index[w]]*0.9*0.175
-                    #print('Al2O3 reentry emis: ', tmp_reentry_al)
-                    self.al2o3_reentry_total += tmp_reentry_al
-                    # Initially with crude assumption that 90% of returning object is
-                    # aluminum and that it is all converted to Al2O3.
-                    self.rocket_reentry_al[int(hour[w]),self.bot_reenter:self.top_reenter+1,q,p] += tmp_reentry_al/self.n_reenter_levs/kg_to_kgm2s
-                # Exception for re-entry that has 8 characters:
-                if (tmp_id=='2016-00C'):
-                    #print(rocket_data.reentry_id[index[w]], rocket_data.reentry_type[index[w]])
-                    tmp_reentry_al = rocket_data.reentry_mass[index[w]]*0.9
-                    #print('Al2O3 reentry emis: ', tmp_reentry_al)
-                    self.al2o3_reentry_total += tmp_reentry_al
-                    # Initially with crude assumption that 90% of returning object is
-                    # aluminum and that it is all converted to Al2O3.
-                    self.rocket_reentry_al[int(hour[w]),self.bot_reenter:self.top_reenter+1,q,p] += tmp_reentry_al/self.n_reenter_levs/kg_to_kgm2s
-
-                #if (tmp_id=='2016-00C'):
-                #    print('Re-entry ID', tmp_id)
-                #    print(tmp_reentry_al)
-                #    sys.exit()
-                         
+                # Adding NOx and Al2O3 emissions.
+                # We assume that 100% emissions on complete burnup and 17.5% emissions on partial burnup.
+                # We assume that 90% of returning object is Al and that it is all converted to Al2O3.
+                # For consistency with launch emissions, the totals are kept in g units. 
+                
+                if rocket_data.reentry_burnup[index[w]] == 'Complete': # Complete burnup on re-entry:
+                    burnup_factor = 1
+                else: # Partial burnup on re-entry (reusable components):
+                    burnup_factor = 0.175   
+                    
+                t_nox_reentry = rocket_data.reentry_mass[index[w]] * burnup_factor * 1000
+                self.nox_reentry_total += t_nox_reentry
+                self.rocket_reentry_nox[time_index,self.bot_reenter:self.top_reenter+1,q,p] += t_nox_reentry / self.n_reenter_levs * 1e-3 / kg_to_kgm2s
+                
+                t_al2o3_reentry = rocket_data.reentry_mass[index[w]] * 0.9 * burnup_factor * 1000
+                self.al2o3_reentry_total += t_al2o3_reentry
+                self.rocket_reentry_al[time_index,self.bot_reenter:self.top_reenter+1,q,p] += t_al2o3_reentry / self.n_reenter_levs * 1e-3 / kg_to_kgm2s
+                
+                total_vertical_propellant = np.zeros((len(self.mid_alt[:,q,p]),9))    
+                total_vertical_propellant[self.bot_reenter:self.top_reenter+1,3]   += [t_nox_reentry/2, t_nox_reentry/2]
+                total_vertical_propellant[self.bot_reenter:self.top_reenter+1,5]   += [t_al2o3_reentry/2, t_al2o3_reentry/2]
+                
+                self.output_for_csv[self.csv_count,:] = 0
+                self.csv_count += 1
+                self.output_for_csv[self.csv_count,:] = self.mid_alt[:,q,p]*1e-3
+                self.csv_count += 1  
+                self.output_for_csv[self.csv_count,:] = 0
+                self.csv_count += 1 
+                
+                for i in range(1,9):
+                    self.output_for_csv_2[self.csv_count_2,:] = total_vertical_propellant[:,i]
+                    self.csv_count_2 += 1
+                     
     def save_netcdf(self):
         """Save rocket emissions as COARDS compliant NetCDF files"""
         
@@ -1212,7 +1134,7 @@ if __name__ == "__main__":
     year = 2020
     datadir = './Databases/'
     launch_path = path.join(datadir, f'launch_info_{year}.nc')
-    reentry_path = path.join('./Databases/Old/', 'reentries-21Aug2020.nc4')
+    reentry_path = path.join(datadir, f'reentry_info_{year}_updated.nc')
     rocket_info_path = path.join(datadir, f'rocket_info_{year}.nc')
     outdir = './Output/2020/'    
 
@@ -1333,6 +1255,7 @@ if __name__ == "__main__":
     ##########################################################
     
     # The total emissions including all afterburning are compared to a scenario where only primary emission indices are used.
+    # TODO: Instead of printing the f-string, make a pandas dataframe and print that.
     def check_total_emissions():
         total_prop_consumed = 0
         estimated_bc, estimated_nox, estimated_h2o, estimated_co, estimated_al2o3, estimated_hcl, estimated_cl, estimated_cl2 = 0, 0, 0, 0, 0, 0, 0, 0
@@ -1347,19 +1270,15 @@ if __name__ == "__main__":
                 estimated_cl += emis_data.total_prop_consumed[i,j]  * 0
                 estimated_cl2 += emis_data.total_prop_consumed[i,j]  * 0
                 
-        print(f'PEI Estimated BC:    {estimated_bc*1e-9:.4f}  Total BC:    {(emis_data.bc_total)*1e-9:.4f} (Gg)')
-        print(f'PEI Estimated NOx:   {estimated_nox*1e-9:.4f}  Total NOx:   {(emis_data.nox_launch_total)*1e-9:.4f} (Gg)')
-        print(f'PEI Estimated H2O:   {estimated_h2o*1e-9:.4f} Total H2O:   {(emis_data.h2o_total)*1e-9:.4f} (Gg)')
-        print(f'PEI Estimated CO:    {estimated_co*1e-9:.4f}  Total CO:    {(emis_data.co_total)*1e-9:.4f} (Gg)')
-        print(f'PEI Estimated Al2O3: {estimated_al2o3*1e-9:.4f}  Total Al2O3: {(emis_data.al2o3_launch_total)*1e-9:.4f} (Gg)')
-        print(f'PEI Estimated HCl:   {estimated_hcl*1e-9:.4f}  Total HCl:   {(emis_data.hcl_total)*1e-9:.4f}  (Gg)')
-        print(f'PEI Estimated Cl:    {estimated_cl*1e-9:.4f}  Total Cl:    {(emis_data.cl_total)*1e-9:.4f}   (Gg)')
-        print(f'PEI Estimated Cl2:   {estimated_cl2*1e-9:.4f}  Total Cl2:   {(emis_data.cl2_total)*1e-9:.4f} (Gg)')
-        
-        # TODO: Reentries.
-        # Add these sanity checks when reentries have been dealt with.
-        #print('Total NOx re-entry emissions (tonnes): ', emis_data.nox_reentry_total*1e-3)
-        #print('Total Al2O3 re-entry emissions (tonnes): ', emis_data.al2o3_reentry_total*1e-6)
+                
+        data = {'Species'        : ['BC', 'NOx', 'H2O', 'CO', 'Al2O3 (Launch)', 'HCl', 'Cl', 'Cl2', 'NOx (Reentry)', 'Al2O3 (Reentry)'],
+                #'PEI Estimate'   : [estimated_bc*1e-9, estimated_nox*1e-9, estimated_h2o*1e-9, estimated_co*1e-9, 
+                #                    estimated_al2o3*1e-9, estimated_hcl*1e-9, estimated_cl*1e-9, estimated_cl2*1e-9, 0, 0],
+                'Total Emissions / Gg': [emis_data.bc_total*1e-9, emis_data.nox_launch_total*1e-9, emis_data.h2o_total*1e-9, emis_data.co_total*1e-9,
+                                    emis_data.al2o3_launch_total*1e-9, emis_data.hcl_total*1e-9, emis_data.cl_total*1e-9, emis_data.cl2_total*1e-9,
+                                    emis_data.nox_reentry_total*1e-9, emis_data.al2o3_reentry_total*1e-9]}
+        df = pd.DataFrame(data)
+        print(df.round(2))
         
     check_total_emissions()
     

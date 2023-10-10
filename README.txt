@@ -47,7 +47,7 @@ F02 - 16/03/2020 Long March 7A (China) - 3 stages, 4 boosters
         Vehicle disintegrated at first stage separation due to booster LOX pressurization failure leading to engine shutdown and loss of control...
     https://www.nasaspaceflight.com/2020/03/long-march-7a-fails-xinjishu-yanzheng-6/ 
         The problem seems to have surfaced when the 3rd stage was to operate...
-    Only LM7A this year, so Stage 2+3 propellant mass have been set to zero in pull_from_DISCOSweb.
+    Only LM7A this year, so not including second stage launch emissions.
 
 F03 - 09/04/2020 Long March 3B/E (China) - 8 launches in 2020, this is the only failure.
     https://www.nasaspaceflight.com/2020/04/long-march-3b-launches-indonesian-satellite/
