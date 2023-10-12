@@ -196,3 +196,25 @@ def interp_prop_mass(bot_alt, mid_alt, top_alt, ross_alt, ross_cumulative_mass, 
     #            self.gc_mass_reversed[min(index_range):max(index_range)+1] = self.gc_mass_reversed[min(index_range):max(index_range)+1] * ross_prop_mass[count] / prop_mass_in_bin
     
     return propellant_in_gc, gc_relative_mass
+
+def define_scale_factors_old():
+    """Create vertical fuel burned scale factors for the 47-layer GEOS-Chem model.
+    This is not used any more."""        
+    
+    # Scale factors obtained by regridding vertical profile from Ross and Sheaffer (2014) to the GEOS-Chem vertical grid.
+    # https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2013EF000160
+    # This was original added by Eloise to manually regrid Ross2014 to GEOSChem. Now automatically doing this in interp_prop_mass.
+    scale_emis=[0.049891495, 0.111470331, 0.078233471, 0.063383364,
+                0.060797961, 0.059372945, 0.053323669, 0.046966629,
+                0.023518583, 0.025045331, 0.023940206, 0.02557847,
+                0.012627866, 0.012796323, 0.013007597, 0.019845309,
+                0.020190667, 0.018954765, 0.016881733, 0.015656558,
+                0.014616122, 0.009489471, 0.020372272, 0.018580066,
+                0.017329028, 0.01620592,  0.015434268, 0.014502025,
+                0.014023726, 0.013345366, 0.008601074, 0.008422093,
+                0.008250749, 0.007984673, 0.007841863, 0.006174571,
+                0.004551207, 0.004493408, 0.004437623, 0.004394395,
+                0.004352409, 0.004298898, 0.004244104, 0.004205638,
+                0.00416808,  0.004117436, 0.004080244]
+    # Data are from layer 47 to the surface, aso need to be reversed:
+    scale_emis = scale_emis[::-1]

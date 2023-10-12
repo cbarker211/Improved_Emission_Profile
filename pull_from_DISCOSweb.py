@@ -1249,7 +1249,7 @@ class import_launches_from_discos:
                    
             total_mass += reentry["mass"]
         
-        print(f"Total Reentries: {count:.0f}.")
+        print(f"Total Reentries: {len(self.unique_reentry_list):.0f}.")
                 
         
         geo_percent_all = (len(self.unique_reentry_list)-non_geo_count_notdebris) / (len(self.unique_reentry_list)) * 100
@@ -1471,14 +1471,21 @@ class import_launches_from_discos:
                 lon = 89.27
             else:
                 geolocation = jsr_data_stripped_2020["Dest"][reentry_count].replace("?","").split()
-                if geolocation[0][-1] == "W":
-                    lon = np.float64(geolocation[0].replace("W",""))*-1
-                elif geolocation[0][-1] == "E":
-                    lon = np.float64(geolocation[0].replace("E",""))
-                if geolocation[1][-1] == "N":
-                    lat = np.float64(geolocation[1].replace("N",""))
-                elif geolocation[1][-1] == "S":
-                    lat = np.float64(geolocation[1].replace("S",""))*-1
+                if geolocation[0][-1] in ["E","W"]: # If the longitude comes first.
+                    lon_data = geolocation[0]
+                    lat_data = geolocation[1]
+                elif geolocation[1][-1] in ["E","W"]: # If the longitude comes last.
+                    print(jsr_data_stripped_2020["Piece"][reentry_count])
+                    lon_data = geolocation[1]
+                    lat_data = geolocation[0]  
+                if lon_data[-1] == "W":
+                    lon = np.float64(lon_data.replace("W",""))*-1
+                elif lon_data[-1] == "E":
+                    lon = np.float64(lon_data.replace("E",""))
+                if lat_data[-1] == "N":
+                    lat = np.float64(lat_data.replace("N",""))
+                elif lat_data[-1] == "S":
+                    lat = np.float64(lat_data.replace("S",""))*-1
             
             # Ignore Z, this is a spurious entry according to JSR, and ignore D, this is debris objects. 
             # Set up the dictionary.                      
