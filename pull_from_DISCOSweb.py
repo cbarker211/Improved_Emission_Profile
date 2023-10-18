@@ -1256,6 +1256,7 @@ class import_launches_from_discos:
         time_percent_all = (len(self.unique_reentry_list)-non_time_count_notdebris) / (len(self.unique_reentry_list)) * 100
         mass_percent_all = (len(self.unique_reentry_list)-non_mass_count_notdebris) / (len(self.unique_reentry_list)) * 100
         print(f"Total mass (Gg):   {total_mass*1e-6}")
+        print((27200*16)/total_mass*100)
         geolocated_mass_percent = geolocated_mass / total_mass * 100
         print(f"Geolocation (All): {geo_percent_all:.0f}%.")
         print(f"Timed (All):       {time_percent_all:.0f}%.")    
@@ -2059,3 +2060,6 @@ if __name__ == "__main__":
             LaunchData.get_reentry_info()
             if args.save_reentry_info == True:
                 LaunchData.reentry_info_to_netcdf()
+        
+        #LaunchData.save_discosweb_reentries()        
+    

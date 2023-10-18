@@ -38,7 +38,8 @@
 F01 - 09/02/2020 Simorgh (Iran)
     First stage operated for 475s correctly, but second stage failed to deploy payload succesfully...
     Satellite reached 540 km apogee but only reached 6,400 m/s, just short of 7,400 m/s orbital velocity...
-    For the purposes of launch emissions, can include as normal.
+    Including first and second stage emissions as normal.
+    Including S3 in missing emissions.
 
 F02 - 16/03/2020 Long March 7A (China) - 3 stages, 4 boosters
     https://web.archive.org/web/20220411235209/http://www.spacelaunchreport.com/cz5.html
@@ -47,7 +48,8 @@ F02 - 16/03/2020 Long March 7A (China) - 3 stages, 4 boosters
         Vehicle disintegrated at first stage separation due to booster LOX pressurization failure leading to engine shutdown and loss of control...
     https://www.nasaspaceflight.com/2020/03/long-march-7a-fails-xinjishu-yanzheng-6/ 
         The problem seems to have surfaced when the 3rd stage was to operate...
-    Only LM7A this year, so not including second stage launch emissions.
+    Including booster and first stage emissions as normal.
+    Not including S2 or S3 in missing emissions.
 
 F03 - 09/04/2020 Long March 3B/E (China) - 8 launches in 2020, this is the only failure.
     https://www.nasaspaceflight.com/2020/04/long-march-3b-launches-indonesian-satellite/
@@ -56,7 +58,8 @@ F03 - 09/04/2020 Long March 3B/E (China) - 8 launches in 2020, this is the only 
         Failure during first Stage 3 burn.           
     https://en.wikipedia.org/wiki/List_of_Long_March_launches_(2020%E2%80%932029)#2020
         Third stage engine failed to ignite.
-    For the purposes of this script which only includes B+1S+2S, can treat as normal.
+    Including booster, first and second stage emissions as normal.
+    Not including S3 in missing emissions.
 
 F04 - 25/05/2020 LauncherOne
     https://en.wikipedia.org/wiki/LauncherOne#Launch_outcomes
@@ -66,14 +69,15 @@ F04 - 25/05/2020 LauncherOne
     https://spaceflightnow.com/2020/07/25/virgin-orbit-traces-cause-of-launcherone-test-flight-mishap-to-propellant-line/
     https://web.archive.org/web/20220411235210/http://www.spacelaunchreport.com/log2020.html
         Failed shortly after Stg 1 ignition after drop from Cosmic Girl SW of Long Beach, CA. Launch Demo planned to LEO including two Stg 2 burns.
-    So stage 1 only worked for several seconds. Ignore for now but speak to Eloise.
+    So stage 1 only worked for several seconds. Ignoring.
 
 F05 - 04/07/2020 Electron (Curie)
     https://web.archive.org/web/20220411235210/http://www.spacelaunchreport.com/log2020.html
         Second stage failure.     
     https://www.rocketlabusa.com/updates/rocket-lab-mission-fails-to-reach-orbit/
         Following a successful lift-off, first stage burn, and stage separation, Rocket Lab experienced an anomaly...
-    Ignore second stage.
+    Including first stage emissions as normal.
+    Not including S2 or S3 in missing emissions.
 
 F06 - 10/07/2020 Kuaizhou-11
     https://web.archive.org/web/20220411235210/http://www.spacelaunchreport.com/log2020.html
@@ -84,7 +88,8 @@ F06 - 10/07/2020 Kuaizhou-11
         The first minutes of flight look nominal through second stage separation, but an unknown failure occurred before orbit could be attained.
     https://space.skyrocket.de/doc_lau/kuaizhou-11.htm
         stage 3 failed to ignite
-    If error occured after second-stage separation, then can include emissions as normal.
+    Including first and second stage emissions as normal.
+    Not including S3 in missing emissions.
 
 F07 - 12/09/2020 Astra Rocket 3
     https://web.archive.org/web/20220411235210/http://www.spacelaunchreport.com/log2020.html
@@ -95,6 +100,7 @@ F07 - 12/09/2020 Astra Rocket 3
         30 seconds after lift off engines were shut down by the range safety officer.
     Propellant for Astra is already approximated using Electron (Curie). For Electron, altitude is ~ 0.9 km at 22s (https://www.youtube.com/watch?v=af-PplDIkbc, https://www.youtube.com/watch?v=VRfm6RGVHf8)
     So will only output emissions up to 0.9 km.
+    Not including S1 or S2 in missing emissions.
 
 F08 - 12/09/2020 Kuaizhou-1A
     https://web.archive.org/web/20220411235210/http://www.spacelaunchreport.com/log2020.html
@@ -106,6 +112,7 @@ F08 - 12/09/2020 Kuaizhou-1A
     https://space.skyrocket.de/doc_lau/kuaizhou-1.htm
         Stage 4 failure
     Failure occured in upper stage, so can include the emissions as normal.
+    Not including S4 emissions in missing emissions.
 
 F09 - 17/11/2020 Vega
     https://web.archive.org/web/20220411235210/http://www.spacelaunchreport.com/log2020.html
@@ -115,6 +122,7 @@ F09 - 17/11/2020 Vega
     https://space.skyrocket.de/doc_lau_fam/vega.htm
         AVUM stage TVC cabeling error
     Failure occured in upper stage, so can include the emissions as normal.
+    Not including S4 emissions in missing emissions.
     
 F10 - 15/12/2020 Astra Rocket 3
     https://en.wikipedia.org/wiki/List_of_Astra_rocket_launches
@@ -125,6 +133,7 @@ F10 - 15/12/2020 Astra Rocket 3
     https://web.archive.org/web/20220411235206/http://www.spacelaunchreport.com/astra.html
         First stage, staging and second stage ignition succeeded.  Stage 2 depleted propellant 15-20 seconds early, falling short of orbit.
     In this case, the early SECO would have likely been well above GC, so can treat as normal.
+    Including all stages in missing emissions.
     
 F11 - 03/12/2020 Chang'e 5 SSQ (Ascent Stage)
     Moon launch, don't need to include.
