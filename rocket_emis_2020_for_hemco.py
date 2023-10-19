@@ -1,35 +1,33 @@
 #!/usr/bin/python
-""" Save out rocket emissions as COARDS compliant files for input to 
-    HEMCO/GEOS-Chem.
+""" Save out rocket emissions as COARDS compliant files for input to HEMCO/GEOS-Chem.
 
-Input Files:
-    launchfile     (str): The path of the launch database, a netcdf file containing information for each rocket launch.
-    reentryfile    (str): The path of the reentry database, a netcdf file containing information for each object reentry.
-    rocketinfofile (str): The path of the rocket database, a netcdf file containing information for each rocket.
-    peifile        (str): The path of the pei database, a csv file containing primary emission indices of major emission species for each propellant type.
+    Input Files:
+        launchfile     (str): The path of the launch database, a netcdf file containing information for each rocket launch.
+        reentryfile    (str): The path of the reentry database, a netcdf file containing information for each object reentry.
+        rocketinfofile (str): The path of the rocket database, a netcdf file containing information for each rocket.
+        peifile        (str): The path of the pei database, a csv file containing primary emission indices of major emission species for each propellant type.
 
-Returns:
-    Emission_Distribution (csv)   : A file for use in View_Prop_Distribution.ipynb to view the vertical distribution of emissions.
-                                    Each launch or reentry adds three lines with len(altitude):
-                                        1) % prop consumed in layer (0 for reentries).
-                                        2) mid altitude of layer (from box heights).
-                                        3) % prop consumed in layer according to Ross14 study (0 for reentries). 
-    Species_Distribution  (csv)   : A file for use in View_Prop_Distribution.ipynb to view the vertical distribution of emissions per species.
-                                    Each launch or reentry adds eight lines with len(altitude), containing species emissions in each layer in order of: 
-                                        BC, CO, NOx, H2O, Al2O3, Cl, HCl, Cl2
-    HEMCO Emission Files  (netcdf): Daily emission files with hourly time bins (dim = time, lon, lat, lev), containing the following variables:
-                                        rocket_launch_nox
-                                        rocket_fuel_nox
-                                        rocket_reentry_nox
-                                        rocket_h2o
-                                        rocket_bc
-                                        rocket_launch_al
-                                        rocket_reentry_al
-                                        rocket_hcl
-                                        rocket_cl
-                                        rocket_cl2
-                                        rocket_co
-    
+    Returns:
+        Emission_Distribution (csv)   : A file for use in View_Prop_Distribution.ipynb to view the vertical distribution of emissions.
+                                        Each launch or reentry adds three lines with len(altitude):
+                                            1) % prop consumed in layer (0 for reentries).
+                                            2) mid altitude of layer (from box heights).
+                                            3) % prop consumed in layer according to Ross14 study (0 for reentries). 
+        Species_Distribution  (csv)   : A file for use in View_Prop_Distribution.ipynb to view the vertical distribution of emissions per species.
+                                        Each launch or reentry adds eight lines with len(altitude), containing species emissions in each layer in order of: 
+                                            BC, CO, NOx, H2O, Al2O3, Cl, HCl, Cl2
+        HEMCO Emission Files  (netcdf): Daily emission files with hourly time bins (dim = time, lon, lat, lev), containing the following variables:
+                                            rocket_launch_nox
+                                            rocket_fuel_nox
+                                            rocket_reentry_nox
+                                            rocket_h2o
+                                            rocket_bc
+                                            rocket_launch_al
+                                            rocket_reentry_al
+                                            rocket_hcl
+                                            rocket_cl
+                                            rocket_cl2
+                                            rocket_co  
 """
 
 # Import modules:
@@ -203,7 +201,7 @@ class OutputEmis:
         self.top_reenter = max(reentry_levs)
         self.n_reenter_levs = self.top_reenter - self.bot_reenter + 1
         self.nhours = 24
-        self.include_landing = False
+        self.include_landing = True
         self.include_mcs = include_mcs
         
         self.included_prop = 0
@@ -321,13 +319,13 @@ class OutputEmis:
                 ########################################################################
                 
                 # Use this when outputting MCS and Non_MCS separately.
-                #l_ind=np.where((rocket_data.launch_month==(m+1))&(rocket_data.launch_day==(d+1))&(~np.isnan(rocket_data.launch_time))&(rocket_data.launch_mcs==self.include_mcs))[0]
+                l_ind=np.where((rocket_data.launch_month==(m+1))&(rocket_data.launch_day==(d+1))&(~np.isnan(rocket_data.launch_time))&(rocket_data.launch_mcs==self.include_mcs))[0]
                 
                 # Use this when outputting all launches as a single file
-                l_ind=np.where((rocket_data.launch_month==(m+1))&(rocket_data.launch_day==(d+1))&(~np.isnan(rocket_data.launch_time)))[0]
+                #l_ind=np.where((rocket_data.launch_month==(m+1))&(rocket_data.launch_day==(d+1))&(~np.isnan(rocket_data.launch_time)))[0]
                 
                 if len(l_ind)>0:
-                    #print('----> Day processing: ',self.strday,f"{len(l_ind)} Launches.")
+                    print('----> Day processing: ',self.strday,f"{len(l_ind)} Launches.")
                     self.grid_emis(l_ind,
                                    rocket_data.launch_lons[l_ind],
                                    rocket_data.launch_lats[l_ind],
@@ -344,13 +342,13 @@ class OutputEmis:
                 ########################################################################
                 
                 # Use this when outputting MCS and Non_MCS separately.
-                #r_ind=np.where((rocket_data.reentry_month==(m+1))&(rocket_data.reentry_day==(d+1))&(~np.isnan(rocket_data.reentry_time))&(rocket_data.reentry_mcs==self.include_mcs))[0]
+                r_ind=np.where((rocket_data.reentry_month==(m+1))&(rocket_data.reentry_day==(d+1))&(~np.isnan(rocket_data.reentry_time))&(rocket_data.reentry_mcs==self.include_mcs))[0]
                 
                 # Use this when outputting all reentries as a single file
-                r_ind=np.where((rocket_data.reentry_month==(m+1))&(rocket_data.reentry_day==(d+1)))[0]
+                #r_ind=np.where((rocket_data.reentry_month==(m+1))&(rocket_data.reentry_day==(d+1)))[0]
                 
                 if len(r_ind)>0:
-                    #print('----> Day processing: ',self.strday,f"{len(r_ind)} Re-entries.")
+                    print('----> Day processing: ',self.strday,f"{len(r_ind)} Re-entries.")
                     self.grid_emis(r_ind,
                                    rocket_data.reentry_lons[r_ind],
                                    rocket_data.reentry_lats[r_ind],
@@ -488,6 +486,9 @@ class OutputEmis:
             self.landing_top = np.argmin(np.abs(3300 - self.mid_alt[:,q,p]))
             self.gc_relative_mass_landing = np.asarray(self.gc_relative_mass[self.nlev-self.landing_top-1:])
             self.gc_relative_mass_landing = self.gc_relative_mass_landing / np.sum(self.gc_relative_mass_landing) * 1.2
+        else:
+            self.gc_relative_mass_landing = 0
+            self.gc_relative_mass_entry = 0
         
         return rocket_config_type
     
@@ -657,9 +658,6 @@ class OutputEmis:
 
             if emis_type=='launch':
                 
-                # TODO: Settling of emissions.
-                # Some of these failures will still include emissions above the GC boundary.
-                
                 ############################################
                 # Interpolate propellant mass distribution.
                 ############################################
@@ -715,7 +713,6 @@ class OutputEmis:
                 # Full information is provided in README.txt
                 if launch_id[w][-3:] in ['F04','F11']:
                     print(f'Launch {launch_id[w]} failed. Not processing.')
-                    print(self.csv_count_2)
                     self.csv_count += 3
                     self.csv_count_2 += 8
                     continue
@@ -826,6 +823,42 @@ class OutputEmis:
                                 p, 
                                 kg_to_kgm2s,
                                 total_vertical_propellant)
+                    
+                # If the rocket is a Falcon 9, then add the landing emissions. Kerosene, so no Al2O3 or Cly.
+                if rocket_data.rocket_name[valid_index] == "Falcon 9 v1.2" and self.include_landing == True:
+                    if launch_id[w] == "2020-086":
+                        falcon_q = q
+                        falcon_p = p
+                    else:
+                        # TODO: This would need to be edited if a different resolution was used.
+                        falcon_q = q + 1
+                        falcon_p = p + 1
+                    if np.sum(self.gc_relative_mass_entry) + np.sum(self.gc_relative_mass_landing) > 7:
+                        sys.exit("Error with Stage 1 Landing. Propellant distribution exceeds what is expected.")
+                    
+                    # First the entry emissions.
+                    total_vertical_propellant = self.calc_emis(self.entry_top,
+                                self.entry_bot-1,
+                                pei_stage1_index,
+                                rocket_data.stage1_prop_mass[valid_index],
+                                self.gc_relative_mass_entry,
+                                time_index, 
+                                falcon_q, 
+                                falcon_p, 
+                                kg_to_kgm2s,
+                                total_vertical_propellant)
+                    
+                    # Now the landing emissions.
+                    total_vertical_propellant = self.calc_emis(self.landing_top,
+                                None,
+                                pei_stage1_index,
+                                rocket_data.stage1_prop_mass[valid_index],
+                                self.gc_relative_mass_landing,
+                                time_index, 
+                                falcon_q, 
+                                falcon_p, 
+                                kg_to_kgm2s,
+                                total_vertical_propellant)
                   
                 # Calculate the missing emissions from above GEOS-Chem.
                 
@@ -835,7 +868,7 @@ class OutputEmis:
                         sys.exit("Error with Stage 1 emissions above GEOS-Chem.") 
                     self.calc_missing_emis(pei_stage1_index,
                         rocket_data.stage1_prop_mass[valid_index],
-                        100 - np.sum(self.gc_relative_mass_stage1),                    
+                        100 - np.sum(self.gc_relative_mass_stage1) - np.sum(self.gc_relative_mass_entry) - np.sum(self.gc_relative_mass_landing),                    
                         )
                     
                 # Check if there are missing emissions from the second stage.
@@ -861,41 +894,9 @@ class OutputEmis:
                         100,                    
                         )
                 
-                # If the rocket is a Falcon 9, then add the landing emissions. Kerosene, so no Al2O3 or Cly.
-                if rocket_data.rocket_name[valid_index] == "Falcon 9 v1.2" and self.include_landing == True:
-                    if np.sum(self.gc_relative_mass_entry) + np.sum(self.gc_relative_mass_landing) > 7:
-                        sys.exit("Error with Stage 1 Landing. Propellant distribution exceeds what is expected.")
-                    
-                    # First the entry emissions.
-                    total_vertical_propellant = self.calc_emis(self.entry_top,
-                                self.entry_bot-1,
-                                pei_stage1_index,
-                                rocket_data.stage1_prop_mass[valid_index],
-                                self.gc_relative_mass_entry,
-                                time_index, 
-                                q, 
-                                p, 
-                                kg_to_kgm2s,
-                                total_vertical_propellant)
-                        
-                    
-                    # Now the landing emissions.
-                    total_vertical_propellant = self.calc_emis(self.landing_top,
-                                None,
-                                pei_stage1_index,
-                                rocket_data.stage1_prop_mass[valid_index],
-                                self.gc_relative_mass_landing,
-                                time_index, 
-                                q, 
-                                p, 
-                                kg_to_kgm2s,
-                                total_vertical_propellant)
-                
                 ##############################################
                 # Output the emissions to a file for viewing.
                 ##############################################                  
-                    
-                # TODO: Fix so rocket launches and reentries are distinguishable.
         
                 total_vertical_propellant[:,0] = total_vertical_propellant[:,0] / total_prop_mass
                 self.output_for_csv[self.csv_count,:] = total_vertical_propellant[:,0]
@@ -970,8 +971,6 @@ class OutputEmis:
         if self.qmax==0: self.qmax=1
         if self.qmax==self.nlat: self.qmax=self.nlat-1
         
-        
-            
         emis_initial =    np.sum(self.rocket_launch_nox[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
                         + np.sum(self.rocket_fuel_nox[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
                         + np.sum(self.rocket_reentry_nox[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
@@ -982,8 +981,8 @@ class OutputEmis:
                         + np.sum(self.rocket_reentry_al[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
                         + np.sum(self.rocket_hcl[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
                         + np.sum(self.rocket_cl[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
-                        + np.sum(self.rocket_cl2[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2])
-                        
+                        + np.sum(self.rocket_cl2[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
+                                                
         updated_coords = False
         if (self.qmax+2)>=self.nlat:
             print('Latitude index out of bounds: updating')  
@@ -1002,7 +1001,7 @@ class OutputEmis:
                 self.pmax=self.nlon-2   
         
         if updated_coords == True: 
-                
+            # H2O is different by e-27 (e-14 % diff), must be a rounding error.  
             emis_final =    np.sum(self.rocket_launch_nox[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
                             + np.sum(self.rocket_fuel_nox[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
                             + np.sum(self.rocket_reentry_nox[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
@@ -1014,9 +1013,9 @@ class OutputEmis:
                             + np.sum(self.rocket_hcl[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
                             + np.sum(self.rocket_cl[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
                             + np.sum(self.rocket_cl2[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
-                            
-            #print(f'{emis_initial:.2e},{emis_final:.2e}') 
-            if emis_initial != emis_final:
+                                                            
+            print(f'{emis_initial:.2e},{emis_final:.2e}') 
+            if np.abs(emis_initial-emis_final) / emis_initial * 100 > 0.000001:
                 sys.exit('Error: index correction removes relevant data')                
 
         # Check that output range isn't out-of-bounds:
@@ -1233,7 +1232,7 @@ if __name__ == "__main__":
     year = 2020
     datadir = './Databases/'
     launch_path      = path.join(datadir, f'launch_info_{year}.nc')
-    reentry_path     = path.join(datadir, f'reentry_info_{year}_updated.nc')
+    reentry_path     = path.join(datadir, f'reentry_info_{year}_updated_19102023_153830.nc')
     rocket_info_path = path.join(datadir, f'rocket_info_{year}.nc')
     pei_path         = path.join(datadir, f'PEI_info_{year}.csv')
     outdir = './Output/2020/'    
@@ -1304,11 +1303,8 @@ if __name__ == "__main__":
 
     ''' Define locations of StateMet files '''
     
-    #Define paths dependent on resolution and levels. Errors should be handled above but included here just in case.
-    #Can't use ~ for home directory, have to use '/home/ucfacb0/<path>'
-    # TODO: Run GEOS-Chem so we have StateMet files for:
-    #       - 4x5 72
-    #       - 2x2.5 47
+    # Define paths dependent on resolution and levels. Errors should be handled above but included here just in case.
+    # Can't use ~ for home directory, have to use '/home/ucfacb0/<path>'
 
     if grid_res == '4x5':
         if levels == 72:
@@ -1328,6 +1324,7 @@ if __name__ == "__main__":
             sys.exit("Invalid number of levels.")
     else:
         sys.exit("Invalid grid resolution.")
+        # For different resolutions, would first need to run GEOS-Chem to get StateMet files.
         
     start_month = int(args.start_month)
     final_month = int(args.final_month)

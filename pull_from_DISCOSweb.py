@@ -1370,7 +1370,6 @@ class import_launches_from_discos:
         
     def get_reentry_info(self):
              
-        # TODO: Go through and sanity-check / fill in missing information (only missing non-component mass is for Ceres-1 upperstage).
         # Fairings should be included in the dry mass of the launched rocket, so can ignore here, but should acknowledge this in the write-up.
         
         #######################################
@@ -1664,7 +1663,13 @@ class import_launches_from_discos:
         # One launch was a suborbital abort test, so the 1st stage exploded after dragon escaped. Suborbital currently not included.
         for i in range(len(dsl["COSPAR_ID"])):
             if dsl["Rocket_Type"].values[i] == "Falcon 9 v1.2":
-
+                
+                if dsl["COSPAR_ID"].values[i] == "2020-086":
+                    falcon_lat = dsl["Latitude"].values[i]
+                    falcon_lon = dsl["Longitude"].values[i]
+                else:
+                    falcon_lat = 34
+                    falcon_lon = -75
                 temp_reentry_dict = {
                     "id"           : f'{dsl["COSPAR_ID"].values[i]}S1',
                     "name"         : f"{dsl['Rocket_Type'].values[i]} Stage 1",
@@ -1674,8 +1679,8 @@ class import_launches_from_discos:
                     "time"         : dsl["Time(UTC)"].values[i],
                     "mon"          : int(dsl["Month"].values[i]),
                     "day"          : int(dsl["Day"].values[i]),
-                    "lat"          : dsl["Latitude"].values[i],
-                    "lon"          : dsl["Longitude"].values[i],
+                    "lat"          : falcon_lat,
+                    "lon"          : falcon_lon,
                     "mass"         : 27200 # SLR, this value was also used by Ryan22. 
                 }
 
