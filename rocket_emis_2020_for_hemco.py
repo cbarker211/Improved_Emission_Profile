@@ -96,7 +96,7 @@ class RocketData:
         self.reentry_name         = fg.variables['RE_Name'][:]
         self.reentry_type         = fg.variables['RE_Type'][:]
         self.reentry_burnup       = fg.variables['RE_Burnup'][:]
-        self.reentry_stage        = fg.variables['RE_Stage'][:]
+        self.reentry_stage        = fg.variables['RE_Stage'][:].astype(int)
         self.reentry_lats         = fg.variables['RE_Lat'][:]
         self.reentry_lons         = fg.variables['RE_Lon'][:]
         self.reentry_month        = fg.variables['RE_Mon'][:].astype(int)
@@ -184,7 +184,7 @@ class RocketData:
         print("Successfully loaded PEI information.")
               
 class OutputEmis:
-    def __init__(self, rocketdata, res, ts, levs, booster_levs, meco_levs, sei_levs, reentry_levs, gc_dir, months, include_mcs):
+    def __init__(self, rocketdata, res, ts, levs, booster_levs, meco_levs, sei_levs, reentry_levs, gc_dir, months, dataset):
 
         ####################################
         # Initial Setup
@@ -202,7 +202,7 @@ class OutputEmis:
         self.n_reenter_levs = self.top_reenter - self.bot_reenter + 1
         self.nhours = 24
         self.include_landing = True
-        self.include_mcs = include_mcs
+        self.dataset = dataset
         
         self.included_prop = 0
         self.missing_prop = 0
@@ -309,20 +309,22 @@ class OutputEmis:
                 self.qmin,self.qmax=np.nan,np.nan
 
                 # Define output file name for this day:
-                if self.include_mcs == False:
+                if self.dataset == 1:
+                    l_ind=np.where((rocket_data.launch_month==(m+1))&(rocket_data.launch_day==(d+1))&(~np.isnan(rocket_data.launch_time))&(rocket_data.launch_mcs==False))[0]
+                    r_ind=np.where((rocket_data.reentry_month==(m+1))&(rocket_data.reentry_day==(d+1))&(~np.isnan(rocket_data.reentry_time))&(rocket_data.reentry_mcs==False))[0]
                     self.outfile_rocket_emis = path.join(outdir,self.strmon,f'ROCKET_EMIS_{res}_{str(self.nlev)}L_2020{self.strmon}{self.strday}.nc4')
-                else:
+                elif self.dataset == 2:
+                    l_ind=np.where((rocket_data.launch_month==(m+1))&(rocket_data.launch_day==(d+1))&(~np.isnan(rocket_data.launch_time))&(rocket_data.launch_mcs==True))[0]
+                    r_ind=np.where((rocket_data.reentry_month==(m+1))&(rocket_data.reentry_day==(d+1))&(~np.isnan(rocket_data.reentry_time))&(rocket_data.reentry_mcs==True))[0]
                     self.outfile_rocket_emis = path.join(outdir,self.strmon,f'ROCKET_EMIS_MCS_{res}_{str(self.nlev)}L_2020{self.strmon}{self.strday}.nc4')
-                
+                elif self.dataset == 3:
+                    l_ind=np.where((rocket_data.launch_month==(m+1))&(rocket_data.launch_day==(d+1))&(~np.isnan(rocket_data.launch_time)))[0]
+                    r_ind=np.where((rocket_data.reentry_month==(m+1))&(rocket_data.reentry_day==(d+1)))[0]
+                    self.outfile_rocket_emis = path.join(outdir,self.strmon,f'ROCKET_EMIS_ALL_{res}_{str(self.nlev)}L_2020{self.strmon}{self.strday}.nc4')
+                    
                 ########################################################################
                 # Call grid_emis function to calculate distribution from launches
                 ########################################################################
-                
-                # Use this when outputting MCS and Non_MCS separately.
-                l_ind=np.where((rocket_data.launch_month==(m+1))&(rocket_data.launch_day==(d+1))&(~np.isnan(rocket_data.launch_time))&(rocket_data.launch_mcs==self.include_mcs))[0]
-                
-                # Use this when outputting all launches as a single file
-                #l_ind=np.where((rocket_data.launch_month==(m+1))&(rocket_data.launch_day==(d+1))&(~np.isnan(rocket_data.launch_time)))[0]
                 
                 if len(l_ind)>0:
                     print('----> Day processing: ',self.strday,f"{len(l_ind)} Launches.")
@@ -339,13 +341,7 @@ class OutputEmis:
 
                 ########################################################################
                 # Call grid_emis function to calculate distribution from re-entries
-                ########################################################################
-                
-                # Use this when outputting MCS and Non_MCS separately.
-                r_ind=np.where((rocket_data.reentry_month==(m+1))&(rocket_data.reentry_day==(d+1))&(~np.isnan(rocket_data.reentry_time))&(rocket_data.reentry_mcs==self.include_mcs))[0]
-                
-                # Use this when outputting all reentries as a single file
-                #r_ind=np.where((rocket_data.reentry_month==(m+1))&(rocket_data.reentry_day==(d+1)))[0]
+                ########################################################################              
                 
                 if len(r_ind)>0:
                     print('----> Day processing: ',self.strday,f"{len(r_ind)} Re-entries.")
@@ -685,7 +681,7 @@ class OutputEmis:
                     if launch_rocket[w] == rocket_data.rocket_name[ll]:
                         rocket_found = True
                         valid_index=ll
-                        #print(f"Rocket name is {launch_rocket[w]}")
+                        print(f"Rocket name is {launch_rocket[w]}")
                         break
                     
                 # Catch any missing rocket propellant masses:
@@ -928,15 +924,32 @@ class OutputEmis:
                 # TODO: Do we need an SMF conversion here of ~ 8%?
                 
                 if rocket_data.reentry_burnup[index[w]] == 'Complete': # Complete burnup on re-entry:
-                    burnup_factor = 1
+                    nox_burnup_factor = 1
+                    if rocket_data.reentry_stage[index[w]] in [0,1]:
+                        al_burnup_factor = 0.3 * 0.7  # https://doi.org/10.1016/j.asr.2020.10.036 and https://hdl.handle.net/1721.1/151393
+                    elif rocket_data.reentry_stage[index[w]] in [2,3,4]:
+                        al_burnup_factor = 0.65 * 0.7 # https://doi.org/10.1016/j.asr.2020.10.036 and https://hdl.handle.net/1721.1/151393 
+                    elif rocket_data.reentry_stage[index[w]] == 5:
+                        if rocket_data.reentry_mcs[index[w]] == True:
+                            al_burnup_factor = 0.4 # https://doi.org/10.1016/j.asr.2020.10.036
+                        else:
+                            al_burnup_factor = 0.4 * 0.8 # https://doi.org/10.1016/j.asr.2020.10.036
+                    else:
+                        al_burnup_factor = 0
                 else: # Partial burnup on re-entry (reusable components):
-                    burnup_factor = 0.175   
-                    
-                t_nox_reentry = rocket_data.reentry_mass[index[w]] * burnup_factor * 1000
+                    if rocket_data.reentry_stage[index[w]] == 1:
+                        al_burnup_factor = 0
+                    elif rocket_data.reentry_stage[index[w]] == 5:
+                        al_burnup_factor = 0
+                    else:
+                        sys.exit("Reusuable reentry not payload or 1st stage.") 
+                    nox_burnup_factor = 0.175
+                           
+                t_nox_reentry = rocket_data.reentry_mass[index[w]] * nox_burnup_factor * 1000
                 self.nox_reentry_total += t_nox_reentry
                 self.rocket_reentry_nox[time_index,self.bot_reenter:self.top_reenter+1,q,p] += t_nox_reentry / self.n_reenter_levs * 1e-3 / kg_to_kgm2s
                 
-                t_al2o3_reentry = rocket_data.reentry_mass[index[w]] * 0.9 * burnup_factor * 1000
+                t_al2o3_reentry = rocket_data.reentry_mass[index[w]] * al_burnup_factor * 1000
                 self.al2o3_reentry_total += t_al2o3_reentry
                 self.rocket_reentry_al[time_index,self.bot_reenter:self.top_reenter+1,q,p] += t_al2o3_reentry / self.n_reenter_levs * 1e-3 / kg_to_kgm2s
                 
@@ -1207,6 +1220,7 @@ def check_total_emissions():
     total_missing_prop = np.sum(emis_data.missing_prop)*1e-6
     print(f"Total Missing Emissions:  {total_missing_emis:.2f} Gg / {percent_missing_emis:.2f}%")
     print(f"Total Missing Propellant: {total_missing_prop:.2f} Gg / {percent_missing_prop:.2f}%")
+    print(f"Total Included Propellant: {(np.sum(emis_data.included_prop) + np.sum(emis_data.missing_prop))*1e-6:.2f} Gg")
     
 # Main section of the program
 if __name__ == "__main__":
@@ -1221,7 +1235,7 @@ if __name__ == "__main__":
     parser.add_argument('-sm', "--start_month", default = "1", choices=str(np.arange(1,13)), help='Start Month (will override final month if greater than final month).')
     parser.add_argument('-fm', "--final_month", default = "12", choices=str(np.arange(1,13)), help='Final Month.')
     parser.add_argument('-v', "--verbose", action='store_true')
-    parser.add_argument('-c', "--constellations", action='store_true', help="Toggle for MCS.")
+    parser.add_argument('-d', "--dataset", default = "3", choices=str(np.arange(1,4)), help='Dataset. 1=Non-SMC, 2=SMC, 3=All')
     args = parser.parse_args()
     
     ##########################################################
@@ -1344,7 +1358,7 @@ if __name__ == "__main__":
                            reentry_levs, 
                            gcdir, 
                            months,
-                           args.constellations,
+                           int(args.dataset),
                            )
         
     check_total_emissions()
