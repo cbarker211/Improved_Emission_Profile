@@ -169,6 +169,7 @@ class RocketData:
         #self.co_pei            = np.array([69, 372, 228, 0])
         #self.co2_pei           = np.array([289, 350, 18, 0])
         
+        # TODO: If other years added, would need to check if PBAN was used and update the PEI.
         #New values.
         pei_file = pd.read_csv(peifile)
 
@@ -915,15 +916,13 @@ class OutputEmis:
             # Work out vertical distribution for reentry emissions.
             #########################################################
             
-            if emis_type=='reentry':
+            if emis_type=='reentry':              
                 
-                # Adding NOx and Al2O3 emissions.
-                # We assume that 100% emissions on complete burnup and 17.5% emissions on partial burnup.
-                # We assume that 90% of returning object is Al and that it is all converted to Al2O3.
-                # For consistency with launch emissions, the totals are kept in g units. 
-                # TODO: Do we need an SMF conversion here of ~ 8%?
-                
-                if rocket_data.reentry_burnup[index[w]] == 'Complete': # Complete burnup on re-entry:
+                # Complete burnup on re-entry.
+                # NOx emissions of 100% of reentering mass.
+                # Al2O3 emissions calculated using ablation and alumina content data from literature.
+                # Different emissions for core stage / upper stage / payload. 
+                if rocket_data.reentry_burnup[index[w]] == 'Complete': 
                     nox_burnup_factor = 1
                     if rocket_data.reentry_stage[index[w]] in [0,1]:
                         al_burnup_factor = 0.3 * 0.7  # https://doi.org/10.1016/j.asr.2020.10.036 and https://hdl.handle.net/1721.1/151393
@@ -936,7 +935,12 @@ class OutputEmis:
                             al_burnup_factor = 0.4 * 0.8 # https://doi.org/10.1016/j.asr.2020.10.036
                     else:
                         al_burnup_factor = 0
-                else: # Partial burnup on re-entry (reusable components):
+                        
+                # Partial burnup on re-entry (reusable components, only payloads and Falcon 9 1st stage):
+                # Still using the 17.5% value for NOx emissions.
+                # For Al2O3, we assume no emissions from reusuable components.
+                # TODO: Would a heat shield have some small Al2O3 emissions?
+                else: 
                     if rocket_data.reentry_stage[index[w]] == 1:
                         al_burnup_factor = 0
                     elif rocket_data.reentry_stage[index[w]] == 5:
@@ -944,6 +948,8 @@ class OutputEmis:
                     else:
                         sys.exit("Reusuable reentry not payload or 1st stage.") 
                     nox_burnup_factor = 0.175
+                 
+                # For consistency with launch emissions, the totals are kept in g units. 
                            
                 t_nox_reentry = rocket_data.reentry_mass[index[w]] * nox_burnup_factor * 1000
                 self.nox_reentry_total += t_nox_reentry
@@ -1225,9 +1231,7 @@ def check_total_emissions():
 # Main section of the program
 if __name__ == "__main__":
 
-    ##########################################################
     # Configure additional arguments when running the script.
-    ##########################################################
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-l', "--levels", default="47", choices=["47", "72"], help="Vertical resolution.")
@@ -1236,22 +1240,22 @@ if __name__ == "__main__":
     parser.add_argument('-fm', "--final_month", default = "12", choices=str(np.arange(1,13)), help='Final Month.')
     parser.add_argument('-v', "--verbose", action='store_true')
     parser.add_argument('-d', "--dataset", default = "3", choices=str(np.arange(1,4)), help='Dataset. 1=Non-SMC, 2=SMC, 3=All')
+    parser.add_argument('-y', "--year", default = "2020", help='Simulation Year.')
     args = parser.parse_args()
     
-    ##########################################################
-    # Read the rocket emissions from the database.
-    ##########################################################
-       
-    # Define data directories:
-    year = 2020
-    datadir = './Databases/'
-    launch_path      = path.join(datadir, f'launch_info_{year}.nc')
-    reentry_path     = path.join(datadir, f'reentry_info_{year}_updated_19102023_153830.nc')
-    rocket_info_path = path.join(datadir, f'rocket_info_{year}.nc')
-    pei_path         = path.join(datadir, f'PEI_info_{year}.csv')
-    outdir = './Output/2020/'    
+    year = int(args.year)
 
-    # Read rocket emissions:
+    # Read the rocket emissions from the database.
+    datadir = './Databases/'
+    launch_path          = path.join(datadir, f'launch_info_{year}.nc')
+    if year == 2020:
+        reentry_path     = path.join(datadir, f'reentry_info_{year}_updated_19102023_153830.nc')
+    else:
+        # TODO: Update this when final reentry file is created.
+        pass
+    rocket_info_path = path.join(datadir, f'rocket_info_{year}.nc')
+    pei_path         = path.join(datadir, 'PEI_info.csv')
+    outdir = f'./Output/{year}/'    
     rocket_data = RocketData(launch_path, reentry_path, rocket_info_path, pei_path)
 
     ##########################################################
@@ -1259,6 +1263,7 @@ if __name__ == "__main__":
     ##########################################################
     
     ''' Define booster and re-entry levels. '''
+    # TODO: Probably need to update alts for 2021/22 launches based on different rockets.
     
     # In 2019, boosters set to extend to ~45 km (layer 44 of the 47-layer model, layer 57 of the 72-layer model).
     # In updated model, booster_cutoff changes depending on number of rocket stages.
@@ -1319,7 +1324,7 @@ if __name__ == "__main__":
     
     # Define paths dependent on resolution and levels. Errors should be handled above but included here just in case.
     # Can't use ~ for home directory, have to use '/home/ucfacb0/<path>'
-
+    # TODO: Update the path to be year-specific.
     if grid_res == '4x5':
         if levels == 72:
             pass
