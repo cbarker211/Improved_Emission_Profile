@@ -547,34 +547,42 @@ class import_launches_from_discos:
     
     def update_mass_info(self,i,temp_dict,unique_vehicle_name_list):
         
+        temp_dict[f"Booster Number"] = 0
+        
         if unique_vehicle_name_list[i] == "Angara A5":
             # DISCOSweb stage mass values match https://spaceflight101.com/spacerockets/angara-a5/.
             # Except for Stage2, where https://spaceflight101.com/spacerockets/angara-a5/ agrees more closely with https://www.russianspaceweb.com/angara_urm2.html and SLR).
             temp_dict[f"Stage2 Stage Mass"] = 4000 # https://spaceflight101.com/spacerockets/angara-a5/ and SLR.
+            temp_dict[f"Booster Number"] = 4
             
         if unique_vehicle_name_list[i] == "Ariane 5ECA":
             temp_dict[f"Stage2 Stage Mass"] = 4540 # https://www.arianespace.com/wp-content/uploads/2016/10/Ariane5-users-manual-Jun2020.pdf
+            temp_dict[f"Booster Number"] = 2
         
         if unique_vehicle_name_list[i] == "Atlas V 411":
             temp_dict[f"Booster Propellant Mass"] = 42630 * 1 # SLR  
             temp_dict[f"Booster Stage Mass"] = 3630 * 1 # SLR   
             temp_dict[f"Stage 1 Stage Mass"] = 21054 # https://www.ulalaunch.com/docs/default-source/rockets/atlasvusersguide2010a.pdf?sfvrsn=f84bb59e_2
             temp_dict[f"Stage 2 Stage Mass"] = 2243 # https://www.ulalaunch.com/docs/default-source/rockets/atlasvusersguide2010a.pdf?sfvrsn=f84bb59e_2  
+            temp_dict[f"Booster Number"] = 1
         if unique_vehicle_name_list[i] == "Atlas V 531":
             temp_dict[f"Booster Propellant Mass"] = 44200 * 3 # https://web.archive.org/web/20180918143456/http://www.northropgrumman.com/Capabilities/GEM/Documents/GEM_63_GEM_63XL.pdf
             temp_dict[f"Booster Stage Mass"] = 5100 * 3 # https://web.archive.org/web/20180918143456/http://www.northropgrumman.com/Capabilities/GEM/Documents/GEM_63_GEM_63XL.pdf 
             temp_dict[f"Stage 1 Stage Mass"] = 21351 # https://www.ulalaunch.com/docs/default-source/rockets/atlasvusersguide2010a.pdf?sfvrsn=f84bb59e_2
             temp_dict[f"Stage 2 Stage Mass"] = 2247 # https://www.ulalaunch.com/docs/default-source/rockets/atlasvusersguide2010a.pdf?sfvrsn=f84bb59e_2 
+            temp_dict[f"Booster Number"] = 3
         if unique_vehicle_name_list[i] == "Atlas V 541":
             temp_dict[f"Booster Propellant Mass"] = 42630 * 4 # SLR   
             temp_dict[f"Booster Stage Mass"] = 3630 * 4 # SLR    
             temp_dict[f"Stage 1 Stage Mass"] = 21351 # https://www.ulalaunch.com/docs/default-source/rockets/atlasvusersguide2010a.pdf?sfvrsn=f84bb59e_2
             temp_dict[f"Stage 2 Stage Mass"] = 2247 # https://www.ulalaunch.com/docs/default-source/rockets/atlasvusersguide2010a.pdf?sfvrsn=f84bb59e_2 
+            temp_dict[f"Booster Number"] = 4
         if unique_vehicle_name_list[i] == "Atlas V 551":
             temp_dict[f"Booster Propellant Mass"] = 42630 * 5 # SLR    
             temp_dict[f"Booster Stage Mass"] = 3630 * 5 # SLR 
             temp_dict[f"Stage 1 Stage Mass"] = 21351 # https://www.ulalaunch.com/docs/default-source/rockets/atlasvusersguide2010a.pdf?sfvrsn=f84bb59e_2
             temp_dict[f"Stage 2 Stage Mass"] = 2247 # https://www.ulalaunch.com/docs/default-source/rockets/atlasvusersguide2010a.pdf?sfvrsn=f84bb59e_2
+            temp_dict[f"Booster Number"] = 5
             
         # Antares 230, second stage solid propellant has a typo in DISCOSweb.
         # Looking at user manuals, this value is also wrong, it seems to be for the Castor 30B second stage.
@@ -644,6 +652,7 @@ class import_launches_from_discos:
             temp_dict[f"Booster Stage Mass"]      = 28000 * 2  # SLR
             temp_dict[f"Stage1 Stage Mass"]       = 28000      # SLR
             temp_dict[f"Stage2 Stage Mass"]       = 3350       # SLR
+            temp_dict[f"Booster Number"] = 2
             
         # Electron (Curie) - 6 successes and one failure in 2020.
         # https://discosweb.esoc.esa.int/launch-vehicles/91285
@@ -679,12 +688,14 @@ class import_launches_from_discos:
             temp_dict[f"Stage1 Stage Mass"]       = 12900   # https://global.jaxa.jp/projects/rockets/h2a/
             temp_dict[f"Stage2 Stage Mass"]       = 3100    # https://global.jaxa.jp/projects/rockets/h2a/
             temp_dict[f"Booster Propellant Mass"] = 130000  # https://global.jaxa.jp/projects/rockets/h2a/
+            temp_dict[f"Booster Number"] = 2
             
         if unique_vehicle_name_list[i] == "H-IIB":
             temp_dict[f"Booster Stage Mass"]      = 42200   # https://global.jaxa.jp/projects/rockets/h2b/
             temp_dict[f"Stage1 Stage Mass"]       = 24200   # https://global.jaxa.jp/projects/rockets/h2b/
             temp_dict[f"Stage2 Stage Mass"]       = 3400    # https://global.jaxa.jp/projects/rockets/h2b/
             temp_dict[f"Booster Propellant Mass"] = 263800  # https://global.jaxa.jp/projects/rockets/h2b/
+            temp_dict[f"Booster Number"] = 4
         
         # Kuaizhou-1 - 2 successes and 1 failure.
         # https://web.archive.org/web/20220406013827/http://www.spacelaunchreport.com/kz.html
@@ -753,6 +764,7 @@ class import_launches_from_discos:
             temp_dict[f"Booster Propellant Mass"] = 37800 * 4 # SLR
             temp_dict[f"Booster Stage Mass"] = 3200 * 4  # SLR
             temp_dict[f"Stage1 Stage Mass"] = 9500      # SLR
+            temp_dict[f"Booster Number"] = 4
             
         # Long March (CZ) 3B 
         # https://discosweb.esoc.esa.int/launch-vehicles/64
@@ -766,7 +778,8 @@ class import_launches_from_discos:
             temp_dict[f"Booster Stage Mass"] = 3300 * 4 # SLR
             temp_dict[f"Stage1 Stage Mass"]  = 9200     # SLR
             # Stage 2 info not in SLR so keeping DISCOSweb value.
-            temp_dict[f"Stage3 Stage Mass"]  = 2800     # SLR   
+            temp_dict[f"Stage3 Stage Mass"]  = 2800     # SLR 
+            temp_dict[f"Booster Number"] = 4  
             
         if unique_vehicle_name_list[i] in ["Long March (CZ) 4B","Long March (CZ) 4C"]:  
             temp_dict[f"Stage3 Stage Mass"]  = 2000     # SLR
@@ -779,6 +792,7 @@ class import_launches_from_discos:
             temp_dict[f"Booster Stage Mass"]      = 12500 * 4  # From SLR
             temp_dict[f"Stage1 Stage Mass"]       = 17000      # From SLR
             temp_dict[f"Stage2 Stage Mass"]       = 3520       # From SLR
+            temp_dict[f"Booster Number"] = 4
             
         # Long March (CZ) 5B 
         # https://discosweb.esoc.esa.int/launch-vehicles/98090
@@ -788,6 +802,7 @@ class import_launches_from_discos:
             temp_dict[f"Stage1 Propellant Mass"]  = 158500     # From 5 variant (same stage)
             temp_dict[f"Booster Stage Mass"]      = 12500 * 4  # From SLR
             temp_dict[f"Stage1 Stage Mass"]       = 17000      # From SLR
+            temp_dict[f"Booster Number"] = 4
             
         # Long March (CZ) 6
         # https://discosweb.esoc.esa.int/launch-vehicles/75
@@ -827,6 +842,7 @@ class import_launches_from_discos:
             temp_dict[f"Stage1 Stage Mass"]       = 12500      # SLR              
             temp_dict[f"Stage2 Stage Mass"]       = 5500       # SLR 
             temp_dict[f"Stage3 Stage Mass"]       = 2800       # SLR
+            temp_dict[f"Booster Number"] = 4
             
         # Long March (CZ) 8
         # https://discosweb.esoc.esa.int/launch-vehicles/102354
@@ -835,7 +851,8 @@ class import_launches_from_discos:
         if unique_vehicle_name_list[i] == "Long March (CZ) 8":
             temp_dict[f"Booster Propellant Mass"] = 75500 * 4 # SLR
             temp_dict[f"Booster Stage Mass"]      = 6000 * 2  # SLR
-            temp_dict[f"Stage1 Stage Mass"]       = 12500     # SLR              
+            temp_dict[f"Stage1 Stage Mass"]       = 12500     # SLR   
+            temp_dict[f"Booster Number"] = 2           
     
         # Long March (CZ) 11.
         # Ryan22 approximated the propellant masses using the masses from the Vega rocket.
@@ -907,6 +924,7 @@ class import_launches_from_discos:
             temp_dict[f"Stage2 Stage Mass"] = 5400 # SLR  
             temp_dict[f"Stage3 Stage Mass"] = 700  # SLR
             temp_dict[f"Stage4 Stage Mass"] = 420  # SLR 
+            temp_dict[f"Booster Number"] = 6
             
         if unique_vehicle_name_list[i] == "PSLV-DL":
             temp_dict[f"Booster Propellant Mass"] = 12200 * 2 # https://www.isro.gov.in/media_isro/pdf/Missions/PSLV_C44_LaunchKit.pdf
@@ -914,6 +932,7 @@ class import_launches_from_discos:
             temp_dict[f"Stage2 Stage Mass"] = 5400 # SLR
             temp_dict[f"Stage3 Stage Mass"] = 700  # SLR
             temp_dict[f"Stage4 Stage Mass"] = 420  # SLR
+            temp_dict[f"Booster Number"] = 2
 
         if unique_vehicle_name_list[i] == "Proton-M/Briz-M":
             # DISCOSweb hasn't updated to inlcude the 'Enhanced' variant, which has been standard since 2007.
@@ -998,26 +1017,31 @@ class import_launches_from_discos:
             
         if unique_vehicle_name_list[i] == "Soyuz-2-1A":
             temp_dict[f"Stage2 Stage Mass"]       = 2410  
+            temp_dict[f"Booster Number"] = 4
         
         if unique_vehicle_name_list[i] == "Soyuz-2-1A Fregat-M":
             temp_dict[f"Stage3 Propellant Mass"]  = 5600   
             temp_dict[f"Stage2 Stage Mass"]       = 2410  
-            temp_dict[f"Stage3 Stage Mass"]       = 980     
+            temp_dict[f"Stage3 Stage Mass"]       = 980    
+            temp_dict[f"Booster Number"] = 4 
             
         if unique_vehicle_name_list[i] in "Soyuz-ST-A Fregat-M":
             temp_dict[f"Stage3 Propellant Mass"]  = 5600   
             temp_dict[f"Stage2 Stage Mass"]       = 2470  
-            temp_dict[f"Stage3 Stage Mass"]       = 980              
+            temp_dict[f"Stage3 Stage Mass"]       = 980  
+            temp_dict[f"Booster Number"] = 4            
             
         if unique_vehicle_name_list[i] == "Soyuz-2-1B Fregat":
             temp_dict[f"Stage3 Propellant Mass"]  = 5250
             temp_dict[f"Stage2 Stage Mass"]       = 2355
             temp_dict[f"Stage3 Stage Mass"]       = 930
+            temp_dict[f"Booster Number"] = 4
             
         if unique_vehicle_name_list[i] == "Soyuz-2-1B Fregat-M":
             temp_dict[f"Stage3 Propellant Mass"]  = 5600 
             temp_dict[f"Stage2 Stage Mass"]       = 2355
             temp_dict[f"Stage3 Stage Mass"]       = 980 
+            temp_dict[f"Booster Number"] = 4
         
         if unique_vehicle_name_list[i] == "Vega":
             temp_dict[f"Stage1 Stage Mass"]      = 8533  # https://www.arianespace.com/wp-content/uploads/2018/05/Vega-Users-Manual_Issue-04_April-2014.pdf Gross mass - prop mass
@@ -1095,7 +1119,7 @@ class import_launches_from_discos:
         
         #Set up the data
         rocket_name_list = []
-        booster_propmass_list, booster_fuel_type_list, booster_propname_list, booster_stagemass_list = [], [], [], []
+        booster_propmass_list, booster_fuel_type_list, booster_propname_list, booster_stagemass_list, booster_number_list = [], [], [], [], []
         stage1_propmass_list,  stage1_fuel_type_list,  stage1_propname_list , stage1_stagemass_list  = [], [], [], []
         stage2_propmass_list,  stage2_fuel_type_list,  stage2_propname_list , stage2_stagemass_list  = [], [], [], []
         stage3_propmass_list,  stage3_fuel_type_list,  stage3_propname_list , stage3_stagemass_list  = [], [], [], []
@@ -1107,6 +1131,7 @@ class import_launches_from_discos:
             booster_fuel_type_list.append(rocket["Booster Fuel Type"])
             booster_propname_list.append(rocket["Booster Propellant Name"])
             booster_stagemass_list.append(rocket["Booster Stage Mass"])
+            booster_number_list.append(rocket["Booster Number"])
             stage1_propmass_list.append(rocket["Stage1 Propellant Mass"])
             stage1_fuel_type_list.append(rocket["Stage1 Fuel Type"])
             stage1_propname_list.append(rocket["Stage1 Propellant Name"])
@@ -1130,6 +1155,7 @@ class import_launches_from_discos:
         data_da_booster_fuel_type   = xr.DataArray(booster_fuel_type_list, dims=dims, attrs=dict(long_name="Booster Fuel Type"))
         data_da_booster_propname    = xr.DataArray(booster_propname_list,  dims=dims, attrs=dict(long_name="Booster Propellant Name"))
         data_da_booster_stagemass   = xr.DataArray(booster_stagemass_list, dims=dims, attrs=dict(long_name="Booster Stage Mass", units="kg"))
+        data_da_booster_number      = xr.DataArray(booster_number_list,    dims=dims, attrs=dict(long_name="Booster Number"))
         data_da_stage1_propmass     = xr.DataArray(stage1_propmass_list,   dims=dims, attrs=dict(long_name="Stage 1 Propellant Mass", units="kg"))
         data_da_stage1_fuel_type    = xr.DataArray(stage1_fuel_type_list,  dims=dims, attrs=dict(long_name="Stage 1 Fuel Type"))
         data_da_stage1_propname     = xr.DataArray(stage1_propname_list,   dims=dims, attrs=dict(long_name="Stage 1 Propellant Name"))
@@ -1155,6 +1181,7 @@ class import_launches_from_discos:
         ds['Booster_Fuel_Type']     = data_da_booster_fuel_type
         ds['Booster_PropName']      = data_da_booster_propname
         ds['Booster_StageMass']     = data_da_booster_stagemass
+        ds['Booster_No']            = data_da_booster_number
         ds['Stage1_PropMass']       = data_da_stage1_propmass
         ds['Stage1_Fuel_Type']      = data_da_stage1_fuel_type
         ds['Stage1_PropName']       = data_da_stage1_propname
