@@ -40,6 +40,13 @@ F01 - 09/02/2020 Simorgh (Iran)
     Satellite reached 540 km apogee but only reached 6,400 m/s, just short of 7,400 m/s orbital velocity...
     Including first and second stage emissions as normal.
     Including S3 in missing emissions.
+    F01. Simorgh payload didn't reach orbit, failed during second or third flight.
+    Adding reentries from payload and all stages (dry mass).
+    Zafar 1 mass
+          https://iranpress.com/content/18407/isa-head-satellite-imagery-from-orbit-530km-primary-mission-zafar-satellite
+          https://space.skyrocket.de/doc_sdat/zafar.htm
+          https://spaceflightnow.com/2020/02/10/iran-fails-in-satellite-launch-attempt/
+          https://www.rferl.org/a/iran-says-satellite-launch-imminent-in-next-few-hours-/30424791.html
 
 F02 - 16/03/2020 Long March 7A (China) - 3 stages, 4 boosters
     https://web.archive.org/web/20220411235209/http://www.spacelaunchreport.com/cz5.html
@@ -50,6 +57,11 @@ F02 - 16/03/2020 Long March 7A (China) - 3 stages, 4 boosters
         The problem seems to have surfaced when the 3rd stage was to operate...
     Including booster and first stage emissions as normal.
     Not including S2 or S3 in missing emissions.
+    Payload is secretive, so likely military with no official mass information. Some info available online, taking average:
+          https://everydayastronaut.com/xjy-6-02-long-march-7a-2/ 6300 kg
+          https://nextspaceflight.com/launches/details/2895       6800 kg
+    F02. Long March 7A (4 boosters plus first, second, third stage) failed near to start of second stage burn.
+    Adding payload reentries, dry mass reentry for first stage and boosters, and wet mass reentry for second and third stage.
 
 F03 - 09/04/2020 Long March 3B/E (China) - 8 launches in 2020, this is the only failure.
     https://www.nasaspaceflight.com/2020/04/long-march-3b-launches-indonesian-satellite/
@@ -60,6 +72,11 @@ F03 - 09/04/2020 Long March 3B/E (China) - 8 launches in 2020, this is the only 
         Third stage engine failed to ignite.
     Including booster, first and second stage emissions as normal.
     Not including S3 in missing emissions.
+    F03. Long March 3B/E (4 boosters plus first, second, third stage) failed at third stage.
+    Adding payload reentries, dry mass reentry for first and second stage and boosters, and wet mass reentry for third stage.
+    Palapa-N1 mass
+          https://space.skyrocket.de/doc_sdat/palapa-n1.htm
+          https://www.nasaspaceflight.com/2020/04/long-march-3b-launches-indonesian-satellite/
 
 F04 - 25/05/2020 LauncherOne
     https://en.wikipedia.org/wiki/LauncherOne#Launch_outcomes
@@ -70,6 +87,8 @@ F04 - 25/05/2020 LauncherOne
     https://web.archive.org/web/20220411235210/http://www.spacelaunchreport.com/log2020.html
         Failed shortly after Stg 1 ignition after drop from Cosmic Girl SW of Long Beach, CA. Launch Demo planned to LEO including two Stg 2 burns.
     So stage 1 only worked for several seconds. Ignoring.
+    F04. LauncherOne (2 stages, air launched) failed after a few seconds of 1st stage burn. This occured at ~ 10.7km (https://web.archive.org/web/20220406013823/http://www.spacelaunchreport.com/launcherone.html)
+    Therefore we can safely ignore as it did not reach an altitude where reentry is possible.
 
 F05 - 04/07/2020 Electron (Curie)
     https://web.archive.org/web/20220411235210/http://www.spacelaunchreport.com/log2020.html
@@ -78,6 +97,13 @@ F05 - 04/07/2020 Electron (Curie)
         Following a successful lift-off, first stage burn, and stage separation, Rocket Lab experienced an anomaly...
     Including first stage emissions as normal.
     Not including S2 or S3 in missing emissions.
+    F05. Electron (Curie) (3 stages) failed at second stage.
+    Adding payload reentries, dry mass reentry for first stage and wet mass reentry for second and third stage.
+    Payload masses:
+            https://spacenews.com/rocket-lab-electron-launch-fails/                                         67  / N/A / N/A kg
+            https://spaceflightnow.com/2020/07/04/rocket-lab-satellite-launch-fails-before-reaching-orbit/  67  / N/A / N/A kg
+            https://pubs.usgs.gov/of/2021/1030/f/ofr20211030f.pdf                                           N/A / 5.8 /     kg
+            JSR lists the re-flight of the same satellite (which hosts other payloads itself) as 10 kg.     N/A / N/A / 10  kg
 
 F06 - 10/07/2020 Kuaizhou-11
     https://web.archive.org/web/20220411235210/http://www.spacelaunchreport.com/log2020.html
@@ -90,6 +116,12 @@ F06 - 10/07/2020 Kuaizhou-11
         stage 3 failed to ignite
     Including first and second stage emissions as normal.
     Not including S3 in missing emissions.
+    F06. Kuaizhou-11 (3 stages) failed at second stage.
+    Adding payload reentries, dry mass reentry for first and second stage and wet mass reentry for third stage.
+    Payloads:
+          https://spaceflightnow.com/2020/07/10/new-chinese-satellite-launcher-fails-on-first-flight/ 172 / ~100 kg
+          https://web.archive.org/web/20220406013817/http://www.spacelaunchreport.com/kz11.html       230 / 97   kg
+          https://space.skyrocket.de/doc_sdat/centispace-1.htm                                        N/A / 97   kg
 
 F07 - 12/09/2020 Astra Rocket 3
     https://web.archive.org/web/20220411235210/http://www.spacelaunchreport.com/log2020.html
@@ -101,6 +133,7 @@ F07 - 12/09/2020 Astra Rocket 3
     Propellant for Astra is already approximated using Electron (Curie). For Electron, altitude is ~ 0.9 km at 22s (https://www.youtube.com/watch?v=af-PplDIkbc, https://www.youtube.com/watch?v=VRfm6RGVHf8)
     So will only output emissions up to 0.9 km.
     Not including S1 or S2 in missing emissions.
+    F07. Astra Rocket 3 (2 stages) shut off after 20s, fell to Earth near landing site. Ignoring.
 
 F08 - 12/09/2020 Kuaizhou-1A
     https://web.archive.org/web/20220411235210/http://www.spacelaunchreport.com/log2020.html
@@ -113,6 +146,12 @@ F08 - 12/09/2020 Kuaizhou-1A
         Stage 4 failure
     Failure occured in upper stage, so can include the emissions as normal.
     Not including S4 emissions in missing emissions.
+    F08. Kuaizhou-1A (4 stages) failed at upper stage.
+    Adding payload reentries, dry mass reentry for first, second and third stage and wet mass reentry for fourth stage.
+    Jilin-1 Gaofen-02C Mass:
+          https://web.archive.org/web/20220406013741/http://www.spacelaunchreport.com/kz.html  230 kg
+          https://www.nasaspaceflight.com/2019/11/kuaizhou-1a-launches-jilin-1-gaofen-2a/ (2A) 230 kg
+          https://space.skyrocket.de/doc_sdat/jilin-1-kuanfu-02.htm                       (2A) 230 kg 
 
 F09 - 17/11/2020 Vega
     https://web.archive.org/web/20220411235210/http://www.spacelaunchreport.com/log2020.html
@@ -123,6 +162,13 @@ F09 - 17/11/2020 Vega
         AVUM stage TVC cabeling error
     Failure occured in upper stage, so can include the emissions as normal.
     Not including S4 emissions in missing emissions.
+    U01 in JSR.
+    F09. Vega (4 stages) failed at upper stage. 1st stage is potentially too low for reentry so ignoring.
+    Adding payload reentries, dry mass reentry for second and third stage and wet mass reentry for fourth stage.
+    https://www.arianespace.com/wp-content/uploads/2020/11/VV17-launchkit-EN2.pdf 
+    https://spaceflightnow.com/2020/11/17/arianespace-traces-cause-of-vega-launch-failure-to-human-error/ 
+    https://spaceflightnow.com/2020/11/17/european-vega-rocket-suffers-second-failure-in-three-launches/ 
+    https://web.archive.org/web/20220406013740/http://www.spacelaunchreport.com/vega.html
     
 F10 - 15/12/2020 Astra Rocket 3
     https://en.wikipedia.org/wiki/List_of_Astra_rocket_launches
@@ -134,6 +180,8 @@ F10 - 15/12/2020 Astra Rocket 3
         First stage, staging and second stage ignition succeeded.  Stage 2 depleted propellant 15-20 seconds early, falling short of orbit.
     In this case, the early SECO would have likely been well above GC, so can treat as normal.
     Including all stages in missing emissions.
+    F10. Astra Rocket 3 (2 stages), stage 2 depleted propellant 15-20 seconds early, falling short of orbit. No payloads.
+    Adding dry mass reentry for first and second stage.
     
 F11 - 03/12/2020 Chang'e 5 SSQ (Ascent Stage)
     Moon launch, don't need to include.

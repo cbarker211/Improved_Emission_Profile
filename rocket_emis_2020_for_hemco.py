@@ -96,7 +96,11 @@ class RocketData:
         self.reentry_name         = fg.variables['RE_Name'][:]
         self.reentry_type         = fg.variables['RE_Type'][:]
         self.reentry_burnup       = fg.variables['RE_Burnup'][:]
-        self.reentry_stage        = fg.variables['RE_Stage'][:].astype(int)
+        self.reentry_stage        = fg.variables['RE_Stage'][:]
+        for i in range(len(self.reentry_stage)):
+            if str(self.reentry_stage[i])[0] == "B":
+                self.reentry_stage[i] = 0
+        self.reentry_stage = self.reentry_stage.astype(int)
         self.reentry_lats         = fg.variables['RE_Lat'][:]
         self.reentry_lons         = fg.variables['RE_Lon'][:]
         self.reentry_month        = fg.variables['RE_Mon'][:].astype(int)
@@ -1249,7 +1253,7 @@ if __name__ == "__main__":
     datadir = './Databases/'
     launch_path          = path.join(datadir, f'launch_info_{year}.nc')
     if year == 2020:
-        reentry_path     = path.join(datadir, f'reentry_info_{year}_updated_19102023_153830.nc')
+        reentry_path     = path.join(datadir, f'reentry_info_{year}_jcat.nc')
     else:
         # TODO: Update this when final reentry file is created.
         pass
