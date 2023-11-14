@@ -453,11 +453,16 @@ class build_reentry_list:
                 self.unique_reentry_list.append(temp_reentry_dict)   
     
     def extract_aerospace_info(self, filepath):
-        # TODO: Future years.
-        # Add some way of extracting entries for a single year.
         # Now load the Aerospace Corp information, to see if we can fill in any missing time information.  
         print("Searching for Aerospace Corp re-entries.")
         aerospace_corp_data = pd.read_csv(filepath)
+        
+        aerospace_corp_data_year_list = []
+        for reentry_count in range(len(aerospace_corp_data)):
+            if aerospace_corp_data["Aerospace Reentry Prediction (UTC)"][reentry_count][0:4] != "-":
+                if int(aerospace_corp_data["Aerospace Reentry Prediction (UTC)"][reentry_count][0:4]) == self.year:
+                    aerospace_corp_data_year_list.append(aerospace_corp_data.iloc[[reentry_count]])
+        aerospace_corp_data_year = pd.concat(aerospace_corp_data_year_list, ignore_index=True)
         
         # Check what items are already in the list.
         jsr_id_list = []
@@ -467,33 +472,34 @@ class build_reentry_list:
         # Add time information from Aerospace Corp for any JSR entries missing time information.
         for reentry in (self.unique_reentry_list):
             if reentry["time"] == -1:
-                for reentry_count in range(len(aerospace_corp_data)): 
-                    if aerospace_corp_data["International Designator"][reentry_count] == reentry["id"]:
-                        reentry_time = aerospace_corp_data["Aerospace Reentry Prediction (UTC)"][reentry_count][11:16]
+                for reentry_count in range(len(aerospace_corp_data_year)): 
+                    if aerospace_corp_data_year["International Designator"][reentry_count] == reentry["id"]:
+                        reentry_time = aerospace_corp_data_year["Aerospace Reentry Prediction (UTC)"][reentry_count][11:16]
                         reentry["time"] = np.float64(int(reentry_time[0:2]) + int(reentry_time[3:5]) / 60)
         
         # Now add any new entries.
         # TODO: Future years. 
         # If running for 2021/22, need to go through each new entry to double check info.
-        for reentry_count in range(len(aerospace_corp_data)):  
-            if aerospace_corp_data["International Designator"][reentry_count] not in jsr_id_list:
-                # 1992-021C, Ariane 44L H10+ 3rd Rocket Stage. DISCOSweb and AC list this as reentering in Oct 2020. JSR lists this as exploding in Apr 1993. Ignoring.
+        for reentry_count in range(len(aerospace_corp_data_year)):  
+            if aerospace_corp_data_year["International Designator"][reentry_count] not in jsr_id_list:
+                # 1992-021C, Ariane 44L H10+ 3rd Rocket Stage. DISCOSweb and AC list this as reentering in Oct 2020. JSR lists this as exploding in Apr 1993.
                 # 2019-029Q, Starlink payload. DISCOSweb and JSR list this as reentering in July 2022. AC lists this as reentering in 2020. Ignoring.
                 # 2020-012B, Starlink payload. DISCOSweb has no re-entry data. AC lists this as reentering Mar 2020. JSR lists this as still in orbit. Ignoring.
-                if aerospace_corp_data["International Designator"][reentry_count] == "1992-021C":
+                print(aerospace_corp_data_year["International Designator"][reentry_count])
+                if aerospace_corp_data_year["International Designator"][reentry_count] == "1992-021C":
                     # Extract the UTC time.     
-                    reentry_time = aerospace_corp_data["Aerospace Reentry Prediction (UTC)"][reentry_count][11:16]
+                    reentry_time = aerospace_corp_data_year["Aerospace Reentry Prediction (UTC)"][reentry_count][11:16]
                     time_utc = np.float64(int(reentry_time[0:2]) + int(reentry_time[3:5]) / 60)
                     temp_reentry_dict = {
-                        "id"           : aerospace_corp_data["International Designator"][reentry_count],
+                        "id"           : aerospace_corp_data_year["International Designator"][reentry_count],
                         "jcat"         : "N/A",
-                        "name"         : aerospace_corp_data["Object Name"][reentry_count],
-                        "type"         : aerospace_corp_data["Type"][reentry_count],
+                        "name"         : aerospace_corp_data_year["Object Name"][reentry_count],
+                        "type"         : aerospace_corp_data_year["Type"][reentry_count],
                         "burnup"       : "Complete",
                         "reentry_stage": 3,  # -1 is nothing, 0 = Booster, 1-4 = Stage Number, 5 = Payload/Debris.
                         "time"         : time_utc,
-                        "mon"          : aerospace_corp_data["Aerospace Reentry Prediction (UTC)"][reentry_count][5:7],
-                        "day"          : aerospace_corp_data["Aerospace Reentry Prediction (UTC)"][reentry_count][8:10],
+                        "mon"          : aerospace_corp_data_year["Aerospace Reentry Prediction (UTC)"][reentry_count][5:7],
+                        "day"          : aerospace_corp_data_year["Aerospace Reentry Prediction (UTC)"][reentry_count][8:10],
                         "lat"          : round(random.uniform(-90,90),2),
                         "lon"          : round(random.uniform(-180, 180),2),
                         "mass"         : 2080, # From JSR.
@@ -858,8 +864,9 @@ class build_reentry_list:
         ds['RE_MCS']         = data_da_mcs
         ds['RE_Manual_Loc']  = data_da_manual_loc
              
-        #Save to file and close the DataSet     
-        ds.to_netcdf(f'./Databases/reentry_info_{self.year}_jcat.nc')
+        #Save to file and close the DataSet  
+        datestr = datetime.today().strftime('%Y%m%d_%H%M%S') 
+        ds.to_netcdf(f'./Databases/reentry_info_{self.year}_jcat_{datestr}.nc')
         ds.close()
         
 if __name__ == "__main__":
