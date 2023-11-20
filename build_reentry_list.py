@@ -8,6 +8,7 @@ import random
 import geopandas as gpd
 from shapely.geometry import Point, Polygon
 from pprint import pprint
+import fiona
 
 class build_reentry_list:
     
@@ -32,13 +33,13 @@ class build_reentry_list:
                     starlink_count += 1
                       
             else:
-                geolocated_mass += reentry["mass"]
+                geolocated_mass += (reentry["al_mass"] + reentry["non_al_mass"])
             if reentry["time"] == -1:
                 non_time_count += 1
-            if reentry["mass"] == 0:
+            if (reentry["al_mass"] + reentry["non_al_mass"]) == 0:
                 non_mass_count += 1
                    
-            total_mass += reentry["mass"]
+            total_mass += (reentry["al_mass"] + reentry["non_al_mass"])
         
         print(f"Total Reentries: {len(self.unique_reentry_list):.0f}.")
                 
@@ -48,19 +49,19 @@ class build_reentry_list:
         mass_percent_all = (len(self.unique_reentry_list)-non_mass_count) / (len(self.unique_reentry_list)) * 100
         print(f"Total mass (Gg):   {total_mass*1e-6:.3f}")
         geolocated_mass_percent = geolocated_mass / total_mass * 100
-        print(f"Geolocation (All): {geo_percent_all:.0f}%.")
+        print(f"Geolocation (All): {geo_percent_all:.0f}%, {non_geo_count}.")
         print(f"Timed (All):       {time_percent_all:.0f}%.")    
         print(f"Mass (All):        {mass_percent_all:.0f}%.")
         print(f"Geolocated Mass:   {geolocated_mass_percent:.0f}%.")
         
-    def convert_lat_lon(self,latlonstr,inc,stage,apogee,dsl,jsr_id):
+    def convert_lat_lon(self,latlonstr,inc,stage,apogee,dsl,jsr_id,jsr_name):
         
         # Adjust the inclination so its useful for our purpose of bounding the lat.
-        # TODO: Check with Jonathan. Does inc = 0 mean its incomplete or the inc is actually 0.
         manual_loc = 0
         if inc > 90:
             inc = 180-inc
         elif inc == 0:
+            print(jsr_id)
             inc=90
         
         if latlonstr == "-":
@@ -108,25 +109,28 @@ class build_reentry_list:
             lat = -42.86 
             lon = 177.87
         elif latlonstr == "Antarctic?":
-            # TODO: Check with Jonathan. Assuming this to mean south of 60S.
             while True:
                 lat = round(random.uniform(-inc, inc),2)
                 lon = round(random.uniform(-180, 180),2)
                 coordinate = Point(lon,lat)
                 if lat <= -60:
                     break 
-        #elif latlonstr in ["Arctic","Pacific", "Pacific?", "PO","AO","E Pacific", "E Pacific?","S Pacific", "S POR","Indian O?","SE IOR?"]:
-        #    lat = 0
-        #    lon = 0
-        elif latlonstr == "Arctic":
-            # TODO: Check with Jonathan, Arctic means Arctic Ocean, not just above 66N?
-            arctic = self.ocean_shapefile[self.ocean_shapefile.name.isin(['Arctic Ocean'])] 
+        elif latlonstr == "Arctic": 
             while True:
                 lat = round(random.uniform(-inc, inc),2)
                 lon = round(random.uniform(-180, 180),2)
                 coordinate = Point(lon,lat)
-                if arctic.geometry.contains(coordinate).any():
-                    break 
+                if lat >= 66:
+                    break
+        elif latlonstr in ["S Ocean", "S Ocean?"]:
+            # For these three objects in auxcat, the inclination is 51.65-53.
+            # This is outside of the general definition of the southern ocean (<60S).
+            # Therefore we will just set the lat to the inclination.
+            lat = -inc
+            lon = round(random.uniform(-180, 180),2)
+        elif latlonstr in ["Arctic","Pacific", "Pacific?", "PO","AO","E Pacific", "E Pacific?","S Pacific", "S POR","Indian O?","SE IOR?"]:
+            lat = 0
+            lon = 0
         elif latlonstr in ["Pacific", "Pacific?", "PO"]:
             while True:
                 random_location = self.pacific_union.sample_points(1).get_coordinates()
@@ -135,7 +139,6 @@ class build_reentry_list:
                 if -inc <= lat <= inc:
                     break
         elif latlonstr in ["AO"]:
-            # TODO: Check with Jonathan, does this mean Arctic or Atlantic?
             atlantic = self.ocean_shapefile[self.ocean_shapefile.name.isin(['North Atlantic Ocean','South Atlantic Ocean'])]
             self.atlantic_union = gpd.GeoDataFrame(geometry=[atlantic.unary_union]) 
             while True:
@@ -158,12 +161,6 @@ class build_reentry_list:
                 lat = random_location["y"].values[0]
                 if -inc <= lat <= inc and lat <= 0: # Bounded to South Pacific only.
                     break 
-        elif latlonstr in ["S Ocean", "S Ocean?"]:
-            # For these three objects in auxcat, the inclination is 51.65-53.
-            # This is outside of the general definition of the southern ocean (<60S).
-            # Therefore we will just set the lat to the inclination.
-            lat = -inc
-            lon = round(random.uniform(-180, 180),2)
         elif latlonstr in ["Indian O?"]:
             indian_ocean = self.ocean_shapefile[self.ocean_shapefile.name.isin(['Indian Ocean'])] 
             while True:
@@ -238,7 +235,8 @@ class build_reentry_list:
             
         # When adding the wet mass, the dry mass + propellant mass has been used.
         mass = 0
-            
+        non_al_mass = 0
+           
         if jsr_id == "2020-F01":
             stage_masses = [12700,1600,230] 
             if reentry_stage in [1,2,3]:
@@ -247,26 +245,32 @@ class build_reentry_list:
                 mass = 113
           
         elif jsr_id == "2020-F02":
-            stage_masses = [24000,12500,5500+65000,2800+18200]
+            stage_masses = [24000,12500,5500,2800]
+            prop_masses = [65000,18200]
             if reentry_stage == 0:
                 mass = stage_masses[0] / 4  
-            if reentry_stage in [1,2,3]:
+            elif reentry_stage in [1,2,3]:
                 mass = stage_masses[reentry_stage]
             elif reentry_stage == 5:
-                mass = 6550     
+                mass = 6550 
+            if reentry_stage in [2,3]:
+                non_al_mass = prop_masses[reentry_stage-2]    
         
         elif jsr_id == "2020-F03":
-            stage_masses = [13200,9200,5000,2800+18193]
+            stage_masses = [13200,9200,5000,2800]
             if reentry_stage == 0:
                 mass = stage_masses[0] / 4  
-            if reentry_stage in [1,2,3]:
+            elif reentry_stage in [1,2,3]:
                 mass = stage_masses[reentry_stage]
             elif reentry_stage == 5:
                 mass = 5550
+            if reentry_stage in [3]:
+                non_al_mass = 18193
         
         elif jsr_id == "2020-F05":
-            stage_masses = [950,250+2050,40+245]
+            stage_masses = [950,250,40]
             payload_masses = [67,5.8,10]
+            prop_masses = [2050,245]
             if reentry_stage in [1,2,3]:
                 mass = stage_masses[reentry_stage-1]
             elif reentry_stage == 5:
@@ -276,9 +280,11 @@ class build_reentry_list:
                     mass = payload_masses[1]
                 elif "Faraday-1" in jsr_name:
                     mass = payload_masses[2]
+            if reentry_stage in [2,3]:
+                non_al_mass = prop_masses[reentry_stage-2]
 
         elif jsr_id == "2020-F06":
-            stage_masses = [7530,1490,1000+480]
+            stage_masses = [7530,1490,1000]
             payload_masses = [201,97]
             if reentry_stage in [1,2,3]:
                 mass = stage_masses[reentry_stage-1]
@@ -287,16 +293,20 @@ class build_reentry_list:
                     mass = payload_masses[0]
                 elif "Xiangrikui 2" in jsr_name:
                     mass = payload_masses[1]
+            if reentry_stage in [3]:
+                non_al_mass = 480
                     
         elif jsr_id == "2020-F08":
-            stage_masses = [621,686,183,200+1000]
+            stage_masses = [621,686,183,200]
             if reentry_stage in [1,2,3,4]:
                 mass = stage_masses[reentry_stage-1]
             elif reentry_stage == 5:
                 mass = 230
+            if reentry_stage in [4]:
+                non_al_mass = 1000
                 
-        elif jsr_id == "2020-U01":
-            stage_masses = [2486,1433,688+550]
+        elif jsr_id == "2020-F09":
+            stage_masses = [2486,1433,688]
             payload_masses = [750,175]
             if reentry_stage in [2,3,4]:
                 mass = stage_masses[reentry_stage-2]
@@ -305,22 +315,71 @@ class build_reentry_list:
                     mass = payload_masses[0]
                 elif "Taranis" in jsr_name:
                     mass = payload_masses[1]
-        
-        elif jsr_id == "2020-F09":
+            if reentry_stage in [4]:
+                non_al_mass = 550
+            
+        elif jsr_id == "2020-F10":
             stage_masses = [950,250]
             if reentry_stage in [1,2]:
                 mass = stage_masses[reentry_stage-1]
             elif reentry_stage == 5:
                 mass = 5
 
-        return mass
+        return mass, non_al_mass
+        
+    def sort_inclination(self,jsr_inc,jsr_id):
+        
+        # This is run for all launches including failed launches.
+        # satcat/auxcat already loaded, so find an entry from the same launch that has a inclination.
+        # Occasionally, the inclinations are slightly different for each object, but the difference is usually <1 degree.
+        # Only 2020-067 has a bigger range of 98.5 vs 82.5. Lets just use the larger bound.
+        count = 0
+        for reentry in (self.unique_reentry_list):
+            if reentry["id"][:8] == jsr_id[:8] and reentry["inc"] != 0:
+                if count == 0:
+                    jsr_inc = reentry["inc"] 
+                elif count > 0:
+                    if reentry["inc"] > jsr_inc:
+                        jsr_inc == reentry["inc"]
+                count += 1
+            
+        # Sometimes, there is no entry in the reentry list because it didn't meet the criteria before.
+        # In this case we need to reload the satcat to look for any matching entries.
+        if jsr_inc == 0:
+            for filename in ["./Databases/Reentry/JSR_Cat/satcat_2ndNov.tsv","./Databases/Reentry/JSR_Cat/ftocat_2ndNov.tsv"]:
+                jsr_data = pd.read_csv(filename, delimiter='\t', dtype=object)
+                satcat_list = []
+                for reentry_count in range(len(jsr_data)):
+                    if (
+                        jsr_data["Primary"][reentry_count] == "Earth" 
+                        and jsr_data["Piece"][reentry_count][:8] == jsr_id[:8]
+                        and np.float64(jsr_data["Inc"][reentry_count]) != 0
+                    ):
+                        satcat_list.append(jsr_data.iloc[[reentry_count]])
+                if len(satcat_list) > 0:
+                    satcat = pd.concat(satcat_list, ignore_index=True)
+                    count = 0
+                    for i in range(len(satcat)):
+                        if satcat["Status"][i] in ["O","R","DSO","DSA","AF","AS","F","S"]:
+                            if count == 0:
+                                jsr_inc = np.float64(satcat["Inc"][i])
+                            elif count > 0:
+                                if np.float64(satcat["Inc"][i]) > jsr_inc:
+                                    jsr_inc == np.float64(satcat["Inc"][i])
+                            count += 1
+                        else:
+                            print(jsr_id,satcat["Status"][i])
+                
+        if jsr_inc == 0:
+            print(f"inc still empty for {jsr_id}")
+            
+        return jsr_inc 
          
     def extract_jsr_info(self, filepath,dsl):
         
         jsr_data = pd.read_csv(filepath, delimiter='\t', dtype=object)
         # Only include R (Reentry), D (Deorbit), or L (Landed) events.
         jsr_data_stripped = jsr_data[jsr_data["Status"].isin(["R","D","L","L?","AR","S","F","AS","AF"])].reset_index(drop=True)
-        # TODO: Check with Jonathan, currently not adding objects reentering inside other objects (AL IN / AR IN in ecat).
         
         # If the reentry occured in 2020 and apogee was above 50 km, then extract that row and build a new dataframe.
         # For apogee, this really only affects the lcat, which includes suborbital objects with apogees below 80 km.
@@ -329,17 +388,20 @@ class build_reentry_list:
             
             # For some reason, there are 4 CZ-8 boosters listed in JSR rcat for 2020-102.
             # Should only be two, and mass looks correct for each booster. Removing two.
-            if jsr_data_stripped["DDate"][reentry_count][0:4] != "-" and jsr_data_stripped["#JCAT"][reentry_count] not in ["R80054","R80055"]:
-            
+            # Also removing 1st stage for 2020-F09 (U01 in GCAT). Apogee is 50km but is probably too low using the rocket configs used for stage altitudes.
+            if jsr_data_stripped["DDate"][reentry_count][0:4] != "-" and jsr_data_stripped["#JCAT"][reentry_count] not in ["R80054","R80055","L80348"]:
+                
+                # Note: A negative apogee means that the object was in a hyperbolic orbit (velocity above escape velocity), so passes by Earth.
+                # However, Hayabusa2 (apogee=-54771) did reenter on 5th Dec, so including this.
                 if (
                     int(jsr_data_stripped["DDate"][reentry_count][0:4]) == self.year
                     and (int(jsr_data_stripped["Apogee"][reentry_count]) >= 50 or int(jsr_data_stripped["Apogee"][reentry_count]) == -54771)            
                     and jsr_data_stripped["Piece"][reentry_count][5:6] != "S"
                     and jsr_data_stripped["Primary"][reentry_count] not in ["Bennu", "Venus", "Luna"]
-                    and "fairing" not in jsr_data_stripped["Name"][reentry_count].lower()
                 ):
                     
                     jsr_data_stripped_2020_list.append(jsr_data_stripped.iloc[[reentry_count]])
+                        
         jsr_data_stripped_2020 = pd.concat(jsr_data_stripped_2020_list, ignore_index=True)
         
         # Now loop over the list and format into a dictionary.
@@ -347,6 +409,8 @@ class build_reentry_list:
             
             jsr_id = jsr_data_stripped_2020["Piece"][reentry_count] 
             jsr_name = jsr_data_stripped_2020["Name"][reentry_count]
+            jsr_inc = np.float64(jsr_data_stripped_2020["Inc"][reentry_count])
+            
             # The failure numbers are labelled differently for 2020 in DW and JSR.
             # To make sure the main script runs OK, adjust the COSPAR ID here.
             if jsr_id == "2020-F09":
@@ -399,37 +463,65 @@ class build_reentry_list:
                     reentry_type = "Payload"
             else:
                 reentry_stage = -1
+            
+            # Sort the inc.
+            if jsr_inc == 0:
+                jsr_inc = self.sort_inclination(jsr_inc,jsr_id)
                 
             # Sort out the reentry lat/lon.
+            
+            # Extract all SpaceX data from Raul's Space Map.
             if "Falcon 9 Stage 1" in jsr_name:
-                # TODO: We can probably make this even more accurate by looking for groundtrack info directly from Raul's Space Map.
                 manual_loc = 0
                 burnup = "Partial"
-                if jsr_id == "2020-086":
-                    lat = 34.7
-                    lon = -120.6
+                # First look if it is in the Raul Space Map. If so then geolocate.
+                matching = self.ocean_landings[self.ocean_landings["Date"].isin([f"{self.year}-{monstr}-{daystr}"])].reset_index(drop=True)
+                if matching.shape[0] == 1:
+                    lat = np.array(matching["geometry"].y)[0]
+                    lon = np.array(matching["geometry"].x)[0]
+                elif matching.shape[0] == 0:
+                    matching = self.ground_landings[self.ground_landings["Date"].isin([f"{self.year}-{monstr}-{daystr}"])].reset_index(drop=True)
+                    if matching.shape[0] == 1:
+                        lat = np.array(matching["geometry"].y)[0]
+                        lon = np.array(matching["geometry"].x)[0]
+                    elif matching.shape[0] == 0:
+                        print(f"No geolocation found for Falcon Stage 1 - {jsr_id}")
+                    elif matching.shape[0] > 1:
+                        sys.exit("Multiple ground entries for Falcon Stage 1 landing.")
+                    else:
+                        sys.exit("Problem geolocating Falcon Stage 1 landing.")
+                elif matching.shape[0] > 1:
+                    sys.exit("Multiple ocean entries for Falcon Stage 1 landing.")
                 else:
-                    lat = 34
-                    lon = -75
-            #elif "Falcon 9 Fairing" in jsr_name:
-            #    # Geolocate the fairings here.
-            #    lat = 0
-            #    lon = 0
+                    sys.exit("Problem geolocating Falcon Stage 1 landing.") 
+            elif "Falcon 9 Fairing" in jsr_name:
+                matching = self.fairings[self.fairings["Date"].isin([f"{self.year}-{monstr}-{daystr}"])].reset_index(drop=True)
+                if matching.shape[0] == 1:
+                    lat = np.array(matching["geometry"].y)[0]
+                    lon = np.array(matching["geometry"].x)[0]
+                elif matching.shape[0] == 0:
+                    print(f"No fairing recovery found for {jsr_id}")
+                elif matching.shape[0] > 1:
+                    sys.exit("Multiple entries for Falcon fairing recovery.")
+                else:
+                    sys.exit("Problem geolocating Falcon Stage 1 landing.")
             else:   
                 lat, lon, manual_loc = self.convert_lat_lon(jsr_data_stripped_2020["Dest"][reentry_count],
-                                                            np.float64(jsr_data_stripped_2020["Inc"][reentry_count]),
+                                                            jsr_inc,
                                                             reentry_stage,
                                                             int(jsr_data_stripped["Apogee"][reentry_count]),
                                                             dsl,
-                                                            jsr_id)
+                                                            jsr_id, jsr_name)
                   
             if jsr_id[5:6] in ["F","U"]:
-                mass = self.failed_launch_mass(jsr_id, jsr_name, reentry_stage)
+                al_mass, non_al_mass = self.failed_launch_mass(jsr_id, jsr_name, reentry_stage)
             else:
-                mass = np.float64(jsr_data_stripped_2020["DryMass"][reentry_count])
-            
-            if lat == 0 and lon == 0:
-                print(jsr_id,jsr_data_stripped_2020["Dest"][reentry_count]) 
+                al_mass = np.float64(jsr_data_stripped_2020["DryMass"][reentry_count])
+                non_al_mass = 0
+                
+            # TODO: Re-enable later.
+            #if lat == 0 and lon == 0:
+            #   print(f"No location for {jsr_id}, dest = {jsr_data_stripped_2020['Dest'][reentry_count]}")
             
             # Ignore Z, this is a spurious entry according to JSR, and ignore D, this is debris objects. 
             # Set up the dictionary.                      
@@ -446,12 +538,23 @@ class build_reentry_list:
                     "day"          : daystr,
                     "lat"          : lat,
                     "lon"          : lon,
-                    "mass"         : mass,
+                    "al_mass"      : al_mass,
+                    "non_al_mass"  : non_al_mass,
                     "manual_loc"   : manual_loc,
+                    "inc"          : jsr_inc,
                 }
                 
                 self.unique_reentry_list.append(temp_reentry_dict)   
     
+    def add_cargo(self,filepath):
+        
+        jsr_data = pd.read_csv(filepath, delimiter='\t', dtype=object)        
+        for reentry_count in range(len(jsr_data)):           
+            if jsr_data["Status"][reentry_count] in ["AL IN","AR IN"] and int(jsr_data["DDate"][reentry_count][0:4]) == self.year:
+                for reentry in self.unique_reentry_list:
+                    if reentry["jcat"] == jsr_data["Parent"][reentry_count]:
+                        reentry["non_al_mass"] += np.float64(jsr_data["DryMass"][reentry_count])       
+        
     def extract_aerospace_info(self, filepath):
         # Now load the Aerospace Corp information, to see if we can fill in any missing time information.  
         print("Searching for Aerospace Corp re-entries.")
@@ -485,7 +588,7 @@ class build_reentry_list:
                 # 1992-021C, Ariane 44L H10+ 3rd Rocket Stage. DISCOSweb and AC list this as reentering in Oct 2020. JSR lists this as exploding in Apr 1993.
                 # 2019-029Q, Starlink payload. DISCOSweb and JSR list this as reentering in July 2022. AC lists this as reentering in 2020. Ignoring.
                 # 2020-012B, Starlink payload. DISCOSweb has no re-entry data. AC lists this as reentering Mar 2020. JSR lists this as still in orbit. Ignoring.
-                print(aerospace_corp_data_year["International Designator"][reentry_count])
+                #print(aerospace_corp_data_year["International Designator"][reentry_count])
                 if aerospace_corp_data_year["International Designator"][reentry_count] == "1992-021C":
                     # Extract the UTC time.     
                     reentry_time = aerospace_corp_data_year["Aerospace Reentry Prediction (UTC)"][reentry_count][11:16]
@@ -502,7 +605,8 @@ class build_reentry_list:
                         "day"          : aerospace_corp_data_year["Aerospace Reentry Prediction (UTC)"][reentry_count][8:10],
                         "lat"          : round(random.uniform(-90,90),2),
                         "lon"          : round(random.uniform(-180, 180),2),
-                        "mass"         : 2080, # From JSR.
+                        "al_mass"      : 2080, # From JSR.
+                        "non_al_mass"  : 0,
                         "manual_loc"   : 0,
                     }  
                     
@@ -577,7 +681,8 @@ class build_reentry_list:
                         "day"          : day,
                         "lat"          : lat,
                         "lon"          : lon,
-                        "mass"         : mass, 
+                        "al_mass"      : mass,
+                        "non_al_mass"  : 0, 
                         "manual_loc"   : -1, 
                     }
 
@@ -589,7 +694,7 @@ class build_reentry_list:
                 # This is currently zero items, but leave this code in in case it is reused for future years.
                 dict_ind = next((index for (index, d) in enumerate(self.unique_reentry_list) if d["id"] == ds_dw["DISCOSweb_Reentry_ID"].values[reentry_count]), False)
                 if dict_ind != False:
-                    if (self.unique_reentry_list[dict_ind]["type"] in ["Component", "Payload"]) and (self.unique_reentry_list[dict_ind]["mass"] == 0):
+                    if (self.unique_reentry_list[dict_ind]["type"] in ["Component", "Payload"]) and ((self.unique_reentry_list[dict_ind]["al_mass"] +self.unique_reentry_list[dict_ind]["non_al_mass"]) == 0):
                         if not np.isnan(ds_dw["DISCOSweb_Reentry_Mass"].values[reentry_count]):
                             self.unique_reentry_list[dict_ind]["payload_mass"] = ds_dw["DISCOSweb_Reentry_Mass"].values[reentry_count]
                             print("Added info for",ds_dw["DISCOSweb_Reentry_ID"].values[reentry_count])                       
@@ -647,7 +752,8 @@ class build_reentry_list:
                                     "day"          : int(dsl["Day"].values[i]),
                                     "lat"          : dsl["Latitude"].values[i],
                                     "lon"          : dsl["Longitude"].values[i],
-                                    "mass"         : mass,
+                                    "al_mass"      : mass,
+                                    "non_al_mass"  : 0,
                                     "MCS"          : False,
                                     "manual_loc"   : 0,
                                 }
@@ -664,6 +770,9 @@ class build_reentry_list:
                                 found_stage = True
                         if found_stage == False:
                             print(f"Adding 1st stage for {dsl['COSPAR_ID'].values[i]}")
+                            mass = dsr["Stage1_StageMass"].values[count]
+                            if np.isnan(mass):
+                                mass = 0
                             
                             temp_reentry_dict = {
                                 "id"           : f'{dsl["COSPAR_ID"].values[i]}S1',
@@ -677,22 +786,73 @@ class build_reentry_list:
                                 "day"          : int(dsl["Day"].values[i]),
                                 "lat"          : dsl["Latitude"].values[i],
                                 "lon"          : dsl["Longitude"].values[i],
-                                "mass"         : mass,
+                                "al_mass"      : mass,
+                                "non_al_mass"  : 0,                              
                                 "MCS"          : False,
                                 "manual_loc"   : 0,
                             }
         
                             self.unique_reentry_list.append(temp_reentry_dict)
+    
+    def import_raul_spacex_map(self):
+        fiona.drvsupport.supported_drivers['KML'] = 'rw'
+        raul_data = gpd.read_file('/home/ucfacb0/Emission_Inventory/Improved_Emission_Profile/Databases/General_SpaceX_Map_Raul.kml', driver='KML', layer =2)
+        ocean_landings = raul_data[(raul_data["Name"].str.contains("ASDS")) & (raul_data["Description"].str.contains("Landing -"))].reset_index(drop=True)
+        ocean_landings = ocean_landings[~ocean_landings["Name"].str.contains("planned")].reset_index(drop=True)
+        date_col = []
+        for landing in range(len(ocean_landings["Name"])):
+            year_ind = ocean_landings["Description"][landing].index("Landing -")
+            datestr = ocean_landings["Description"][landing][year_ind:].replace(" ","")[8:17].replace("-","")
+            date_col.append(datestr)
+        ocean_landings["Date"] = date_col
+        ocean_landings['Date'] = pd.to_datetime(ocean_landings['Date'],format='%d%b%y')
+        self.ocean_landings = ocean_landings[(ocean_landings["Date"] < f'{year+1}-01-01') & (ocean_landings["Date"] >= f'{year}-01-01')].reset_index(drop=True)
+            
+        ground_landings = raul_data[(raul_data["Name"].str.contains("landing")) & (raul_data["Name"].str.contains("LZ"))].reset_index(drop=True)
+        ground_landings = ground_landings[~ground_landings["Name"].str.contains("planned")].reset_index(drop=True)
+        date_col = []
+        for landing in range(len(ground_landings["Name"])):
+            year_ind = ground_landings["Description"][landing].index("Landing -")
+            datestr = ground_landings["Description"][landing][year_ind:].replace(" ","")[8:17].replace("-","")
+            date_col.append(datestr)
+        ground_landings["Date"] = date_col
+        ground_landings['Date'] = pd.to_datetime(ground_landings['Date'],format='%d%b%y')
+        self.ground_landings = ground_landings[(ground_landings["Date"] < f'{year+1}-01-01') & (ground_landings["Date"] >= f'{year}-01-01')].reset_index(drop=True)
+        
+        ocean_missions, ocean_dates = ocean_landings["Name"].tolist(), ocean_landings["Date"].tolist()
+        ground_missions, ground_dates = ground_landings["Name"].tolist(), ground_landings["Date"].tolist()
+        dataframe_size = 0
+        for count,mission in enumerate(ocean_missions):
+            extract_df = raul_data[(raul_data["Name"].str.contains(mission[:5])) & (raul_data["Name"].str.contains("fairing"))].reset_index(drop=True)
+            extract_df["Date"] = ocean_dates[count]
+            if dataframe_size == 0:
+                fairings = extract_df
+                dataframe_size += 1
+            else: 
+                fairings = pd.concat([fairings,extract_df], ignore_index=True)
+        for count,mission in enumerate(ground_missions):
+            extract_df = raul_data[(raul_data["Name"].str.contains(mission[:5])) & (raul_data["Name"].str.contains("fairing"))].reset_index(drop=True)
+            extract_df["Date"] = ground_dates[count]
+            if dataframe_size == 0:
+                fairings = extract_df
+                dataframe_size += 1
+            else: 
+                fairings = pd.concat([fairings,extract_df], ignore_index=True)
+        self.fairings = fairings
                              
     def get_reentry_info(self):
-                
-        self.ocean_shapefile = gpd.read_file("./Databases/GOaS_v1_20211214/goas_v01.shp")
-        pacific = self.ocean_shapefile[self.ocean_shapefile.name.isin(['North Pacific Ocean','South Pacific Ocean'])]
-        self.pacific_union = gpd.GeoDataFrame(geometry=[pacific.unary_union]) 
+        
+        #self.ocean_shapefile = gpd.read_file("./Databases/GOaS_v1_20211214/goas_v01.shp")
+        #pacific = self.ocean_shapefile[self.ocean_shapefile.name.isin(['North Pacific Ocean','South Pacific Ocean'])]
+        #self.pacific_union = gpd.GeoDataFrame(geometry=[pacific.unary_union]) 
         
         ds_dw = xr.open_dataset(f"./Databases/Reentry/discosweb_reentries_{self.year}.nc", decode_times=False)
         dsr = xr.open_dataset(f"./Databases/rocket_info_{self.year}.nc", decode_times=False)
-        dsl = xr.open_dataset(f"./Databases/launch_info_{self.year}.nc", decode_times=False)    
+        dsl = xr.open_dataset(f"./Databases/launch_info_{self.year}.nc", decode_times=False) 
+        
+        # Import the landing data.
+        # Data from https://www.google.com/maps/d/viewer?mid=1wvgFIPuOmI8da9EIB88tHo9vamo&hl=en_US&ll=30.627583564430562%2C-117.5522192379413&z=6
+        self.import_raul_spacex_map()
              
         self.unique_reentry_list = []
         
@@ -712,6 +872,8 @@ class build_reentry_list:
         self.extract_jsr_info("./Databases/Reentry/JSR_Cat/deepcat_7thNov.tsv",dsl) # Load in the JSR deepcat database.
         print("ecat")
         self.extract_jsr_info("./Databases/Reentry/JSR_Cat/ecat_8thNov.tsv"   ,dsl) # Load in the JSR ecat database.
+        print("ecat cargo")
+        self.add_cargo("./Databases/Reentry/JSR_Cat/ecat_8thNov.tsv") # Load in the JSR ecat database.
         print("ftocat")
         self.extract_jsr_info("./Databases/Reentry/JSR_Cat/ftocat_2ndNov.tsv" ,dsl) # Load in the JSR ftocat database.
         
@@ -750,29 +912,30 @@ class build_reentry_list:
             
         for count, reentry in enumerate(self.unique_reentry_list):
             # Update mass info for all rockets in 2020.
+            # TODO: This should update fairing mass from database too.
             for i in range(len(dsl["COSPAR_ID"])):
                 if dsl["COSPAR_ID"].values[i][:8] == reentry["id"][:8] and reentry["reentry_stage"] in ["B1","B2","B3","B4","B5","B6",1,2,3,4] and dsl["COSPAR_ID"].values[i][5] != "F":
                     for count, rocket_name in enumerate(dsr["Rocket_Name"].values):
                         if rocket_name == dsl["Rocket_Type"].values[i]:
                             if reentry["reentry_stage"] in ["B1","B2","B3","B4"]:
-                                reentry["mass"] = dsr["Booster_StageMass"].values[count] / dsr["Booster_No"].values[count]
+                                reentry["al_mass"] = dsr["Booster_StageMass"].values[count] / dsr["Booster_No"].values[count]
                             elif reentry["reentry_stage"] == 1:
-                                reentry["mass"] = dsr["Stage1_StageMass"].values[count]
+                                reentry["al_mass"] = dsr["Stage1_StageMass"].values[count]
                             elif reentry["reentry_stage"] == 2:
-                                reentry["mass"] = dsr["Stage2_StageMass"].values[count]
+                                reentry["al_mass"] = dsr["Stage2_StageMass"].values[count]
                             elif reentry["reentry_stage"] == 3:
-                                reentry["mass"] = dsr["Stage3_StageMass"].values[count]
+                                reentry["al_mass"] = dsr["Stage3_StageMass"].values[count]
                             elif reentry["reentry_stage"] == 4:
-                                reentry["mass"] = dsr["Stage4_StageMass"].values[count]
+                                reentry["al_mass"] = dsr["Stage4_StageMass"].values[count]
             
             # TODO: Future years.
             # Need to check for items with missing mass each year.
-            # TODO: Need references for each of these, and need to update to fill in remaining mass info.
+            # TODO: Update to fill in any remaining mass info.
             # For West Ford dipoles, these are part of the West Ford Needles project. # https://space.skyrocket.de/doc_sdat/westford.htm
             # The needles each weigh 40 ng, and one 'clump' reentered in 2020. The needles are Copper, and so will not contribute to Al emissions.  
             if reentry["name"] == "CZ-2C sep motor cover":
-                # The same item is also listed as weighing 1 kg.
-                reentry["mass"] = 1
+                # The same item is also listed as weighing 1 kg elsewhere.
+                reentry["al_mass"] = 1
             if reentry["id"] == "2020-086B": # Dest listed as 180E, this messes up other script so adjust to 179.9, will be in same grid square.
                 reentry["lon"] = 179.9
 
@@ -816,7 +979,8 @@ class build_reentry_list:
         #Set up the data
         id_list, name_list, type_list, burnup_list = [], [], [], []
         stage_list, time_list,  mon_list , day_list  = [], [], [], []
-        lat_list,  lon_list,  mass_list, mcs_list, manual_loc_list  = [], [], [], [], []
+        lat_list,  lon_list,  al_mass_list, non_al_mass_list = [], [], [], []
+        mcs_list, manual_loc_list  = [], []
         
         for reentry in self.unique_reentry_list:
             id_list.append(reentry["id"])
@@ -829,24 +993,26 @@ class build_reentry_list:
             day_list.append(reentry["day"])
             lat_list.append(reentry["lat"])
             lon_list.append(reentry["lon"])
-            mass_list.append(reentry["mass"])
+            al_mass_list.append(reentry["al_mass"])
+            non_al_mass_list.append(reentry["non_al_mass"])
             mcs_list.append(reentry["MCS"])
             manual_loc_list.append(reentry["manual_loc"])    
             
         #Create the DataArrays.
-        data_da_id           = xr.DataArray(id_list,         dims=dims, attrs=dict(long_name="Reentry ID"))
-        data_da_name         = xr.DataArray(name_list,       dims=dims, attrs=dict(long_name="Reentry Name"))
-        data_da_type         = xr.DataArray(type_list,       dims=dims, attrs=dict(long_name="Reentry Type"))
-        data_da_burnup       = xr.DataArray(burnup_list,     dims=dims, attrs=dict(long_name="Reentry Burnup Flag"))
-        data_da_stage        = xr.DataArray(stage_list,      dims=dims, attrs=dict(long_name="Reentry Stage"))
-        data_da_time         = xr.DataArray(time_list,       dims=dims, attrs=dict(long_name="Reentry Time (UTC)"))
-        data_da_mon          = xr.DataArray(mon_list,        dims=dims, attrs=dict(long_name="Reentry Month"))
-        data_da_day          = xr.DataArray(day_list,        dims=dims, attrs=dict(long_name="Reentry Day"))
-        data_da_lat          = xr.DataArray(lat_list,        dims=dims, attrs=dict(long_name="Reentry Latitude", units="Degrees"))
-        data_da_lon          = xr.DataArray(lon_list,        dims=dims, attrs=dict(long_name="Reentry Longitude", units="Degrees"))
-        data_da_mass         = xr.DataArray(mass_list,       dims=dims, attrs=dict(long_name="Reentry Booster Mass", units="kg"))
-        data_da_mcs          = xr.DataArray(mcs_list,        dims=dims, attrs=dict(long_name="Reentry MCS Check"))
-        data_da_manual_loc   = xr.DataArray(manual_loc_list, dims=dims, attrs=dict(long_name="Reentry Manual Location Check"))
+        data_da_id           = xr.DataArray(id_list,          dims=dims, attrs=dict(long_name="Reentry ID"))
+        data_da_name         = xr.DataArray(name_list,        dims=dims, attrs=dict(long_name="Reentry Name"))
+        data_da_type         = xr.DataArray(type_list,        dims=dims, attrs=dict(long_name="Reentry Type"))
+        data_da_burnup       = xr.DataArray(burnup_list,      dims=dims, attrs=dict(long_name="Reentry Burnup Flag"))
+        data_da_stage        = xr.DataArray(stage_list,       dims=dims, attrs=dict(long_name="Reentry Stage"))
+        data_da_time         = xr.DataArray(time_list,        dims=dims, attrs=dict(long_name="Reentry Time (UTC)"))
+        data_da_mon          = xr.DataArray(mon_list,         dims=dims, attrs=dict(long_name="Reentry Month"))
+        data_da_day          = xr.DataArray(day_list,         dims=dims, attrs=dict(long_name="Reentry Day"))
+        data_da_lat          = xr.DataArray(lat_list,         dims=dims, attrs=dict(long_name="Reentry Latitude", units="Degrees"))
+        data_da_lon          = xr.DataArray(lon_list,         dims=dims, attrs=dict(long_name="Reentry Longitude", units="Degrees"))
+        data_da_al_mass      = xr.DataArray(al_mass_list,     dims=dims, attrs=dict(long_name="Reentry Al Mass", units="kg"))
+        data_da_non_al_mass  = xr.DataArray(non_al_mass_list, dims=dims, attrs=dict(long_name="Reentry Non Al Mass", units="kg"))
+        data_da_mcs          = xr.DataArray(mcs_list,         dims=dims, attrs=dict(long_name="Reentry MCS Check"))
+        data_da_manual_loc   = xr.DataArray(manual_loc_list,  dims=dims, attrs=dict(long_name="Reentry Manual Location Check"))
     
         # Create an xarray Dataset from the DataArrays.
         ds = xr.Dataset()
@@ -860,13 +1026,15 @@ class build_reentry_list:
         ds['RE_Day']         = data_da_day
         ds['RE_Lat']         = data_da_lat
         ds['RE_Lon']         = data_da_lon
-        ds['RE_Mass']        = data_da_mass
+        ds['RE_Al_Mass']     = data_da_al_mass
+        ds['RE_Non_Al_Mass'] = data_da_non_al_mass
         ds['RE_MCS']         = data_da_mcs
         ds['RE_Manual_Loc']  = data_da_manual_loc
              
         #Save to file and close the DataSet  
         datestr = datetime.today().strftime('%Y%m%d_%H%M%S') 
-        ds.to_netcdf(f'./Databases/reentry_info_{self.year}_jcat_{datestr}.nc')
+        #ds.to_netcdf(f'./Databases/reentry_info_{self.year}_jcat_{datestr}.nc')
+        ds.to_netcdf(f'./Databases/reentry_info_{self.year}_jcat_test.nc')
         ds.close()
         
 if __name__ == "__main__":
