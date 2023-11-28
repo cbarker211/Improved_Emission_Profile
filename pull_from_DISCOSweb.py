@@ -270,9 +270,14 @@ class import_launches_from_discos:
             time_utc = np.float64(hour + minute / 60 + sec / 3600)
             self.launch_time.append(time_utc)
             
-            # Look for any payloads with the name 'Starlink', 'Oneweb', or 'Yinhe', and denote them as MCS.
+            # Mark as MCS any launches containing payloads with the name:
+            #   - Starlink
+            #   - Oneweb
+            #   - Yinhe
+            #   - Lynk
+            #   - E-Space
             params={
-                    'filter' : "(eq(objectClass,Payload))&(contains(name,Starlink)|contains(name,OneWeb)|contains(name,Yinhe))",
+                    'filter' : "(eq(objectClass,Payload))&(contains(name,Starlink)|contains(name,OneWeb)|contains(name,Yinhe)|contains(name,Lynk)|contains(name,E-Space))",
                     'sort' : 'id'         
                 }
             while True:
@@ -1168,7 +1173,7 @@ class import_launches_from_discos:
         self.unique_rocket_list = []
         
         #Open file and get a list of unique vehicles.
-        ds = xr.open_dataset('Databases/launch_info_2020.nc', decode_times=False)
+        ds = xr.open_dataset(f'Databases/launch_info_{self.year}.nc', decode_times=False)
         vehicle_name_list = ds['Rocket_Type'].values
         vehicle_id_list = ds['Vehicle_ID'].values
         unique_vehicle_name_list = sorted(list(set(vehicle_name_list)))
