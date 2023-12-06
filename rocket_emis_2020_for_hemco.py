@@ -106,7 +106,8 @@ class RocketData:
         self.reentry_month        = fg.variables['RE_Mon'][:].astype(int)
         self.reentry_day          = fg.variables['RE_Day'][:].astype(int)
         self.reentry_time         = fg.variables['RE_Time'][:] # UTC hours
-        self.reentry_mass         = fg.variables['RE_Mass'][:]
+        self.reentry_al_mass      = fg.variables['RE_Al_Mass'][:]
+        self.reentry_non_al_mass  = fg.variables['RE_Non_Al_Mass'][:]
         self.reentry_mcs          = fg.variables['RE_MCS'][:]
         
         #Close Dataset.
@@ -289,14 +290,26 @@ class OutputEmis:
 
                 # gc_dir is defined for each scenario in the main section of the python script.
                 # So only need one block to read GEOS-Chem box height from StateMet file.
-                self.gc_file = path.join(gc_dir, 'GEOSChem.StateMet.2020'+self.strmon+self.strday+'_0000z.nc4')
-
-                file_exists = os.path.exists(self.gc_file)
-                if not file_exists: continue
-                self.box_height, self.area, self.bot_alt, self.mid_alt, self.top_alt = read_gc_box_height(self.gc_file,self.nlev)
+                
+                #self.gc_file = path.join(gc_dir, 'GEOSChem.StateMet.2020'+self.strmon+self.strday+'_0000z.nc4')
+                #file_exists = os.path.exists(self.gc_file)
+                #if not file_exists: continue
+                #self.box_height, self.area, self.bot_alt, self.mid_alt, self.top_alt = read_gc_box_height(self.gc_file,self.nlev)
+                
+                gc_layer_data = np.loadtxt(".\Databases\GC_47.csv",delimiter=",")
+                self.top_alt = np.zeros((self.nlev,self.nlat,self.nlon))
+                self.bot_alt = np.zeros((self.nlev,self.nlat,self.nlon))
+                self.mid_alt = np.zeros((self.nlev,self.nlat,self.nlon))
+                self.area = np.zeros((self.nlat,self.nlon))
+                for lat in range(self.nlat):
+                    for lon in range(self.nlon):
+                        self.bot_alt[:,lat,lon] = gc_layer_data[::-1,0]*1000
+                        self.mid_alt[:,lat,lon] = gc_layer_data[::-1,1]*1000
+                        self.top_alt[:,lat,lon] = gc_layer_data[::-1,2]*1000
+                        self.area[lat,lon]      = 1
+                        # TODO: This is currently set to 0 as its only needed to output the final netcdf files, not the stats.
                 
                 # Set up the data arrays which will be saved to file.
-                #self.reentry_nox = np.zeros((self.nlon,self.nlat,self.nlev))
                 self.rocket_launch_nox  = np.zeros((self.nhours,self.nlev,self.nlat,self.nlon))
                 self.rocket_fuel_nox    = np.zeros((self.nhours,self.nlev,self.nlat,self.nlon))
                 self.rocket_reentry_nox = np.zeros((self.nhours,self.nlev,self.nlat,self.nlon))
@@ -368,22 +381,22 @@ class OutputEmis:
                 # Save file as NetCDF
                 ####################################
                 
-                if len(l_ind)>0 or len(r_ind)>0:
-                    # If there are launches or reentries, then save file normally.
-                    self.save_netcdf()
-                else:
-                    # If there are no launches, create a dummy file to accommodate HEMCO file reading.
-                    lat_ind=np.argmin(abs(self.lat-0))
-                    self.qmin,self.qmax=int(lat_ind),int(lat_ind)
-                    lon_ind=np.argmin(abs(self.lon-0))
-                    self.pmin,self.pmax=int(lon_ind),int(lon_ind)
-                    self.save_netcdf()
+                #if len(l_ind)>0 or len(r_ind)>0:
+                #    # If there are launches or reentries, then save file normally.
+                #    self.save_netcdf()
+                #else:
+                #    # If there are no launches, create a dummy file to accommodate HEMCO file reading.
+                #    lat_ind=np.argmin(abs(self.lat-0))
+                #    self.qmin,self.qmax=int(lat_ind),int(lat_ind)
+                #    lon_ind=np.argmin(abs(self.lon-0))
+                #    self.pmin,self.pmax=int(lon_ind),int(lon_ind)
+                #    self.save_netcdf()
         
         df = pd.DataFrame(self.output_for_csv)
         df_2 = pd.DataFrame(self.output_for_csv_2)
         if len(months) == 12:
-            df.to_csv("/home/ucfacb0/Emission_Inventory/Improved_Emission_Profile/Databases/Emission_Distribution.csv", float_format='%.3f')
-            df_2.to_csv("/home/ucfacb0/Emission_Inventory/Improved_Emission_Profile/Databases/Species_Distribution.csv", float_format='%.3f')
+            df.to_csv("./Databases/Emission_Distribution.csv", float_format='%.3f')
+            df_2.to_csv("./Databases/Species_Distribution.csv", float_format='%.3f')
              
     def process_launch_event_altitudes(self, valid_index, p, q, launch_rocket):
         # Now define the rocket configuration (can this be written in fewer lines?)
@@ -928,7 +941,12 @@ class OutputEmis:
                 # Different emissions for core stage / upper stage / payload. 
                 if rocket_data.reentry_burnup[index[w]] == 'Complete': 
                     nox_burnup_factor = 1
-                    if rocket_data.reentry_stage[index[w]] in [0,1]:
+                    if (rocket_data.reentry_stage[index[w]] in [0,1]):
+                        al_burnup_factor = 0.3 * 0.7  # https://doi.org/10.1016/j.asr.2020.10.036 and https://hdl.handle.net/1721.1/151393
+                    elif "Falcon 9 Fairing" in rocket_data.reentry_name[index[w]]:
+                        al_burnup_factor = 0
+                        nox_burnup_factor = 0.175
+                    elif "fairing" in rocket_data.reentry_name[index[w]].lower(): 
                         al_burnup_factor = 0.3 * 0.7  # https://doi.org/10.1016/j.asr.2020.10.036 and https://hdl.handle.net/1721.1/151393
                     elif rocket_data.reentry_stage[index[w]] in [2,3,4]:
                         al_burnup_factor = 0.65 * 0.7 # https://doi.org/10.1016/j.asr.2020.10.036 and https://hdl.handle.net/1721.1/151393 
@@ -943,11 +961,8 @@ class OutputEmis:
                 # Partial burnup on re-entry (reusable components, only payloads and Falcon 9 1st stage):
                 # Still using the 17.5% value for NOx emissions.
                 # For Al2O3, we assume no emissions from reusuable components.
-                # TODO: Would a heat shield have some small Al2O3 emissions?
                 else: 
-                    if rocket_data.reentry_stage[index[w]] == 1:
-                        al_burnup_factor = 0
-                    elif rocket_data.reentry_stage[index[w]] == 5:
+                    if rocket_data.reentry_stage[index[w]] in [1,5]:
                         al_burnup_factor = 0
                     else:
                         sys.exit("Reusuable reentry not payload or 1st stage.") 
@@ -955,11 +970,11 @@ class OutputEmis:
                  
                 # For consistency with launch emissions, the totals are kept in g units. 
                            
-                t_nox_reentry = rocket_data.reentry_mass[index[w]] * nox_burnup_factor * 1000
+                t_nox_reentry = (rocket_data.reentry_al_mass[index[w]] + rocket_data.reentry_non_al_mass[index[w]]) * nox_burnup_factor * 1000
                 self.nox_reentry_total += t_nox_reentry
                 self.rocket_reentry_nox[time_index,self.bot_reenter:self.top_reenter+1,q,p] += t_nox_reentry / self.n_reenter_levs * 1e-3 / kg_to_kgm2s
                 
-                t_al2o3_reentry = rocket_data.reentry_mass[index[w]] * al_burnup_factor * 1000
+                t_al2o3_reentry = rocket_data.reentry_al_mass[index[w]] * al_burnup_factor * 1000
                 self.al2o3_reentry_total += t_al2o3_reentry
                 self.rocket_reentry_al[time_index,self.bot_reenter:self.top_reenter+1,q,p] += t_al2o3_reentry / self.n_reenter_levs * 1e-3 / kg_to_kgm2s
                 
@@ -1253,7 +1268,7 @@ if __name__ == "__main__":
     datadir = './Databases/'
     launch_path          = path.join(datadir, f'launch_info_{year}.nc')
     if year == 2020:
-        reentry_path     = path.join(datadir, f'reentry_info_{year}_jcat.nc')
+        reentry_path     = path.join(datadir, f'reentry_info_{year}_jcat_20231121_125009.nc')
     else:
         # TODO: Update this when final reentry file is created.
         pass
