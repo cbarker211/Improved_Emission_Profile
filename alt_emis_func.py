@@ -75,7 +75,7 @@ def calculate_cl_ei(height, cly_pei):
         numpy.ma.core.MaskedArray * 3: Final emission indices (combustion of propellant and afterburning effects) for atomic chlorine, hydrogen chloride and dichloride.
     """    
     
-    pei_file = pd.read_csv("/home/ucfacb0/Emission_Inventory/Improved_Emission_Profile/Databases/Chlorine_PEI.csv")
+    pei_file = pd.read_csv("./Databases/Chlorine_PEI.csv")
 
     alt_lit                = pei_file["Alt"].to_numpy()
     hcl_param              = pei_file["HCl"].to_numpy()[0:4]         
