@@ -12,9 +12,6 @@ from update_mass import update_mass_info
 NB: Each request is limited to 30 results, and there is a maximum limit of requests in a certain timeframe (20 requests per 60s).
 To solve this, the script makes multiple requests over different filters, and automatically calculates the time required to wait."""
 
-# TODO: No suborbital launches or reentries from those launches are included (11 in 2020). 1 Blue Origin also missing.
-# TODO: Should probably split this script into multiple scripts.
-
 class import_launches_from_discos:
     
     def __init__(self,year):
@@ -434,12 +431,12 @@ class import_launches_from_discos:
                                            "Long March (CZ) 11", "Long March (CZ) 2F", "Long March (CZ) 3B", "Long March (CZ) 3C", "Long March (CZ) 5", 
                                            "Long March (CZ) 5B", "Long March (CZ) 6", "Long March (CZ) 6A", "Long March (CZ) 7", "Long March (CZ) 7A", 
                                            "Long March (CZ) 8", "Minotaur 1", "Pegasus XL", "Vega C",
-                                           "Soyuz-2-1A", "Soyuz-2-1A Fregat-M", "Soyuz-2-1B Fregat", "Soyuz-2-1B Fregat-M", "Soyuz-ST-A Fregat-M"
+                                           "Soyuz-2-1A", "Soyuz-2-1A Fregat-M", "Soyuz-2-1B Fregat", "Soyuz-2-1B Fregat-M", "Soyuz-ST-A Fregat-M",
                                            "Soyuz-2-1A Fregat","Soyuz-2-1B","Soyuz-2-1V Volga","Soyuz-ST-B Fregat-MT"]:
             
             stage_name = stage["attributes"]["name"]
 
-            if "booster" in stage_name.lower() or stage_name in ["EPS P241", "H-II SRB-A", "Soyuz-FG Blok-B,V,G,D","K2-1","GSLV-SOM","Falcon 9 Merlin-1D+","S-200"]:
+            if "booster" in stage_name.lower() or stage_name in ["EPS P241", "Soyuz-FG Blok-B,V,G,D","K2-1","GSLV-SOM","Falcon 9 Merlin-1D+","S-200"]:
                 stage_number = "Booster"
                 
             # For stage ids 773 and 775, this is stages with the same name for the Delta 4H rocket.  
@@ -451,11 +448,11 @@ class import_launches_from_discos:
                 
             elif (stage_name in ["URM-2","ESC-A","Centaur-5 SEC","Centaur-5 DEC", "H-II LE-5B", "PS2", "Blok-I", "Long March (CZ) 11 Stage 2", 
                                  "L-84 (YF26)", "L-45 (YF-24E)", "CZ-5-HO", "L-15 (YF115)", "L-15 (YF-115)", "K3-2 short",
-                                 "M-35","GSLV-2","SR19","SLS  iCPS","Zefiro 40C","Falcon Heavy second stage","JIE-3 second stage"]) or stage["id"] == "773":
+                                 "M-35","GSLV-2","SR19","SLS  iCPS","Zefiro 40C","Falcon Heavy second stage","JIE-3 second stage","C-25"]) or stage["id"] == "773":
                 stage_number = "Stage2"
                 
             elif (stage_name in ["Briz-M", "PS3", "Fregat-M", "Fregat", "Fregat-MT", "Long March (CZ) 11 Stage 3", "PBV",
-                                "Blok-DM-3","KM-V2c","GS3 (GSLV Mk II)","Zefiro 9","Volga (Soyuz-2-1V Volga)","C-25"]) or stage["id"] == "112791":
+                                "Blok-DM-3","KM-V2c","GS3 (GSLV Mk II)","Zefiro 9","Volga (Soyuz-2-1V Volga)"]) or stage["id"] == "112791":
                 stage_number = "Stage3"
                 
             elif (stage_name in ["PSLV fourth stage (PS4)", "Long March (CZ) 11 Stage 4","CLPS","AVUM+"]) or stage["id"] == "112794":
@@ -472,6 +469,11 @@ class import_launches_from_discos:
                     stage_number = "Stage3"
                 elif unique_vehicle_name_list[i] == "Minotaur 1":
                     stage_number = "Stage4"
+            elif stage_name == "H-II SRB-A":
+                if unique_vehicle_name_list[i] == "Epsilon-2 CLPS":
+                    stage_number = "Stage1"
+                else:
+                    stage_number = "Booster"
             
             # Long March often uses the same stage for different rockets, but not always at the same position.    
             elif stage_name == "H-18 (Long March (CZ) YF)":
@@ -490,6 +492,9 @@ class import_launches_from_discos:
                 print(f"Warning: Error manually assigning stages and boosters. Stage {stage_name} not in check lists.")
         else:
             stage_number = f"Stage{count+1}"
+            
+        if unique_vehicle_name_list[i] in ["Soyuz-ST-A Fregat-M","Soyuz-2-1A Fregat"]:
+            print(unique_vehicle_name_list[i],stage_name, stage_number)
             
         #############################
         # Obtain the propellant mass
@@ -539,13 +544,11 @@ class import_launches_from_discos:
                         temp_dict[f"Stage4 Propellant Name"] = "UDMH (Unsymmetrical Dimethyl Hydrazine)/N2O4"
                     
                     #Now assign to a fuel type.
-                    # TODO: Can the fuel types be more finely categorized?
-                    
                     if temp_dict[f"{stage_number} Propellant Name"] in ['HTPB','Solid','HTPB-1912','TP-H8299',"PBAN-Al/NH4ClO4"]:
                         temp_dict[f"{stage_number} Fuel Type"] = "Solid"  
                     elif temp_dict[f"{stage_number} Propellant Name"] in ['RP1 (Rocket Propellant 1)/LOX','Kerosene/LOX']:
                         temp_dict[f"{stage_number} Fuel Type"] = "Kerosene" 
-                    elif "Hydrazine" in temp_dict[f"{stage_number} Propellant Name"] or temp_dict[f"{stage_number} Propellant Name"] == "UH25 (75%UDMH+25%N2H4)":
+                    elif "Hydrazine" in temp_dict[f"{stage_number} Propellant Name"] or temp_dict[f"{stage_number} Propellant Name"] == "UH25 (75%UDMH+25%N2H4)/N2O4":
                         temp_dict[f"{stage_number} Fuel Type"] = "Hypergolic"  
                     elif temp_dict[f"{stage_number} Propellant Name"] in ['LH2 (Liquid Hydrogen)/LOX']:
                         temp_dict[f"{stage_number} Fuel Type"] = "Hydrogen"  
