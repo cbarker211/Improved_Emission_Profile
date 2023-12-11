@@ -8,6 +8,7 @@ import random
 import geopandas as gpd
 from shapely.geometry import Point, Polygon
 import fiona
+# TODO: Update the booster and stage 2 stage masses for Atlas (update_mass.py).
 
 class build_reentry_list:
     
@@ -785,6 +786,7 @@ class build_reentry_list:
         # For B+4S, 2S and 3S, the 1st stage will cutoff and detach within 100 km altitude, so we need a reentry event for each of these.
         
         # TODO: Future years.
+        # TODO: Could we also search for missing fairings??
         # If we extend to 2021/2022, obviously need to get new information on rocket altitudes and may have to update this.
         # Loop over each launch in 2020, locate the rocket and then filter for rocket configuration.
         for i in range(len(dsl["COSPAR_ID"])):
