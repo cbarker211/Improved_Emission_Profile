@@ -42,6 +42,9 @@ import matplotlib.pyplot as plt
 from distribute_emis_func import make_grid_LL, read_gc_box_height, get_ross_profiles, interp_prop_mass
 from alt_emis_func import calculate_bc_ei, calculate_nox_ei, calculate_co_ei, calculate_cl_ei
 import datetime
+import geopandas as gpd
+import fiona
+pd.set_option('display.max_colwidth', None)
 
 class RocketData:
     '''Read rocket launch and re-entry emissions'''
@@ -190,7 +193,7 @@ class RocketData:
         print("Successfully loaded PEI information.")
               
 class OutputEmis:
-    def __init__(self, rocketdata, res, ts, levs, booster_levs, meco_levs, sei_levs, reentry_levs, gc_dir, months, dataset, year):
+    def __init__(self, rocketdata, res, ts, levs, booster_levs, meco_levs, sei_levs, reentry_levs, gc_dir, months, dataset, year, ground_landing_list):
 
         ####################################
         # Initial Setup
@@ -210,6 +213,7 @@ class OutputEmis:
         self.include_landing = True
         self.dataset = dataset
         self.year = year
+        self.ground_landing_list = ground_landing_list
         
         self.included_prop = 0
         self.missing_prop = 0
@@ -254,6 +258,19 @@ class OutputEmis:
         self.csv_count = 0
         self.output_for_csv_2 = np.zeros(((len(rocket_data.launch_id)+reentry_length)*8,self.nlev))
         self.csv_count_2 = 0
+        
+        # Build the ocean landing list for the year in question.
+        ocean_landings = raul_data[(raul_data["Name"].str.contains("ASDS")) & (raul_data["Description"].str.contains("Landing -"))].reset_index(drop=True)
+        ocean_landings = ocean_landings[~ocean_landings["Name"].str.contains("planned")].reset_index(drop=True)
+        ocean_landings = ocean_landings[~ocean_landings["Name"].str.contains("planed")].reset_index(drop=True)
+        date_col = []
+        for landing in range(len(ocean_landings["Name"])):
+            year_ind = ocean_landings["Description"][landing].index("Landing -")
+            datestr = ocean_landings["Description"][landing][year_ind:].replace(" ","")[8:17].replace("-","")
+            date_col.append(datestr)
+        ocean_landings["Date"] = date_col
+        ocean_landings['Date'] = pd.to_datetime(ocean_landings['Date'],format='%d%b%y')
+        self.ocean_landings = ocean_landings[(ocean_landings["Date"] < f'{year+1}-01-01') & (ocean_landings["Date"] >= f'{year}-01-01')].reset_index(drop=True)
         
         #################################
         # Loop over each day and month.
@@ -311,6 +328,7 @@ class OutputEmis:
                         self.top_alt[:,lat,lon] = gc_layer_data[::-1,2]*1000
                         self.area[lat,lon]      = 1
                         # TODO: Myriad.
+                        # Set this back up when we have access to the StateMet files.
                         # This is currently set to 1 as its only needed to output the final netcdf files, not the stats.
                 
                 # Set up the data arrays which will be saved to file.
@@ -402,7 +420,7 @@ class OutputEmis:
             df.to_csv(f"./Emission_Output/Emission_Distribution_{self.year}.csv", float_format='%.3f')
             df_2.to_csv(f"./Emission_Output/Species_Distribution_{self.year}.csv", float_format='%.3f')
              
-    def process_launch_event_altitudes(self, valid_index, p, q, launch_rocket):
+    def process_launch_event_altitudes(self, valid_index, p, q, launch_rocket,launch_id):
         # Now define the rocket configuration.
         if rocket_data.booster_prop_type[valid_index] != '':
             if rocket_data.stage1_prop_type[valid_index] != '' and rocket_data.stage2_prop_type[valid_index] == '' and rocket_data.stage3_prop_type[valid_index] == '' and rocket_data.stage4_prop_type[valid_index] == '':
@@ -425,7 +443,9 @@ class OutputEmis:
             self.gc_relative_mass_booster = gc_relative_mass_booster / np.sum(gc_relative_mass_booster) * 100
 
         elif rocket_data.booster_prop_type[valid_index] == '':
-            if rocket_data.stage1_prop_type[valid_index] != '' and rocket_data.stage2_prop_type[valid_index] != '' and rocket_data.stage3_prop_type[valid_index] == '' and rocket_data.stage4_prop_type[valid_index] == '':
+            if launch_rocket == "LauncherOne":
+                rocket_config_type = 6
+            elif rocket_data.stage1_prop_type[valid_index] != '' and rocket_data.stage2_prop_type[valid_index] != '' and rocket_data.stage3_prop_type[valid_index] == '' and rocket_data.stage4_prop_type[valid_index] == '':
                 rocket_config_type = 3
             elif rocket_data.stage1_prop_type[valid_index] != '' and rocket_data.stage2_prop_type[valid_index] != '' and rocket_data.stage3_prop_type[valid_index] != '' and rocket_data.stage4_prop_type[valid_index] == '':
                 rocket_config_type = 4
@@ -439,25 +459,20 @@ class OutputEmis:
             sys.exit("Incorrect rocket configuration.")
         
         # Now calculate the propellant consumption profile for stage 1.        
-        if self.meco_levs[rocket_config_type] * 1e3 > self.top_alt[-1,q,p]:
+        if launch_rocket == "LauncherOne1":
+            # TODO: We need a new section for LauncherOne. 
+            pass        
+        elif self.meco_levs[rocket_config_type] * 1e3 > self.top_alt[-1,q,p]:
             # If MECO occurs above the the GC boundary, then we have to only use some of the stage 1 emissions.
             self.gc_relative_mass_stage1 = np.asarray(self.gc_relative_mass)
             self.MECO_alt_index = self.nlev - 1
-            if self.meco_levs[rocket_config_type] < 102.5:
-                # Interpolate to see how much propellant is emitted above MECO.
-                h = self.meco_levs[rocket_config_type]
-                for count, ross_alt in enumerate(self.ross_alt):
-                    value = ross_alt-h
-                    if value < 0:
-                        break
-                ross_ind = count - 1
-                self.propellant_below_meco = self.ross_cumulative_mass[ross_ind] + ((h - self.ross_alt[ross_ind]) /
-                                                (self.ross_alt[ross_ind-1] - self.ross_alt[ross_ind])) * (self.ross_cumulative_mass[ross_ind-1] - self.ross_cumulative_mass[ross_ind])
-                
-                self.gc_relative_mass_stage1 = self.gc_relative_mass_stage1 / (self.propellant_below_meco) * 100
-                
-                # TODO: Myriad.
-                # Update interpolations when Myriad is back.
+            # If MECO is above GC, but in the range of the Ross distribution, we can interpolate to see how much propellant is consumed in GC and before MECO.
+            if self.meco_levs[rocket_config_type] < 102.5:            
+                self.propellant_below_meco = np.interp(self.meco_levs[rocket_config_type],self.ross_alt[::-1], self.ross_cumulative_mass[::-1])
+                # Now we can work out the proportion of propellant consumed within GC, and use this to correct the sum.
+                gc_percent = self.propellant_in_gc / self.propellant_below_meco * 100
+                self.gc_relative_mass_stage1 = self.gc_relative_mass_stage1 / np.sum(self.gc_relative_mass_stage1) * gc_percent
+            # If MECO is above 102.5, the sum of gc_relative_mass_stage1 is already equal to propellant_in_gc because its just a simple slice of gc_relative_mass.
         
         else:
             # If MECO occurs below the the GC boundary, then we can use all of the stage 1 emissions.
@@ -466,13 +481,13 @@ class OutputEmis:
             self.gc_relative_mass_stage1 = np.asarray(self.gc_relative_mass[self.nlev-self.MECO_alt_index-1:])
             
             # If the rocket is Falcon v1.2 Block 5, then MECO is always in GC, and 93.2% of the emissions are used for ascent.
-            # TODO: Boostback burn.
-            # This is where we need to account for an extra percentage going towards a boostback burn for several launches.
-                # 2020 - 4 ground
-                # 2021 - 1 ground
-                # 2022 - 11 ground
+            # There is an extra 'boostback' burn for ground landings. No information of % of propellant, so assumed to be equal to the reentry burn.
             if launch_rocket == "Falcon 9 v1.2" and self.include_landing == True:
-                self.gc_relative_mass_stage1 = self.gc_relative_mass_stage1 / np.sum(self.gc_relative_mass_stage1) * (100-5.6-1.2)
+                if launch_id in self.ground_landing_list:
+                    landing_prop_percent = 100-5.6-5.6-1.2
+                else:
+                    landing_prop_percent = 100-5.6-1.2
+                self.gc_relative_mass_stage1 = self.gc_relative_mass_stage1 / np.sum(self.gc_relative_mass_stage1) * landing_prop_percent
             # For all other rockets, 100% is used for ascent.
             else:
                 self.gc_relative_mass_stage1 = self.gc_relative_mass_stage1 / np.sum(self.gc_relative_mass_stage1) * 100
@@ -485,18 +500,12 @@ class OutputEmis:
         
         else:
             # If SEI occurs below the the GC boundary, then we can use some of the stage 2 emissions.
-            
-            # This code works out if MECO and SEI occur at the same time, and if so then sets SEI to occur in the layer above MECO to prevent a spike in emissions.
-            # Removed 28/7/23, as emissions from each stage should always be released into the proper altitude regardless of the other stages.
-            #if rocket_config_type in [2,4,5]:
-            #    print(self.MECO_alt_index)
-            #    self.SEI_alt_index = self.MECO_alt_index + 1    
-            #else:
-            #    self.SEI_alt_index = np.argmin(np.abs(self.meco_levs[rocket_config_type]*1e3 - self.mid_alt[:,q,p]))
-            
-            self.SEI_alt_index = np.argmin(np.abs(self.meco_levs[rocket_config_type]*1e3 - self.mid_alt[:,q,p]))
+            self.SEI_alt_index = np.argmin(np.abs(self.sei_levs[rocket_config_type]*1e3 - self.mid_alt[:,q,p]))
             self.gc_relative_mass_stage2 = np.asarray(self.gc_relative_mass[:self.nlev-self.SEI_alt_index])
-            self.gc_relative_mass_stage2 = self.gc_relative_mass_stage2 / (np.sum(self.gc_relative_mass_stage2) + (100 - self.propellant_in_gc)) * 100
+            # Now interpolate the cumulative mass to optimise what percentage of propellant is within GEOS-Chem.
+            sei_mass = np.interp(self.sei_levs[rocket_config_type],self.ross_alt[::-1], self.ross_cumulative_mass[::-1])
+            gc_percent = (self.propellant_in_gc - sei_mass) / (100 - sei_mass) * 100
+            self.gc_relative_mass_stage2 = self.gc_relative_mass_stage2 / np.sum(self.gc_relative_mass_stage2) * gc_percent
 
         # Finally create an extra stage just for the landing emissions of Falcon 9 v1.2. 
         if launch_rocket in ["Falcon 9 v1.2","Falcon Heavy"]:
@@ -715,13 +724,14 @@ class OutputEmis:
                 pei_stage3_index  = np.where( rocket_data.pei_fuel_type == rocket_data.stage3_prop_type[valid_index] )[0]
                 pei_stage4_index  = np.where( rocket_data.pei_fuel_type == rocket_data.stage4_prop_type[valid_index] )[0]
                 
-                rocket_config_type = self.process_launch_event_altitudes(valid_index, p, q, launch_rocket[w])
+                rocket_config_type = self.process_launch_event_altitudes(valid_index, p, q, launch_rocket[w],launch_id[w])
 
                 ##############################################
                 # Deal with failed launches.
                 ############################################## 
                 
                 # 11 in 2020, 11 in 2021, 7 in 2022
+                # TODO: Deal with failures.
                 
                 # Most failures are for upper stages, and so can be treated as normal here.
                 # Full information is provided in README.txt
@@ -772,6 +782,7 @@ class OutputEmis:
                     sys.exit("Error with Stage 2 emissions.")
                 
                 # When MECO occurs in GC, the consumed propellant should be within 1% of the total propellant mass of stage 1.  
+                # # TODO: This may apply to 2021/2022 failures.
                 # The error is suppressed for F07, where the Astra Rocket failed after 22s. Also suppressed for Falcon 9, as this has a reusable first stage.
                 # A check that the Falcon landing distribution is no greater than 7% of the stage 1 emissions is undertaken later in the grid_emis function.
                 if self.meco_levs[rocket_config_type] < 80:
@@ -821,6 +832,7 @@ class OutputEmis:
                 if np.sum(1e-2 * self.gc_relative_mass_stage1) > 1.01:
                     sys.exit("Error with Stage 1. Propellant distribution exceeds unity.")
                     
+                # TODO: Different levels if LauncherOne.    
                 total_vertical_propellant = self.calc_emis(self.MECO_alt_index,
                                 None,
                                 pei_stage1_index,
@@ -833,7 +845,7 @@ class OutputEmis:
                                 total_vertical_propellant)
 
                 # Check whether there is a second stage:
-                if rocket_data.stage2_prop_type[valid_index] != '' and self.SEI_alt_index != self.nlev and launch_id[w][-3:] != 'F03':
+                if rocket_data.stage2_prop_type[valid_index] != '' and self.SEI_alt_index != self.nlev:
                     if np.sum(1e-2 * self.gc_relative_mass_stage2) > 1.01:
                         sys.exit("Error with Stage 2. Propellant distribution exceeds unity.")
                         
@@ -849,23 +861,59 @@ class OutputEmis:
                                 total_vertical_propellant)
                     
                 # If the rocket is a Falcon 9, then add the landing emissions. Kerosene, so no Al2O3 or Cly.     
-                # TODO: 2023. 
-                # If this was ever run for 2023, then the Falcon Heavy landing might be altered. 
                           
                 # TODO: Falcon 9 geolocations.
                 # This should do better geolocation. Raul's SpaceX Map?
-                # 3) Falcon Heavy 
+                # 3) Falcon Heavy
                 if rocket_data.rocket_name[valid_index] in ["Falcon 9 v1.2","Falcon Heavy"] and self.include_landing == True:
-                    if launch_id[w] == "2020-086":
-                        falcon_q = q
+                    if launch_id[w] in self.ground_landing_list:
                         falcon_p = p
+                        falcon_q = q
                     else:
-                        # TODO: 2x2.5
-                        # This would need to be edited if a different resolution was used.
-                        falcon_q = q + 1
-                        falcon_p = p + 1
+                        matching = self.ocean_landings[self.ocean_landings["Date"].isin([f"{self.year}-{self.strmon}-{self.strday}"])].reset_index(drop=True)
+                        # There is a typo in the databse, a 2023 launch is listed as 2022.      
+                        if (matching.shape[0] == 1) or (f"{self.year}-{self.strmon}-{self.strday}" == "2022-04-27"):
+                            falcon_lat = np.array(matching["geometry"].y)[0]
+                            falcon_lon = np.array(matching["geometry"].x)[0]
+                            falcon_p, falcon_q = np.argmin(abs(falcon_lon-self.lon)), np.argmin(abs(falcon_lat-self.lat))
+                        # There are two launches on the same day.
+                        elif launch_id[w] == "2022-124":
+                            falcon_lat = np.array(matching["geometry"].y)[0]
+                            falcon_lon = np.array(matching["geometry"].x)[0]
+                            falcon_p, falcon_q = np.argmin(abs(falcon_lon-self.lon)), np.argmin(abs(falcon_lat-self.lat))
+                        elif launch_id[w] == "2022-125":
+                            falcon_lat = np.array(matching["geometry"].y)[1]
+                            falcon_lon = np.array(matching["geometry"].x)[1]
+                            falcon_p, falcon_q = np.argmin(abs(falcon_lon-self.lon)), np.argmin(abs(falcon_lat-self.lat))
+                        elif matching.shape[0] == 0:
+                            # The database hasn't been well updated for 2022, so lets just fill in based on 400km downrange from launch site.
+                            print(lon[w],lat[w])
+                            if lon[w] == -81.0 and lat[w] == 28.5:
+                                # East Coast Launch.
+                                pass
+                            elif lon[w] == -120.6 and lat[w] == 34.7:
+                                # West Coast Launch.
+                                pass
+                            else:
+                                sys.exit("Launch not from assigned site.")
+                            print(f"Problem geolocating Falcon Stage 1 landing for {launch_id[w]}.")
+                            falcon_p = p
+                            falcon_q = q
+                            #sys.exit(f"Problem geolocating Falcon Stage 1 landing for {launch_id[w]}.")
+                        elif matching.shape[0] > 1: 
+                            sys.exit(f"Multiple ocean entries for Falcon Stage 1 landing for {launch_id[w]}.")
+                        else:
+                            sys.exit(f"Problem geolocating Falcon Stage 1 landing for {launch_id[w]}") 
+                            
+                        if falcon_p > self.pmax:
+                            self.pmax = falcon_p
+                            #print(f"Falcon9 stage 1 reentry longitude out of bounds for {launch_id[w]}. Updating bounds.")
+                        if falcon_q > self.qmax:
+                            self.qmax = falcon_q
+                            #print(f"Falcon9 stage 1 reentry latitude out of bounds for {launch_id[w]}. Updating bounds.")                  
+                    
                     if np.sum(self.gc_relative_mass_entry) + np.sum(self.gc_relative_mass_landing) > 7:
-                        sys.exit("Error with Stage 1 Landing. Propellant distribution exceeds what is expected.")
+                        sys.exit("Error with Stage 1 Ocean Landing. Propellant distribution exceeds what is expected.")
                         
                     if rocket_data.rocket_name[valid_index] == "Falcon 9 v1.2":
                         pei = pei_stage1_index
@@ -873,6 +921,8 @@ class OutputEmis:
                     elif rocket_data.rocket_name[valid_index] == "Falcon Heavy":
                         pei = pei_booster_index
                         prop_mass = rocket_data.booster_prop_mass[valid_index]
+                        # TODO: 2023
+                        # If this script is run for future years (2023), then check if the Falcon Heavy still lands both boosters and not core stage.
                     
                     # First the entry emissions.
                     total_vertical_propellant = self.calc_emis(self.entry_top,
@@ -1229,7 +1279,7 @@ class OutputEmis:
         # Close the file:
         ncout.close()
 
-def check_total_emissions(year):
+def check_total_emissions(year,dataset):
     """ Print total emissions of each species.
         The total emissions including all afterburning are compared to a scenario where only primary emission indices are used.
     """    
@@ -1274,7 +1324,10 @@ def check_total_emissions(year):
                                         total_missing_emis,percent_missing_emis, total_missing_prop, percent_missing_prop]}
     df = pd.DataFrame(data)
     print(df.round(2))    
-    df.to_csv(f".\Emission_Output\EmissionTotals_{year}.csv",sep=',')
+    if dataset == 3:
+        df.to_csv(f".\Emission_Output\EmissionTotals_{year}.csv",sep=',')
+    else:
+        df.to_csv(f".\Emission_Output\EmissionTotals_{year}_{dataset}.csv",sep=',')
     
 # Main section of the program
 if __name__ == "__main__":
@@ -1286,33 +1339,24 @@ if __name__ == "__main__":
     parser.add_argument('-g', "--grid_res", default = "4x5", choices=["4x5", "2x2.5"], help='Grid resolution.')
     parser.add_argument('-sm', "--start_month", default = "1", choices=str(np.arange(1,13)), help='Start Month (will override final month if greater than final month).')
     parser.add_argument('-fm', "--final_month", default = "12", choices=str(np.arange(1,13)), help='Final Month.')
-    parser.add_argument('-v', "--verbose", action='store_true')
     parser.add_argument('-d', "--dataset", default = "3", choices=str(np.arange(1,4)), help='Dataset. 1=Non-SMC, 2=SMC, 3=All')
-    parser.add_argument('-y', "--year", default = "2020", help='Simulation Year.')
+    parser.add_argument('-sy', "--start_year", default = "2020", choices=str(np.arange(2020,2023)), help='Start Year.')
+    parser.add_argument('-fy', "--final_year", default = "2020", choices=str(np.arange(2020,2023)), help='Final Year.')
     args = parser.parse_args()
-    
-    year = int(args.year)
 
-    # Read the rocket emissions from the database.
-    datadir = './Databases/'
-    launch_path          = path.join(datadir, f'launch_info_{year}.nc')
-    if year == 2020:
-        reentry_path     = path.join(datadir, f'reentry_info_{year}_jcat_20231121_125009.nc')
-    else:
-        # TODO: Myriad.
-        # Update the reentry filepath when Myriad is back.
-        reentry_path     = ""
-        pass
-    rocket_info_path = path.join(datadir, f'rocket_info_{year}.nc')
-    pei_path         = path.join(datadir, 'PEI_info.csv')
-    outdir = f'./Output/{year}/'    
-    rocket_data = RocketData(launch_path, reentry_path, rocket_info_path, pei_path)
-
-    ##########################################################
-    # Calculate the distribution of rocket emissions and save.
-    ##########################################################
+    # Sort out the year range.
+    start_year = int(args.start_year)
+    final_year = int(args.final_year)
+    if start_year > final_year:
+        final_year = start_year + 1
+    print(f"Processing from year {start_year} to {final_year}.")
+    year_range = np.arange(start_year,final_year+1)  
     
-    ''' Define booster and re-entry levels. '''
+    # Import the Falcon landing data.
+    fiona.drvsupport.supported_drivers['KML'] = 'rw'
+    raul_data = gpd.read_file('./Databases/General_SpaceX_Map_Raul.kml', driver='KML', layer =2)
+      
+    # Define booster and re-entry levels.
     # TODO: Probably need to update alts for 2021/22 launches based on different rockets.
     
     # In 2019, boosters set to extend to ~45 km (layer 44 of the 47-layer model, layer 57 of the 72-layer model).
@@ -1341,9 +1385,10 @@ if __name__ == "__main__":
     
     # These are the raw altitudes, they are converted to a GC layer inside the OutputEmis class.
     # To stop overlap between MECO and SEI, going to set SEI to start in layer above MECO for last two configs.
-    booster_cutoff_alts = [63,63,24,0,0,0]
-    MECO_alts           = [163,158,57,73,69,39]
-    SEI_alts            = [176,159,57,92,69,39]
+    # Final item in lists is LauncherOne, which has special altitude ranges.
+    booster_cutoff_alts = [63,63,24,0,0,0,0]
+    MECO_alts           = [163,158,57,73,69,39,91.25]
+    SEI_alts            = [176,159,57,92,69,39,97.95]
     
     # N.B. Re-entry emissions are placed in the GC layer at ~68 km (reentry burnup location).
     # The emissions are evenly distributed across two vertical layers in the model.
@@ -1358,6 +1403,9 @@ if __name__ == "__main__":
         reentry_levs = [64,71]
     else:
         sys.exit("Invalid number of levels.")
+        
+    ground_landing_list = ["2020-016","2020-059","2020-086","2020-101", "2021-059", "2022-002","2022-008","2022-009",
+                           "2022-040","2022-057","2022-063","2022-144","2022-166","2022-168","2022-173","2022-179"]
         
     ''' Define resolutions and set timings '''
     
@@ -1401,19 +1449,36 @@ if __name__ == "__main__":
     print(f"Processing from month {start_month} to {final_month}.")
     months = np.arange(start_month-1,final_month)    
     
-    # Go through process of gridding and saving rocket emissions:
-    emis_data = OutputEmis(rocket_data, 
-                           grid_res, 
-                           timestep, 
-                           levels, 
-                           booster_cutoff_alts, 
-                           MECO_alts, 
-                           SEI_alts, 
-                           reentry_levs, 
-                           gcdir, 
-                           months,
-                           int(args.dataset),
-                           year
-                           )
-        
-    check_total_emissions(year)
+    #Loop over all years and run functions depending on input arguments.
+    for year in year_range:
+
+        # Read the rocket emissions from the database.
+        datadir = './Databases/'
+        launch_path          = path.join(datadir, f'launch_info_{year}.nc')
+        if year == 2020:
+            reentry_path     = path.join(datadir, f'reentry_info_{year}_jcat_20231121_125009.nc')
+        else:
+            # TODO: Add back after reentries added.
+            reentry_path     = ""
+        rocket_info_path = path.join(datadir, f'rocket_info_{year}.nc')
+        pei_path         = path.join(datadir, 'PEI_info.csv')
+        outdir = f'./Output/{year}/'    
+        rocket_data = RocketData(launch_path, reentry_path, rocket_info_path, pei_path)
+    
+        # Go through process of gridding and saving rocket emissions:
+        emis_data = OutputEmis(rocket_data, 
+                            grid_res, 
+                            timestep, 
+                            levels, 
+                            booster_cutoff_alts, 
+                            MECO_alts, 
+                            SEI_alts, 
+                            reentry_levs, 
+                            gcdir, 
+                            months,
+                            int(args.dataset),
+                            year,
+                            ground_landing_list
+                            )
+            
+        check_total_emissions(year,int(args.dataset))

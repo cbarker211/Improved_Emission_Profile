@@ -139,36 +139,16 @@ def interp_prop_mass(bot_alt, mid_alt, top_alt, ross_alt, ross_cumulative_mass, 
         j (numpy.int64): latitude index of model gridbox where launch occurs.
     """        
     # Interpolate the cumulative distribution to work out how much propellant is emitted above the top altitude.
-    # y = y1 + ((x – x1) / (x2 – x1)) * (y2 – y1)]
-    h = top_alt[-1,j,i]*1e-3
-    for count, alt in enumerate(ross_alt):
-        if alt-h < 0:
-            break
-    ross_ind = count - 1
-    propellant_in_gc = ross_cumulative_mass[ross_ind] + ((h - ross_alt[ross_ind]) /
-                                    (ross_alt[ross_ind-1] - ross_alt[ross_ind])) * (ross_cumulative_mass[ross_ind-1] - ross_cumulative_mass[ross_ind])
+    propellant_in_gc = np.interp(top_alt[-1,j,i]*1e-3, ross_alt[::-1], ross_cumulative_mass[::-1])
     
     
     # Define array of percent distribution of propellant mass on GEOS-Chem grid:
     # This sets up an array over number of GEOS-Chem levels (47 or 72).
     gc_relative_mass = np.zeros_like(mid_alt[:,j,i])
-    count = 0
     # Loop over GEOS-Chem layers in reverse:
     for l, h in enumerate(reversed(mid_alt[:,j,i])):
-        # Find Ross profile layer closest to centre altitude of GEOS-Chem grid:
-        #ross_ind = np.argmin(np.abs(h*1e-3 - ross_alt)) # old method, wasn't interpolating properly.
-        for count, alt in enumerate(ross_alt):
-            if alt-h*1e-3 < 0:
-                break
-            if h*1e-3 > 2.5:
-                ross_ind = count + 1
-            else:
-                ross_ind = count
-
-        # Interpolate, and clip so that no values are above 17.5%.
-        gc_relative_mass[l] = np.clip(ross_prop_mass[ross_ind-1] + ((h*1e-3 - ross_alt[ross_ind-1]) /
-                                            (ross_alt[ross_ind] - ross_alt[ross_ind-1])) * (ross_prop_mass[ross_ind] - ross_prop_mass[ross_ind-1]),
-                                        None,17.5)
+        # Interpolate, and clip so that no values are above 17.3%.
+        gc_relative_mass[l] = np.clip(np.interp(h*1e-3,ross_alt[::-1], ross_prop_mass[::-1]),None,17.3)
         
         # Now scale by the box height and the fact that the Ross altitude is in 5 km bins.
         gc_relative_mass[l] = gc_relative_mass[l] / 5 * (top_alt[nlev-l-1,j,i]*1e-3 - bot_alt[nlev-l-1,j,i]*1e-3)
@@ -176,45 +156,6 @@ def interp_prop_mass(bot_alt, mid_alt, top_alt, ross_alt, ross_cumulative_mass, 
     
     # ~ 22% of propellant is consumed above the GC-boundary each time.
     # Normalize so that the portion in GC adds to ~ 68%:
-    gc_relative_mass = propellant_in_gc * gc_relative_mass / np.sum(gc_relative_mass) 
-    
-    # This routine scales gc_relative_mass by the mass that should be in each bin. Not used, simpler function above used instead.
-    #for count, mid_alt in enumerate(self.ross_alt):
-    #    prop_mass_in_bin = 0
-    #    top_alt = mid_alt + 2.5
-    #    bot_alt = mid_alt - 2.5
-    #    index_range=[]
-    #    for level, gc_alt in enumerate(self.mid_alt[:,j,i]):
-    #        box_height = self.top_alt[level,j,i]-self.bot_alt[level,j,i]
-    #        if bot_alt <= gc_alt*1e-3 <= top_alt:
-    #            prop_mass_in_bin += self.gc_mass_reversed[level]   
-    #            index_range.append(level)
-    #    if len(index_range) > 0:
-    #        if mid_alt == 2.5:
-    #            self.gc_mass_reversed[min(index_range):max(index_range)+1] = ross_prop_mass[count] / len(index_range)
-    #        else:
-    #            self.gc_mass_reversed[min(index_range):max(index_range)+1] = self.gc_mass_reversed[min(index_range):max(index_range)+1] * ross_prop_mass[count] / prop_mass_in_bin
+    gc_relative_mass = gc_relative_mass / np.sum(gc_relative_mass) * propellant_in_gc
     
     return propellant_in_gc, gc_relative_mass
-
-def define_scale_factors_old():
-    """Create vertical fuel burned scale factors for the 47-layer GEOS-Chem model.
-    This is not used any more."""        
-    
-    # Scale factors obtained by regridding vertical profile from Ross and Sheaffer (2014) to the GEOS-Chem vertical grid.
-    # https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2013EF000160
-    # This was original added by Eloise to manually regrid Ross2014 to GEOSChem. Now automatically doing this in interp_prop_mass.
-    scale_emis=[0.049891495, 0.111470331, 0.078233471, 0.063383364,
-                0.060797961, 0.059372945, 0.053323669, 0.046966629,
-                0.023518583, 0.025045331, 0.023940206, 0.02557847,
-                0.012627866, 0.012796323, 0.013007597, 0.019845309,
-                0.020190667, 0.018954765, 0.016881733, 0.015656558,
-                0.014616122, 0.009489471, 0.020372272, 0.018580066,
-                0.017329028, 0.01620592,  0.015434268, 0.014502025,
-                0.014023726, 0.013345366, 0.008601074, 0.008422093,
-                0.008250749, 0.007984673, 0.007841863, 0.006174571,
-                0.004551207, 0.004493408, 0.004437623, 0.004394395,
-                0.004352409, 0.004298898, 0.004244104, 0.004205638,
-                0.00416808,  0.004117436, 0.004080244]
-    # Data are from layer 47 to the surface, aso need to be reversed:
-    scale_emis = scale_emis[::-1]
