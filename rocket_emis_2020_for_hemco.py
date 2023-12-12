@@ -399,8 +399,8 @@ class OutputEmis:
         df = pd.DataFrame(self.output_for_csv)
         df_2 = pd.DataFrame(self.output_for_csv_2)
         if len(months) == 12:
-            df.to_csv(f"./Databases/Emission_Distribution_{self.year}.csv", float_format='%.3f')
-            df_2.to_csv(f"./Databases/Species_Distribution_{self.year}.csv", float_format='%.3f')
+            df.to_csv(f"./Emission_Output/Emission_Distribution_{self.year}.csv", float_format='%.3f')
+            df_2.to_csv(f"./Emission_Output/Species_Distribution_{self.year}.csv", float_format='%.3f')
              
     def process_launch_event_altitudes(self, valid_index, p, q, launch_rocket):
         # Now define the rocket configuration.
@@ -1274,7 +1274,7 @@ def check_total_emissions(year):
                                         total_missing_emis,percent_missing_emis, total_missing_prop, percent_missing_prop]}
     df = pd.DataFrame(data)
     print(df.round(2))    
-    df.to_csv(f".\Databases\EmissionTotals_{year}.csv",sep=',')
+    df.to_csv(f".\Emission_Output\EmissionTotals_{year}.csv",sep=',')
     
 # Main section of the program
 if __name__ == "__main__":
