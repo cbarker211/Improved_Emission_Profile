@@ -736,15 +736,17 @@ class import_launches_from_discos:
         
     def save_discosweb_reentries(self):
         
-        # Query DISCOSweb for all 2020-reentries.
+        # Query DISCOSweb for all reentries.
         start_epoch = f'{str(self.year)}-01-01'
         end_epoch = f'{str(self.year+1)}-01-01'  
         full_reentry_list = []
+        page_number = 1
         while True:
             #The filtering params currently get all reentries between start_epoch and end_epoch, sorted by epoch.
             params={
                     'filter': f"ge(epoch,epoch:'{start_epoch}')&lt(epoch,epoch:'{end_epoch}')",
-                    'sort' : 'epoch'
+                    'sort' : 'epoch',
+                    'page[number]' : page_number
                 }
             response = server_request(params, '/reentries')
             if response.ok:
@@ -752,11 +754,9 @@ class import_launches_from_discos:
                 temp_reentry_list = doc['data']
                 full_reentry_list.extend(temp_reentry_list)
                 #Each request gives a 'page' of results, and the maximum is 30 results per page. 
-                #You can get the next page using the doc["links"]["next"] output, but this way works just as well.
-                #Here, we simply start again from the end epoch of the last found reentry. 
-                #This creates duplicates however, which are removed later.
+                #The script loops to request the next page.               
                 if len(temp_reentry_list) == 30:
-                    start_epoch = temp_reentry_list[-1]["attributes"]["epoch"][0:19]
+                    page_number += 1
                     continue
                 else:
                     break
