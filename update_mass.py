@@ -46,11 +46,12 @@ def update_mass_info(i,temp_dict,unique_vehicle_name_list):
         temp_dict[f"Stage1 Stage Mass"]       = (9800+10500) / 2  # SLR/Sp101
         temp_dict[f"Stage2 Propellant Mass"]  = 25700  # Manual
         temp_dict[f"Stage2 Stage Mass"]       = 2355   # Sp101
-        # There shouldn't be a stage 3.
-        temp_dict[f"Stage3 Propellant Mass"]  = 0
-        temp_dict[f"Stage3 Stage Mass"]       = 0
-        temp_dict[f"Stage3 Propellant Name"]  = ''
-        temp_dict[f"Stage3 Fuel Type"]        = ''
+        # https://www.russianspaceweb.com/angara1.html There is an 'Aggregate Module' upper stage according to this.
+        # Setting using DW info.
+        temp_dict[f"Stage3 Propellant Mass"]  = 2000
+        temp_dict[f"Stage3 Stage Mass"]       = 1000
+        temp_dict[f"Stage3 Propellant Name"]  = 'UDMH (Unsymmetrical Dimethyl Hydrazine)/N2O4'
+        temp_dict[f"Stage3 Fuel Type"]        = 'Hypergolic'
         temp_dict[f"Fairing Mass"] = (500+810)/2 # Two options on Sp101.
             
     if unique_vehicle_name_list[i] == "Ariane 5ECA":
