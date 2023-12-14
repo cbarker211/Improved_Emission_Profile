@@ -51,7 +51,7 @@ class RocketData:
     def __init__(self,launchfile,reentryfile, rocketinfofile, peifile):
         
         self.read_launch_emissions(launchfile)
-        #self.read_reentry_emissions(reentryfile) # TODO: Add back after reentries added.
+        self.read_reentry_emissions(reentryfile)
         self.read_rocket_info(rocketinfofile)
         self.define_pei(peifile)
     
@@ -252,8 +252,8 @@ class OutputEmis:
         #self.lat2d = Y
         
         # Create the arrays for the output file to check prop/species distribution.
-        #reentry_length = len(rocket_data.reentry_id) # TODO: Add back after reentries added.
-        reentry_length = 0
+        reentry_length = len(rocket_data.reentry_id)
+        #reentry_length = 0
         self.output_for_csv = np.zeros(((len(rocket_data.launch_id)+reentry_length)*3,self.nlev))
         self.csv_count = 0
         self.output_for_csv_2 = np.zeros(((len(rocket_data.launch_id)+reentry_length)*8,self.nlev))
@@ -348,18 +348,18 @@ class OutputEmis:
                 self.pmin,self.pmax=np.nan,np.nan
                 self.qmin,self.qmax=np.nan,np.nan
 
-                # Define output file name for this day: # TODO: Add back after reentries added.
+                # Define output file name for this day:
                 if self.dataset == 1:
                     l_ind=np.where((rocket_data.launch_month==(m+1))&(rocket_data.launch_day==(d+1))&(~np.isnan(rocket_data.launch_time))&(rocket_data.launch_mcs==False))[0]
-                    #r_ind=np.where((rocket_data.reentry_month==(m+1))&(rocket_data.reentry_day==(d+1))&(~np.isnan(rocket_data.reentry_time))&(rocket_data.reentry_mcs==False))[0]
+                    r_ind=np.where((rocket_data.reentry_month==(m+1))&(rocket_data.reentry_day==(d+1))&(~np.isnan(rocket_data.reentry_time))&(rocket_data.reentry_mcs==False))[0]
                     self.outfile_rocket_emis = path.join(outdir,self.strmon,f'ROCKET_EMIS_{res}_{str(self.nlev)}L_{self.year}{self.strmon}{self.strday}.nc4')
                 elif self.dataset == 2:
                     l_ind=np.where((rocket_data.launch_month==(m+1))&(rocket_data.launch_day==(d+1))&(~np.isnan(rocket_data.launch_time))&(rocket_data.launch_mcs==True))[0]
-                    #r_ind=np.where((rocket_data.reentry_month==(m+1))&(rocket_data.reentry_day==(d+1))&(~np.isnan(rocket_data.reentry_time))&(rocket_data.reentry_mcs==True))[0]
+                    r_ind=np.where((rocket_data.reentry_month==(m+1))&(rocket_data.reentry_day==(d+1))&(~np.isnan(rocket_data.reentry_time))&(rocket_data.reentry_mcs==True))[0]
                     self.outfile_rocket_emis = path.join(outdir,self.strmon,f'ROCKET_EMIS_MCS_{res}_{str(self.nlev)}L_{self.year}{self.strmon}{self.strday}.nc4')
                 elif self.dataset == 3:
                     l_ind=np.where((rocket_data.launch_month==(m+1))&(rocket_data.launch_day==(d+1))&(~np.isnan(rocket_data.launch_time)))[0]
-                    #r_ind=np.where((rocket_data.reentry_month==(m+1))&(rocket_data.reentry_day==(d+1)))[0]
+                    r_ind=np.where((rocket_data.reentry_month==(m+1))&(rocket_data.reentry_day==(d+1)))[0]
                     self.outfile_rocket_emis = path.join(outdir,self.strmon,f'ROCKET_EMIS_ALL_{res}_{str(self.nlev)}L_{self.year}{self.strmon}{self.strday}.nc4')
                     
                 ########################################################################
@@ -383,21 +383,21 @@ class OutputEmis:
                 # Call grid_emis function to calculate distribution from re-entries
                 ########################################################################              
                 
-                #if len(r_ind)>0: # TODO: Add back after reentries added.
-                #    #print('----> Day processing: ',self.strday,f"{len(r_ind)} Re-entries.")
-                #    self.grid_emis(r_ind,
-                #                   rocket_data.reentry_lons[r_ind],
-                #                   rocket_data.reentry_lats[r_ind],
-                #                   rocket_data.reentry_time[r_ind],
-                #                   'reentry',
-                #                   ' ',
-                #                   ' ',
-                #                   d,
-                #                   m,
-                #                   )
-                #    
-                #    # Sum up all re-entry NOx (kg):
-                #    #self.nox_reentry_total += sum(rocket_data.reentry_nox[r_ind])
+                if len(r_ind)>0:
+                    #print('----> Day processing: ',self.strday,f"{len(r_ind)} Re-entries.")
+                    self.grid_emis(r_ind,
+                                   rocket_data.reentry_lons[r_ind],
+                                   rocket_data.reentry_lats[r_ind],
+                                   rocket_data.reentry_time[r_ind],
+                                   'reentry',
+                                   ' ',
+                                   ' ',
+                                   d,
+                                   m,
+                                   )
+                    
+                    # Sum up all re-entry NOx (kg):
+                    #self.nox_reentry_total += sum(rocket_data.reentry_nox[r_ind])
 
                 ####################################
                 # Save file as NetCDF
@@ -1071,7 +1071,7 @@ class OutputEmis:
                     if rocket_data.reentry_stage[index[w]] in [1,5]:
                         al_burnup_factor = 0
                     else:
-                        sys.exit("Reusuable reentry not payload or 1st stage.") 
+                        print("Reusuable reentry not payload or 1st stage.") 
                     nox_burnup_factor = 0.175
                  
                 # For consistency with launch emissions, the totals are kept in g units. 
@@ -1488,9 +1488,12 @@ if __name__ == "__main__":
         datadir = './Databases/'
         launch_path          = path.join(datadir, f'launch_info_{year}.nc')
         if year == 2020:
-            reentry_path     = path.join(datadir, f'reentry_info_{year}_jcat_20231121_125009.nc')
+            reentry_path     = path.join(datadir, f'reentry_info_{year}_jcat_test.nc')
+        elif year == 2021:
+            reentry_path     = path.join(datadir, f'reentry_info_{year}_jcat_test.nc')
+        elif year == 2022:
+            reentry_path     = path.join(datadir, f'reentry_info_{year}_jcat_test.nc')
         else:
-            # TODO: Add back after reentries added.
             reentry_path     = ""
         rocket_info_path = path.join(datadir, f'rocket_info_{year}.nc')
         pei_path         = path.join(datadir, 'PEI_info.csv')
