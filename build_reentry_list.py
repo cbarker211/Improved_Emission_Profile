@@ -537,7 +537,7 @@ class build_reentry_list:
         # Load in the database.
         jsr_data = pd.read_csv(filepath, delimiter='\t', dtype=object)
         # Only include specific statuses (see https://planet4589.org/space/gcat/web/intro/phases.html)
-        jsr_data_stripped = jsr_data[jsr_data["Status"].isin(["R","R?","D","L","L?","AR","S","F","AS","AF"])].reset_index(drop=True)
+        jsr_data_stripped = jsr_data[jsr_data["Status"].isin(["R","R?","D","L","L?","S","F","AF","AS"])].reset_index(drop=True)
         
         jsr_data_stripped_2020_list = []
         for reentry_count in range(len(jsr_data_stripped)):
@@ -552,7 +552,7 @@ class build_reentry_list:
             if jsr_data_stripped["DDate"][reentry_count][0:4] != "-" and jsr_data_stripped["#JCAT"][reentry_count] not in ["R80054","R80055","L80348"]:
                 # Note: A negative apogee means that the object was in a hyperbolic orbit (velocity above escape velocity), so passes by Earth.
                 # However, Hayabusa2 (apogee=-54771) did reenter on 5th Dec, so including this.
-                
+
                 if (jsr_data_stripped["Apogee"][reentry_count] == "-") or ("Inf" in jsr_data_stripped["Apogee"][reentry_count]):
                     jsr_data_stripped["Apogee"][reentry_count] = 0
                 
@@ -563,17 +563,16 @@ class build_reentry_list:
                     and jsr_data_stripped["Piece"][reentry_count][:8] not in ["2021-U01","2022-U01","2022-U03"]   # No military test flights.
                     and jsr_data_stripped["Primary"][reentry_count] == "Earth"                                    # Only objects whose primary body is Earth.
                 ): 
-                    jsr_data_stripped_2020_list.append(jsr_data_stripped.iloc[[reentry_count]])
+                    if jsr_data_stripped["Status"][reentry_count] == "AS":
+                        if jsr_data_stripped["Piece"][reentry_count][5:6] in ["F","U"]: 
+                            jsr_data_stripped_2020_list.append(jsr_data_stripped.iloc[[reentry_count]])
+                    else:
+                        jsr_data_stripped_2020_list.append(jsr_data_stripped.iloc[[reentry_count]])
         # Rebuild the database.
         if len(jsr_data_stripped_2020_list) > 0:          
             jsr_data_stripped_2020 = pd.concat(jsr_data_stripped_2020_list, ignore_index=True)
         else:
             jsr_data_stripped_2020 = []
-        
-        # TODO: In lprcat, objects reentering as AL or AR may be listed as primary of Earth, whereas the parent actually reentered or landed on another body.
-        # Should check this for all years. Also, an AL or AR object may have a non-Earth primary, but its parent has an Earth primary. Worth checking.
-        # TODO: Why don't we geolocate the AR/AL objects using the parent body, like in the cargo script.
-        
         # Now loop over the list and format into a dictionary.
         for reentry_count in range(len(jsr_data_stripped_2020)):
             
@@ -657,10 +656,9 @@ class build_reentry_list:
             else:
                 reentry_stage = -1
                 
-            for reentry in self.unique_reentry_list:
-                if jsr_id == reentry["id"] and jsr_name == reentry["name"] and reentry_stage != 0 and "fairing" not in jsr_name.lower():
+            #for reentry in self.unique_reentry_list:
+                #if jsr_id == reentry["id"] and jsr_name == reentry["name"] and reentry_stage != 0 and "fairing" not in jsr_name.lower():
                     #print(f"Already an item with id {jsr_id}, name {jsr_name}")
-                    pass
                 
             # Sort the inc.
             if jsr_inc == 0:
@@ -724,11 +722,121 @@ class build_reentry_list:
         jsr_data = pd.read_csv(filepath, delimiter='\t', dtype=object)        
         for reentry_count in range(len(jsr_data)):           
             if jsr_data["Status"][reentry_count] in ["AL IN","AR IN"] and int(jsr_data["DDate"][reentry_count][0:4]) == self.year:
+                cargo_found = False 
                 for reentry in self.unique_reentry_list:
                     if reentry["jcat"] == jsr_data["Parent"][reentry_count]:
-                        reentry["non_al_mass"] += np.float64(jsr_data["DryMass"][reentry_count])     
+                        reentry["non_al_mass"] += np.float64(jsr_data["DryMass"][reentry_count]) 
+                        cargo_found = True    
                         if jsr_data["Piece"][reentry_count][5:6] in ["F","U","S"]:
                             sys.exit(f'Cargo in failed/suborbital object {jsr_data["Piece"][reentry_count]}.')
+                    if reentry["jcat"] == "S51660" and jsr_data["#JCAT"][reentry_count] == "A09988":
+                        reentry["non_al_mass"] += np.float64(jsr_data["DryMass"][reentry_count])
+                        cargo_found = True
+                    if reentry["jcat"] == "A06581" and jsr_data["#JCAT"][reentry_count] == "A09680":
+                        reentry["non_al_mass"] += np.float64(jsr_data["DryMass"][reentry_count])
+                        cargo_found = True    
+                if cargo_found == False:
+                    print(f'Cargo missing for {jsr_data["Piece"][reentry_count]}')                    
+     
+    def add_attached(self):
+        
+        for filepath in ["./Databases/Reentry/JSR_Cat/satcat_2ndNov.tsv","./Databases/Reentry/JSR_Cat/auxcat_2ndNov.tsv",
+                            "./Databases/Reentry/JSR_Cat/lcat_2ndNov.tsv","./Databases/Reentry/JSR_Cat/rcat_2ndNov.tsv",
+                            "./Databases/Reentry/JSR_Cat/lprcat_2ndNov.tsv","./Databases/Reentry/JSR_Cat/deepcat_7thNov.tsv",
+                            "./Databases/Reentry/JSR_Cat/ecat_8thNov.tsv"]:
+            attached_data = pd.read_csv(filepath, delimiter='\t', dtype=object)
+            attached_data_stripped = attached_data[attached_data["Status"].isin(["AR","AS","AL"])].reset_index(drop=True)   
+            missing_list = []
+            added = 0
+            # First see if the parent is already in the reentry list. Add the mass to the parent object if it is, or add the details to a list if missing.
+            
+            for reentry_count in range(len(attached_data_stripped)): 
+                if int(attached_data_stripped["DDate"][reentry_count][0:4]) == self.year and attached_data_stripped["Piece"][reentry_count][5:6] not in ["S","F","U"]:
+                    #if attached_data_stripped["Status"][reentry_count] == "AL":
+                        #print("AL",filepath) 
+                    found_parent = False
+                    for reentry in self.unique_reentry_list:
+                        if reentry["jcat"][:6] == attached_data_stripped["Parent"][reentry_count][:6]:
+                            found_parent = True
+                            added += 1
+                            if reentry["id"][:8] != attached_data_stripped["Piece"][reentry_count][:8]:
+                                pass
+                                #print(f'Found missing item in original list. {reentry["id"]},{attached_data_stripped["Piece"][reentry_count]},{filepath}.')
+                            reentry["al_mass"] += np.float64(attached_data_stripped["DryMass"][reentry_count]) 
+                            
+
+                    if found_parent == False and filepath not in ["./Databases/Reentry/JSR_Cat/lprcat_2ndNov.tsv"]:
+                        missing_list.append([attached_data_stripped['Piece'][reentry_count],
+                                             attached_data_stripped['Parent'][reentry_count][:6],
+                                             attached_data_stripped["DryMass"][reentry_count],
+                                             filepath])          
+            # Loopover all items where the parent couldn't be found. The parent is always starts with A, but is usually in the ecat.
+            for i in range(len(missing_list)):
+                found_parent = False
+                if missing_list[i][1][0] != "A":
+                    sys.exit("Item has a missing parent from another database than auxcat.")
+                ecat_data = pd.read_csv("./Databases/Reentry/JSR_Cat/ecat_8thNov.tsv", delimiter='\t', dtype=object)  
+                # Now loop over the ecat and look for the parent.
+                for reentry_count in range(len(ecat_data)): 
+                    if (missing_list[i][1] == ecat_data['#JCAT'][reentry_count][:6]
+                    and ecat_data['Status'][reentry_count] in ["AR","AL"]):
+                        for reentry_count_2 in range(len(ecat_data)): 
+                            if (ecat_data['Parent'][reentry_count][:6] == ecat_data['#JCAT'][reentry_count_2][:6]
+                            and ecat_data['Status'][reentry_count_2] in ["D","L"]):
+                                # If we find the grandparent, then hopefully the object is already in the reentry list.
+                                for reentry in self.unique_reentry_list:
+                                    if ecat_data['#JCAT'][reentry_count_2][:6] == reentry["jcat"][:6]:
+                                        if reentry["id"][:8] != missing_list[i][0][:8]:
+                                            pass
+                                            #print(f'Found missing item in ecat. {reentry["id"]},{missing_list[i][0]},{filepath}.')
+                                        reentry["al_mass"] += np.float64(missing_list[i][2])
+                                        added += 1
+                                        found_parent = True
+                        
+                if found_parent == False:
+                    aux_data = pd.read_csv("./Databases/Reentry/JSR_Cat/auxcat_2ndNov.tsv", delimiter='\t', dtype=object)
+                    for reentry_count in range(len(aux_data)): 
+                        if (missing_list[i][1] == aux_data['#JCAT'][reentry_count][:6]
+                        and aux_data['Status'][reentry_count] in ["AR","AL"]):    
+                               
+                            # If the grandparent is also in the auxcat, then look for the grandparent.
+                            if aux_data['Parent'][reentry_count][0] == "A":             
+                                for reentry_count_2 in range(len(aux_data)): 
+                                    if (aux_data['Parent'][reentry_count][:6] == aux_data['#JCAT'][reentry_count_2][:6]
+                                        and aux_data['Status'][reentry_count_2] in ["D","L"]):
+                                        # If we find the grandparent, then hopefully the object is already in the reentry list.
+                                        for reentry in self.unique_reentry_list:
+                                            if aux_data['#JCAT'][reentry_count_2][:6] == reentry["jcat"][:6]:
+                                                if reentry["id"][:8] != missing_list[i][0][:8]:
+                                                    pass
+                                                    #print(f'Found missing item in existing reentries. {reentry["id"]},{missing_list[i][0]},{filepath}.')
+                                                reentry["al_mass"] += np.float64(missing_list[i][2])
+                                                added += 1
+                                                found_parent = True
+                            # If the grandparent starts with S, its either in the satcat or ecat, and has probably already been added to the list.
+                            elif aux_data['Parent'][reentry_count][0] == "S":
+                                for reentry in self.unique_reentry_list:
+                                    if aux_data['Parent'][reentry_count][:6] == reentry["jcat"][:6]:
+                                        if reentry["id"][:8] != missing_list[i][0][:8]:
+                                            pass
+                                            #print(f'Found missing item in existing reentries. {reentry["id"]},{missing_list[i][0]},{filepath}.')
+                                        reentry["al_mass"] += np.float64(missing_list[i][2])
+                                        added += 1
+                                        found_parent = True
+                            else:
+                                print("Grandparent does not start with S or A.")
+                # For 2022-002, for A10426/7/8, the parent chain is A09939/42 > 38 > 37. So just hard setting to avoid a huge indented block.            
+                if missing_list[i][1] in ["A09942","A09939"]:
+                    for reentry in self.unique_reentry_list:
+                        if reentry["jcat"][:6] == "A09937":
+                            reentry["al_mass"] += np.float64(missing_list[i][2])
+                            added += 1
+                            found_parent = True
+                                        
+                if found_parent == False:
+                    print(missing_list[i])
+                    
+            #print(added)
         
     def extract_aerospace_info(self, filepath):
         
@@ -849,7 +957,42 @@ class build_reentry_list:
                     for reentry in self.unique_reentry_list:
                         if reentry["id"][:8] == ds_dw["DISCOSweb_Reentry_ID"].values[reentry_count][:8] and str(reentry["reentry_stage"]) == str(reentry_stage):
                             found_stage = True
-                if found_stage == False:
+                            
+                skipped_ids = ["2014-065A", # Chang'e 5-T1, reentered in 2014.
+                               "2021-011A", # Progress MS-16 is listed in JSR as AR, so the mass is just added to the parent object and no object exists.
+                               # Progress MS-16 has been added though, so we can ignore it.
+                               "2020-001N", # Starlink, still in orbit??
+                               "2020-001T", # Starlink, still in orbit??
+                               "2017-069C", # Listed in JSR as still in orbit.
+                               "2020-001AQ",# Starlink, still in orbit??
+                               "2020-001BG",# Starlink, still in orbit??
+                               "2020-001BF",# Starlink, still in orbit??
+                               "2020-001A", # Starlink, still in orbit??
+                               "2021-122E", # Debris.
+                               "2020-001AU",# Starlink, still in orbit??
+                               "1967-014M", # Debris.
+                               
+                               "2022-010ID", # https://www.spacex.com/launches/sl4-7/ 49 starlink satellites launched.
+                               "2022-010IS", # https://en.wikipedia.org/wiki/List_of_Starlink_and_Starshield_launches 
+                               "2022-010IE", # Wiki says 38 satellites reentered by 12th Feb, so ignoring all of these.
+                               "2022-010IT", "2022-010IF", "2022-010IG", "2022-010IQ", "2022-010IR", "2022-010II",
+                               "2022-010IO", "2022-010IB", "2022-010IY", "2022-010IJ", "2022-010IU", "2022-010IV",
+                               "2022-010IAF","2022-010IH","2022-010IL",  "2022-010IX", "2022-010IAE","2022-010IW",       
+                               "2022-010IK", "2022-010IC",
+                               
+                               "2015-007B", # Debris.
+                               "2014-065B", # Reentered on the moon.
+                               "1990-010C", # Debris.
+                               "2022-085C", # Debris.
+                               "2022-094B", # Falcon Stage 2 # JSR has this has as deep space.
+                               "2014-047H", # Debris.
+                               "2021-110A", # Deorbited on Didymos.
+                               ]
+                
+                # Included IDs: 
+                #               2020-022A https://www.n2yo.com/satellite/?s=45464     
+                #               2020-029B DDate = "2023 Jan?", DISCOSweb has 31st Dec, so it has reentered and we can include.     
+                if found_stage == False and ds_dw['DISCOSweb_Reentry_ID'].values[reentry_count] not in skipped_ids:
                     print(f"Adding object with COSPAR ID {ds_dw['DISCOSweb_Reentry_ID'].values[reentry_count]}")          
                 
                     if ds_dw["DISCOSweb_Reentry_Class"].values[reentry_count] in ["Rocket Mission Related Object","Payload Mission Related Object","Payload"]:
@@ -1111,6 +1254,8 @@ class build_reentry_list:
         self.add_cargo("./Databases/Reentry/JSR_Cat/ecat_8thNov.tsv") # Load in the JSR ecat database.
         print("ftocat")
         self.extract_jsr_info("./Databases/Reentry/JSR_Cat/ftocat_2ndNov.tsv" ,dsl) # Load in the JSR ftocat database.
+        print("attached")
+        self.add_attached()
 
         # There was nothing of use in hcocat, tmpcat and csocat.   
         
