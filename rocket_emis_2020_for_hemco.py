@@ -444,7 +444,8 @@ class OutputEmis:
             # If there are boosters, then this section calculates the propellant consumption profile for the boosters.    
             # Find out which layer the cutoff occurs in.
             self.booster_alt_index = np.argmin(np.abs(self.booster_levs[rocket_config_type]*1e3 - self.mid_alt[:,q,p]))
-            # Booster cutoff is always within GC boundary so can simply index gc_relative_mass. # TODO: Check this still holds for 2021/22 rockets.
+            # Booster cutoff is always within GC boundary so can simply index gc_relative_mass. # TODO: Stage altitudes.
+            # Check this still holds for 2021/22 rockets.
             gc_relative_mass_booster = np.asarray(self.gc_relative_mass[self.nlev-self.booster_alt_index-1:])
             
             # Normalize the vertical emission profile for the booster emissions.
@@ -935,8 +936,7 @@ class OutputEmis:
                     elif rocket_data.rocket_name[valid_index] == "Falcon Heavy":
                         pei = pei_booster_index
                         prop_mass = rocket_data.booster_prop_mass[valid_index]
-                        # TODO: 2023
-                        # If this script is run for future years (2023), then check if the Falcon Heavy still lands both boosters and not core stage.
+                        # NOTE: If this script is run for future years (2023), then check if the Falcon Heavy still lands both boosters and not core stage.
                     
                     # First the entry emissions.
                     total_vertical_propellant = self.calc_emis(self.entry_top,
@@ -1389,7 +1389,8 @@ if __name__ == "__main__":
     raul_data = gpd.read_file('./Databases/General_SpaceX_Map_Raul.kml', driver='KML', layer =2)
       
     # Define booster and re-entry levels.
-    # TODO: Probably need to update alts for 2021/22 launches based on different rockets.
+    # TODO: Stage altitudes.
+    # Probably need to update alts for 2021/22 launches based on different rockets.
     
     # In 2019, boosters set to extend to ~45 km (layer 44 of the 47-layer model, layer 57 of the 72-layer model).
     # In updated model, booster_cutoff changes depending on number of rocket stages.
