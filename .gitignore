@@ -3,5 +3,6 @@ DISCOSweb_token.txt
 Cl.png
 Databases/GOaS_v1_20211214
 Databases/ne_110m_admin_0_countries
+Databases/ne_10m_admin_1_states_provinces
 __pycache__/
 .venv/
