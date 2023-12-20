@@ -533,7 +533,7 @@ def update_mass_info(i,temp_dict,unique_vehicle_name_list):
         
         temp_dict[f"Booster Stage Mass"]     = (3900+3200) / 2 * int(temp_dict[f"Booster Number"]) # SLR/Sp101
         temp_dict[f"Stage1 Stage Mass"]      = (9800+12600)/ 2                                     # SLR/Sp101
-        temp_dict[f"Stage1 Stage Mass"]      = (4000+3848) / 2                                     # SLR/Sp101
+        temp_dict[f"Stage2 Stage Mass"]      = (4000+3848) / 2                                     # SLR/Sp101
         temp_dict[f"Stage3 Stage Mass"]      = (2800+2740) / 2                                     # SLR/Sp101
         temp_dict[f"Fairing Mass"]           = 1500 # Sp101
         
@@ -970,8 +970,8 @@ def update_mass_info(i,temp_dict,unique_vehicle_name_list):
         # DISCOSweb stage 2 looks wrong, lets average JSR/NB. 
         temp_dict[f"Stage1 Stage Mass"]         = (8000+13000) / 2
         temp_dict[f"Stage2 Stage Mass"]         = (1000+4300) / 2
-        temp_dict[f"Stage1 Stage Mass"]         = (400+2500) / 2
-        temp_dict[f"Stage2 Stage Mass"]         = (200+100) / 2
+        temp_dict[f"Stage3 Stage Mass"]         = (400+2500) / 2
+        temp_dict[f"Stage4 Stage Mass"]         = (200+100) / 2
         temp_dict[f"Stage1 Propellant Mass"]    = 87000
         temp_dict[f"Stage4 Propellant Mass"]    = 50
         temp_dict[f"Fairing Mass"]              = 90 # NB
