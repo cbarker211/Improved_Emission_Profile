@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from atmos_pressure import print_pressures
 import matplotlib.pyplot as plt
+import sys
 
 def calculate_bc_ei(height, bc_pei):
     """ Calculate BC emission index in g BC per kg propellant burned.
