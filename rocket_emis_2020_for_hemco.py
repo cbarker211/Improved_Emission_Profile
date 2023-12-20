@@ -746,7 +746,7 @@ class OutputEmis:
                 # Most failures are for upper stages, and so can be treated as normal here.
                 # Full information is provided in README.txt
                 if launch_id[w] in ['2020-F04','2020-F11',
-                                    '2021-F03','2021-F04']:
+                                    '2021-F04']:
                     print(f'Launch {launch_id[w]} failed. Not processing.')
                     self.csv_count += 3
                     self.csv_count_2 += 8
@@ -1041,37 +1041,36 @@ class OutputEmis:
             
             if emis_type=='reentry':              
                 
-                # Complete burnup on re-entry.
-                # NOx emissions of 100% of reentering mass.
                 # Al2O3 emissions calculated using ablation and alumina content data from literature.
                 # Different emissions for core stage / upper stage / payload. 
+                # https://www.sciencedirect.com/science/article/pii/B0122274105008887
+                # "Fairings are typically made of aluminum or composite materials."
+                # Fairings treated as a core stage, except for Falcon 9 which are recovered intact.
+
+                # Complete burnup on re-entry.
                 if rocket_data.reentry_burnup[index[w]] == 'Complete': 
-                    nox_burnup_factor = 1
+                    nox_burnup_factor = 1                                   # NOx emissions of 100% of reentering mass.
                     if (rocket_data.reentry_stage[index[w]] in [0,1]):
-                        al_burnup_factor = 0.3 * 0.7  # https://doi.org/10.1016/j.asr.2020.10.036 and https://hdl.handle.net/1721.1/151393
-                    elif "Falcon 9 Fairing" in rocket_data.reentry_name[index[w]]:
-                        al_burnup_factor = 0
-                        nox_burnup_factor = 0.175
+                        al_burnup_factor = 0.3 * 0.7  # https://doi.org/10.1016/j.asr.2020.10.036 (70% survivability) and https://hdl.handle.net/1721.1/151393 (70% Al)
                     elif "fairing" in rocket_data.reentry_name[index[w]].lower(): 
-                        al_burnup_factor = 0.3 * 0.7  # https://doi.org/10.1016/j.asr.2020.10.036 and https://hdl.handle.net/1721.1/151393
+                        al_burnup_factor = 0.3 * 0.7  # https://doi.org/10.1016/j.asr.2020.10.036 (70% survivability) and https://hdl.handle.net/1721.1/151393 (70% Al)
                     elif rocket_data.reentry_stage[index[w]] in [2,3,4]:
-                        al_burnup_factor = 0.65 * 0.7 # https://doi.org/10.1016/j.asr.2020.10.036 and https://hdl.handle.net/1721.1/151393 
+                        al_burnup_factor = 0.65 * 0.7 # https://doi.org/10.1016/j.asr.2020.10.036 (35% survivability) and https://hdl.handle.net/1721.1/151393 (70% Al)
                     elif rocket_data.reentry_stage[index[w]] == 5:
                         if rocket_data.reentry_mcs[index[w]] == True:
-                            al_burnup_factor = 0.4 # https://doi.org/10.1016/j.asr.2020.10.036
+                            al_burnup_factor = 0.4       # https://doi.org/10.1016/j.asr.2020.10.036 (0% survivability, 40% Al)
                         else:
-                            al_burnup_factor = 0.4 * 0.8 # https://doi.org/10.1016/j.asr.2020.10.036
+                            al_burnup_factor = 0.4 * 0.8 # https://doi.org/10.1016/j.asr.2020.10.036 (20% survivability, 40% Al)
                     else:
                         al_burnup_factor = 0
                         
-                # Partial burnup on re-entry (reusable components, only payloads and Falcon 9 1st stage):
+                # Partial burnup on re-entry - reusable capsules and Falcon 9 1st stage / fairings:
                 # Still using the 17.5% value for NOx emissions.
                 # For Al2O3, we assume no emissions from reusuable components.
                 else: 
-                    if rocket_data.reentry_stage[index[w]] in [1,5]:
-                        al_burnup_factor = 0
-                    else:
+                    if rocket_data.reentry_stage[index[w]] not in [1,5]:
                         print("Reusuable reentry not payload or 1st stage.") 
+                    al_burnup_factor = 0
                     nox_burnup_factor = 0.175
                  
                 # For consistency with launch emissions, the totals are kept in g units. 
