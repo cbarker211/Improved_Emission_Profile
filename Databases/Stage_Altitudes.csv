@@ -24,11 +24,11 @@ Qased,,,,
 Simorgh,,,,
 Soyuz-2-1V Volga,,,,
 Ceres-1,,,,
-Epsilon-2 CPLS,,82.54,144.00,218.23
+Epsilon-2 CLPS,,82.54,144.00,218.23
 Jielong-3,,,,
 Kuaizhou-1,,,,
 Long March (CZ) 11,,,,
-Minotaur-1,,17.84,17.84,71.70
+Minotaur 1,,17.84,17.84,71.70
 Minotaur-4,,24.20,24.20,111.18
 Proton-M/DM-3,,43.00,43.00,133.00
 Proton-M/Briz-M,,43.50,43.50,130.50
@@ -38,7 +38,7 @@ Shuang Quxian-1,,,,
 SSLV,,92.55,92.55,267.40
 Vega,,52.00,52.00,113.00
 Vega C,,60.00,60.00,121.00
-Zhongke-1A,,,,
+Zhongke 1A,,,,
 Long March (CZ) 5B,,,,
 Ariane 5ECA,70,215.00,215.00,688.00
 Atlas V 411,,,,
@@ -61,9 +61,9 @@ Long March (CZ) 7,,,,
 Long March (CZ) 8,,,,
 Soyuz-2-1A,49,116.00,116.00,194.50
 Soyuz-2-1B,46,145.00,145.00,193.00
-Space Launch System,48.16,161.96,1810.51,1810.51
+Space Launch System - Block 1 Crew,48.16,161.96,1810.51,1810.51
 Angara A5,81.9,148.40,148.40,256.80
-Angara Persei,81.9,148.40,148.40,256.80
+Angara A5 Persei,81.9,148.40,148.40,256.80
 GSLV Mk II,69.62,70.06,70.06,132.10
 Long March (CZ) 3B,53.94,70.96,72.47,190.26
 Long March (CZ) 3C,48.7,64.66,66.08,181.94

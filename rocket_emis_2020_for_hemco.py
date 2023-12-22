@@ -489,19 +489,22 @@ class OutputEmis:
                     self.gc_relative_mass_booster = gc_relative_mass_booster / np.sum(gc_relative_mass_booster) * 100
                 
                 
-        # Now calculate the propellant consumption profile for stage 1.        
-        if launch_rocket in ["LauncherOne","Pegasus XL"]: 
-            if launch_rocket == "LauncherOne":
-                fei_alt = 12.37
-            elif launch_rocket == "Pegasus XL":
-                fei_alt = 11.79
+        # Now calculate the propellant consumption profile for stage 1.
+
+        if launch_rocket == "LauncherOne":
+            fei_alt = 12.37
             # LauncherOne 1st stage essentially acts like a second stage, starting at 11 km and MECO above GC.
             self.fei_alt_index = np.argmin(np.abs(fei_alt*1e3 - self.mid_alt[:,q,p]))
             self.gc_relative_mass_stage1 = np.asarray(self.gc_relative_mass[:self.nlev-self.fei_alt_index])
             # Now interpolate the cumulative mass to optimise what percentage of propellant is within GEOS-Chem.
             fei_mass = np.interp(fei_alt,self.ross_alt[::-1], self.ross_cumulative_mass[::-1])
             gc_percent = (self.propellant_in_gc - fei_mass) / (100 - fei_mass) * 100
-            self.gc_relative_mass_stage1 = self.gc_relative_mass_stage1 / np.sum(self.gc_relative_mass_stage1) * gc_percent        
+            self.gc_relative_mass_stage1 = self.gc_relative_mass_stage1 / np.sum(self.gc_relative_mass_stage1) * gc_percent
+        elif launch_rocket == "Pegasus XL":
+            fei_alt = 11.79
+            # TODO: Pegasus needs to be treated slightly differently, as it occurs entirely within GC.
+            
+                
         elif stage_alt_meco * 1e3 > self.top_alt[-1,q,p]:
             # If MECO occurs above the the GC boundary, then we have to only use some of the stage 1 emissions.
             self.gc_relative_mass_stage1 = np.asarray(self.gc_relative_mass)
@@ -766,7 +769,8 @@ class OutputEmis:
                 ############################################################################
                 
                 if launch_id[w] in ['2020-F04','2020-F11',
-                                    '2021-F04']:
+                                    '2021-F04',"2021-051"]:
+                    # TODO: Take our 2021-051 later.
                     print(f'Launch {launch_id[w]} failed. Not processing.')
                     self.csv_count += 3
                     self.csv_count_2 += 8
@@ -815,8 +819,9 @@ class OutputEmis:
                 # Suppressed for Falcon Heavy, as this has reusable boosters.
                 if rocket_data.booster_prop_type[valid_index] != '':
                     self.booster_prop_consumed[self.launch_count] = np.sum(self.gc_relative_mass_booster * b_prop * 1e-2)
-                    if (self.booster_prop_consumed[self.launch_count] - rocket_data.booster_prop_mass[valid_index]) > 0.1:
-                        sys.exit(f"Error with Booster emissions - 1.")
+                    if (self.booster_prop_consumed[self.launch_count] - b_prop) > 0.1:
+                        print(self.booster_prop_consumed[self.launch_count],rocket_data.booster_prop_mass[valid_index])
+                        sys.exit(f"Error with Booster emissions - 1. {launch_id[w]}")
                     if stage_alt_meco < 80:
                         if ((np.abs(self.booster_prop_consumed[self.launch_count] - b_prop) / b_prop * 100) > 1) and (rocket_data.rocket_name[valid_index] != "Falcon Heavy"):
                             print(np.abs(self.booster_prop_consumed[self.launch_count]),b_prop,np.abs(self.booster_prop_consumed[self.launch_count] - b_prop) / b_prop * 100)
