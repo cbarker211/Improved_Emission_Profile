@@ -213,7 +213,7 @@
 		SLR - The second stage tumbled and its 5,800 lbf Rutherford Vacuum engine shut down moments after it separated from the first stage, ...
 		So ignoring second stage emissions, not adding to missing emissions.
 		Adding payload reentries, dry mass reentry for first stage and wet mass reentry for second and third stages.
-		Fairing Mass:
+		Payload Mass:
 			50 - JSR
 			55 - https://spaceflightnow.com/2021/05/15/two-blacksky-satellites-lost-on-rocket-lab-launch-failure/
 			60 - https://web.archive.org/web/20220406013827/http://www.spacelaunchreport.com/electron.html
@@ -228,7 +228,7 @@
 		No specific details, but we can assume that the first two stages performed normally and the third 'underperformed'.
 		Treating normally for launch emissions.
 		Adding payload reentries, dry mass reentry for all three stages.
-		Fairing Mass:
+		Payload Mass:
 			90 - JSR
             "assumed to be small satellites" - https://www.seradata.com/irans-simorgh-has-apparent-unsuccessful-launch-with-three-small-satellite-payloads-not-quite-put-into-orbit/
 
@@ -246,7 +246,7 @@
                 The rocket's payload was not identified.
         Treating as normal.
         Adding payload reentries, dry mass reentry for all four stages.
-        Fairing mass:
+        Payload mass:
             "The rocket's payload was not identified." - https://web.archive.org/web/20220406013821/http://www.spacelaunchreport.com/sqx.html
             18 - JSR
             18 - https://new.qq.com/rain/a/20210529A03LLU00
@@ -260,7 +260,7 @@
         SLR -  CUS-15 upper stage failed to ignite for first burn, failed to orbit.
         Adding Booster, S1 and S2 as normal. Not including S3 in missing emissions.
         Adding payload reentries, dry mass reentry for boosters and first and second stages. Wet mass reentry for third stage.
-        Fairing Mass:
+        Payload Mass:
             1000 - JSR
             2286 - https://www.nasaspaceflight.com/2021/08/eos-03-launch/
 
@@ -302,7 +302,7 @@
         So S3 fired for 91.17% of its planned burn.
         Including S1 and S2 as normal, and including 92% of S3 in missing emissions.
         Adding payload reentries, dry mass reentry for first and second stages. Wet mass reentry for third stage (8% prop).
-        Fairing Mass:
+        Payload Mass:
             1500 - JSR
             1500 - https://www.nasaspaceflight.com/2021/10/kslv-nuri-maiden-launch/
             1500 - https://spacenews.com/south-koreas-1st-homegrown-space-rocket-reaches-space-but-fails-to-orbit-dummy-payload/
@@ -313,7 +313,7 @@
         No futher details.
         Including S1 and S2 as normal, not including S3 in missing emissions.
         Adding payload reentries, dry mass reentry for first and second stages. Wet mass reentry for third and fourth stage.
-        Fairing Mass:
+        Payload Mass:
             130  - JSR
             <300 - https://everydayastronaut.com/geesat-x2-kuaizhou-1a/
             130  - https://space.skyrocket.de/doc_sdat/geesat-1.htm
@@ -328,73 +328,119 @@
                 (https://www.reuters.com/lifestyle/science/iran-space-launch-fails-put-payloads-into-orbit-official-says-2021-12-31/)
         Including as normal.
         Adding payload reentries, dry mass reentry for all three stages.
-        Fairing Mass:
+        Payload Mass:
             90 - JSR
              
-
 2022
 
     F01 10/02/2022 Astra Rocket 3
-            Wiki - An anomaly occurred around second stage ignition, resulting in a loss of mission; the failure was later found to have 
-                   been caused by a wiring error in the separation mechanism and a software flaw in the thrust vector system.
-                   ... experienced an in-flight anomaly on the ELaNA-41 mission for NASA, during stage separation. 
-                   After two previous scrubbed launch attempts, ignition and launch of LV0008 occurred nominally. 
-                   Shortly after main engine cutoff (MECO), an electrical issue caused a failed separation of the payload fairing, 
-                   with 2 of the 5 separation mechanisms firing incorrectly. Another error spotted in an investigation carried out 
-                   by Astra was that the thrust vector control (TVC) system on the upper stage engine failed, which caused an uncontrolled spin.
-            SLR  - PLF failed to separate.  Stg 2 started and entered spin after impacting PLF.  FTO.   
-            NSF  - An anomaly occurred near the time of stage separation which prevented the payload from being successfully deployed. (https://www.nasaspaceflight.com/2022/02/astra-cape-canaveral-elana-41/) 
-            Astra- (https://astra.com/news/post-launch-investigation-what-we-found-and-next-steps/)
-            It sounds like the fairing didn't separate, so when S2 ignited it started tumbling. Not clear whether S2 still continued to burn or not.
-            Going to include S1 as normal, and ignore S2 emissions and not include S2 in missing emissions.
-			Adding payload reentries, dry mass reentry for first stage and wet mass reentry for second stage.
+        Wiki - An anomaly occurred around second stage ignition, resulting in a loss of mission; the failure was later found to have 
+                been caused by a wiring error in the separation mechanism and a software flaw in the thrust vector system.
+                ... experienced an in-flight anomaly on the ELaNA-41 mission for NASA, during stage separation. 
+                After two previous scrubbed launch attempts, ignition and launch of LV0008 occurred nominally. 
+                Shortly after main engine cutoff (MECO), an electrical issue caused a failed separation of the payload fairing, 
+                with 2 of the 5 separation mechanisms firing incorrectly. Another error spotted in an investigation carried out 
+                by Astra was that the thrust vector control (TVC) system on the upper stage engine failed, which caused an uncontrolled spin.
+        SLR  - PLF failed to separate.  Stg 2 started and entered spin after impacting PLF.  FTO.   
+        NSF  - An anomaly occurred near the time of stage separation which prevented the payload from being successfully deployed. (https://www.nasaspaceflight.com/2022/02/astra-cape-canaveral-elana-41/) 
+        Astra- (https://astra.com/news/post-launch-investigation-what-we-found-and-next-steps/)
+        It sounds like the fairing didn't separate, so when S2 ignited it started tumbling. Not clear whether S2 still continued to burn or not.
+        Going to include S1 as normal, and ignore S2 emissions and not include S2 in missing emissions.
+        Adding payload reentries, dry mass reentry for first stage and wet mass reentry for second stage.
+        Payload Mass:
+            30 (Total) - https://spacenews.com/three-companies-win-nasa-small-launch-contracts/
+            3.8 (INCA) - https://www.nasaspaceflight.com/2022/02/astra-cape-canaveral-elana-41/
+            3.8 (INCA) - https://space.skyrocket.de/doc_sdat/inca.htm
+            4,4,4,1 (BAMA-1,INCA,QubeSat,R5-S1) - JSR
+            No additional info so using JSR.
 
     F02 13/05/2022 Shuang Quxian-1   
-            SLR - While official reports as of publication do not mention a reason for the failure, 
-            it is understood that shortly after stage separation, the second stage failed to ignite.
-            Including S1 as normal, ignoring S2 emissions and not including S2/S3/S4 in missing emissions.
-			Adding payload reentries, dry mass reentry for first stage and wet mass reentry for second, third and fourth stages.
+        SLR - While official reports as of publication do not mention a reason for the failure, 
+        it is understood that shortly after stage separation, the second stage failed to ignite.
+        Including S1 as normal, ignoring S2 emissions and not including S2/S3/S4 in missing emissions.
+        Adding payload reentries, dry mass reentry for first stage and wet mass reentry for second, third and fourth stages.
+        Payload Mass:
+            18 - JSR
+            18 - https://space.skyrocket.de/doc_sdat/jilin-1-mofang-01a.htm
+            18 - https://new.qq.com/rain/a/20210529A03LLU00
+            18 - https://everydayastronaut.com/hyperbola-1-jilin-1-mofang-01ar-2/
 
     F03 12/06/2022 Astra Rocket 3
-            Wiki - LV0010 suffered an early second-stage engine cutoff and failed to deliver the payload to orbit.
-            SN   - The upper stage engine ignited for a burn intended to last 5 minutes and 15 seconds, ... 
-                   however, about four minutes into that burn... the vehicle appeared to tumble
-                   (https://spacenews.com/astra-launch-of-nasa-tropics-cubesats-fails/)
-            So S2 fired for 76% of its planned burn.
-            Including S1 and S2 as normal in GC, and only including 76%-prop already consumed of S2 in missing emissions.
-			Adding payload reentries, dry mass reentry for first stage and wet mass rentry for second stage (24% prop).
+        Wiki - LV0010 suffered an early second-stage engine cutoff and failed to deliver the payload to orbit.
+        SN   - The upper stage engine ignited for a burn intended to last 5 minutes and 15 seconds, ... 
+                however, about four minutes into that burn... the vehicle appeared to tumble
+                (https://spacenews.com/astra-launch-of-nasa-tropics-cubesats-fails/)
+        So S2 fired for 76% of its planned burn.
+        Including S1 and S2 as normal in GC, and only including 76%-prop already consumed of S2 in missing emissions.
+        Adding payload reentries, dry mass reentry for first stage and wet mass rentry for second stage (24% prop).
+        Payload Mass:
+            4    (Each) - JSR
+            5.34 (Each) - https://tropics.ll.mit.edu/CMS/tropics/The-MicroMAS-2-Cubesat
 
     F04 08/08/2022 SSLV
-            SFN - The rocket appeared to function as designed for the first 10 minutes of the mission. The SSLV’s three main solid-fueled stages fired one after the other...
-                  (https://spaceflightnow.com/2022/08/07/indias-new-small-satellite-launcher-fails-to-put-satellites-into-correct-orbit/)
-                  the VTM was supposed to fire for about 20 seconds on the SSLV test flight, known as the SSLV-D1 mission, ...
-                  data displayed on a screen in the Indian launch control center indicated the VTM only fired for one-tenth of a second. 
-            Including as normal in GC, not including S4 in missing emissions.
-			Adding payload reentries, dry mass reentry for first three stages and wet mass reentry for fourth stage.
+        SFN - The rocket appeared to function as designed for the first 10 minutes of the mission. The SSLV’s three main solid-fueled stages fired one after the other...
+                (https://spaceflightnow.com/2022/08/07/indias-new-small-satellite-launcher-fails-to-put-satellites-into-correct-orbit/)
+                the VTM was supposed to fire for about 20 seconds on the SSLV test flight, known as the SSLV-D1 mission, ...
+                data displayed on a screen in the Indian launch control center indicated the VTM only fired for one-tenth of a second. 
+        Including as normal in GC, not including S4 in missing emissions.
+        Adding payload reentries, dry mass reentry for first three stages and wet mass reentry for fourth stage.
+        Payload Mass:
+            130,8    (EOS-02,AzaadiSAT) - JSR
+            135,7.3  (EOS-02,AzaadiSAT) - https://spaceflightnow.com/2022/08/07/indias-new-small-satellite-launcher-fails-to-put-satellites-into-correct-orbit/
+            145,8    (EOS-02,AzaadiSAT) - https://web.archive.org/web/20220803133923/https://www.isro.gov.in/sites/default/files/sslvd1-eos2_-_mission_brochure.pdf
+            135,8    (EOS-02,AzaadiSAT) - https://space.skyrocket.de/doc_lau/sslv.htm  
+        Using official ISRO mass.         
 
     F05 12/10/2022 Epsilon-2 CLPS
-            Wiki - Vehicle was destroyed by flight termination system shortly after second stage cutoff due to an attitude control fault.
-            NSF  - Live coverage by JAXA of the launch showed what appeared to be a stage 3 ignition failure. (https://www.nasaspaceflight.com/2022/10/epsilon-raise-3/)
-            Including S1 and S2 emissions as normal, not including S3 or S4 in missing emissions.
-			Adding payload reentries, dry mass reentry for first two stages and wet mass reentry for third and fourth stage.
+        Wiki - Vehicle was destroyed by flight termination system shortly after second stage cutoff due to an attitude control fault.
+        NSF  - Live coverage by JAXA of the launch showed what appeared to be a stage 3 ignition failure. (https://www.nasaspaceflight.com/2022/10/epsilon-raise-3/)
+        Including S1 and S2 emissions as normal, not including S3 or S4 in missing emissions.
+        Adding payload reentries, dry mass reentry for first two stages and wet mass reentry for third and fourth stage.
+        Payload Masses:
+            ESMS:
+                200 - JSR (I think this value has been obtained for the mass of a potential satellite, not the ESMS itself). However, we have no other info so have to use JSR.
+            RAISE-3
+                110 - JSR
+                110 - https://www.kenkai.jaxa.jp/kakushin/kakushin03.html#about
+                110 - https://www.nasaspaceflight.com/2022/10/epsilon-raise-3/
+            MAGNARO/MITSUBA/KOSEN-2/WASEDA_SAT_ZERO/FSI-SAT
+                4.4(two)/1.7/2.7/1.2/1.4 - https://www.kenkai.jaxa.jp/library/pamphlets/pdf/kakushin_presskit_3.pdf
+                3 or 1.5/1.7/2.7/1.2/1.4 - JSR
+            Amateru
+                150 (Each) - JSR
+                170 (Each) - https://spaceflightnow.com/2022/10/18/failure-of-japans-epsilon-rocket-blamed-on-attitude-control-system/
+                ~100       - https://space.skyrocket.de/doc_sdat/qps-sar-3.htm 
+                170 (Each) - https://prtimes.jp/main/html/rd/p/000000024.000049970.html
+            E-SSOD
+                10 (Each) - JSR We have no other info so have to use JSR.
+            KOYOH/PETREL/STARS-X launched later.
+
 
     F06 14/12/2022 Zhuque-2
-            Wiki - Launch failure caused by an earlier-than-intended shutdown of the vernier engines of the second stage, preventing it from reaching orbital velocity.
-            NSF  - In images that spread from the mission control, it was observable that the rocket performed until about five minutes into the flight. 
-                   At 5 km/s the second stage most likely suffered an issue during a shutdown and failed to accelerate the mission to orbital velocity. 
-                   At this point in flight, the main engine of the second stage should have shut down, while the four vernier engines would have continued for the final part of the burn.
-                   it appeared that the vernier engines did perform nominal until the second stage cutoff, one of these shared parts might have failed at SECO, causing an early shutdown of the verniers.
-                   (https://www.nasaspaceflight.com/2022/12/zhuque2-debut/)
-            Can definitely include as normal in GC, but clearly there was an early S2 shutdown of the 'vernier' engines. However, as 'SECO' was achieved, lets just include the emissions as normal.
-            Adding payload reentries, dry mass reentry for first two stages.
+        Wiki - Launch failure caused by an earlier-than-intended shutdown of the vernier engines of the second stage, preventing it from reaching orbital velocity.
+        NSF  - In images that spread from the mission control, it was observable that the rocket performed until about five minutes into the flight. 
+                At 5 km/s the second stage most likely suffered an issue during a shutdown and failed to accelerate the mission to orbital velocity. 
+                At this point in flight, the main engine of the second stage should have shut down, while the four vernier engines would have continued for the final part of the burn.
+                it appeared that the vernier engines did perform nominal until the second stage cutoff, one of these shared parts might have failed at SECO, causing an early shutdown of the verniers.
+                (https://www.nasaspaceflight.com/2022/12/zhuque2-debut/)
+        Can definitely include as normal in GC, but clearly there was an early S2 shutdown of the 'vernier' engines. However, as 'SECO' was achieved, lets just include the emissions as normal.
+        Adding payload reentries, dry mass reentry for first two stages.
+        Payload Mass:
+           50/10 (Zhixing/Unknown) - JSR 
+           No info elsewhere so using JSR.
 
     F07 21/12/2022 Vega C
-            Wiki - The Zefiro 40 second stage deviated from its intended trajectory following a loss of pressure, resulting in reentry about 917 km (570 mi) north of the launch site over the Atlantic.
-            Space- "Approximately 2 minutes and 27 seconds after liftoff an anomaly occurred on the Zefiro 40, thus ending the Vega C mission," (https://www.space.com/arianespace-vega-c-launch-failure-december-2022)
-            SFN  - The chamber pressure suddenly dropped at about T+plus 3 minutes, 28 seconds, about two-thirds of the way through the Zefiro 40’s planned burn.
-                   Tissier said Wednesday that range safety officials at the Guiana Space Center sent a destruct command to the rocket when it veered off its planned course.
-                   (https://spaceflightnow.com/2022/12/21/two-pleiades-neo-earth-imaging-satellites-lost-in-failure-of-europes-vega-c-rocket/)
-            Issue with second stage not providing enough thrust, not clear when engines were shut down. From livestream, seemed to go through whole S2 burn. 
-            Including S1 and S2 as normal in GC, going to ignore S3/S4 in missing emissions. 
-			Adding payload reentries, dry mass reentry for first two stages and wet mass reentry for third and fourth stages.
+        Wiki - The Zefiro 40 second stage deviated from its intended trajectory following a loss of pressure, resulting in reentry about 917 km (570 mi) north of the launch site over the Atlantic.
+        Space- "Approximately 2 minutes and 27 seconds after liftoff an anomaly occurred on the Zefiro 40, thus ending the Vega C mission," (https://www.space.com/arianespace-vega-c-launch-failure-december-2022)
+        SFN  - The chamber pressure suddenly dropped at about T+plus 3 minutes, 28 seconds, about two-thirds of the way through the Zefiro 40’s planned burn.
+                Tissier said Wednesday that range safety officials at the Guiana Space Center sent a destruct command to the rocket when it veered off its planned course.
+                (https://spaceflightnow.com/2022/12/21/two-pleiades-neo-earth-imaging-satellites-lost-in-failure-of-europes-vega-c-rocket/)
+        Issue with second stage not providing enough thrust, not clear when engines were shut down. From livestream, seemed to go through whole S2 burn. 
+        Including S1 and S2 as normal in GC, going to ignore S3/S4 in missing emissions. 
+        Adding payload reentries, dry mass reentry for first two stages and wet mass reentry for third and fourth stages.
+        Payload Mass:
+            895  (One)      - JSR
+            920  (One)      - JSR
+            1977 (Combined) - https://www.space.com/arianespace-vega-c-launch-failure-december-2022
+            920  (One)      - https://earth.esa.int/eogateway/missions/pleiades-neo/description
             
