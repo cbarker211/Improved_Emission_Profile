@@ -436,11 +436,6 @@ class build_reentry_list:
             non_al_mass(float): Extra non-aluminium mass.
         """        
             
-        # When adding the wet mass, the dry mass + propellant mass has been used.
-        # TODO : Failed launches.
-        # Need to update to include 2021 and 2022 failed launches.
-        
-        # TODO: Fairings being set with payload mass, check there are always 2 per launch.
         mass = 0
         non_al_mass = 0
         
@@ -457,6 +452,8 @@ class build_reentry_list:
         elif "fairing" in jsr_name.lower():
                 mass = self.dsr["Fairing_Mass"].values[rocket_ind]  / 2    
         elif reentry_stage == 5:
+            
+            # 2020
             if jsr_name == "Zafar":
                 mass = 113
             elif jsr_name == "Xinjishu Yanzheng 6":
@@ -482,7 +479,7 @@ class build_reentry_list:
             elif jsr_name == "Astra Test Payload":
                 mass = 5
 
-                
+            # 2021   
             elif jsr_name == "Global-10":
                 mass = 60
             elif jsr_name == "Global-11":
@@ -502,57 +499,59 @@ class build_reentry_list:
             elif jsr_name == "Test payloads":
                 mass = 90
                 
-
-            #elif jsr_name == "R5-S1":
-            #    mass = 
-            #elif jsr_name == "INCA":
-            #    mass = 
-            #elif jsr_name == "QubeSat":
-            #    mass = 
-            #elif jsr_name == "BAMA-1":
-            #    mass = 
-            #elif jsr_name == "Jilin-1 Mofang 01A/R":
-            #    mass = 
-            #elif jsr_name == "TROPICS SV02":
-            #    mass =
-            #elif jsr_name == "TROPICS SV04":
-            #    mass =
-            #elif jsr_name == "EOS-02":
-            #    mass =
-            #elif jsr_name == "AzaadiSAT":
-            #    mass =
-            #elif jsr_name == "ESMS":
-            #    mass =
-            #elif jsr_name == "RAISE-3":
-            #    mass =
-            #elif jsr_name == "Amateru-I":
-            #    mass =
-            #elif jsr_name == "Amateru-II":
-            #    mass =
-            #elif jsr_name == "E-SSOD 1":
-            #    mass =
-            #elif jsr_name == "E-SSOD 2":
-            #    mass =
-            #elif jsr_name == "E-SSOD 3":
-            #    mass =
-            #elif jsr_name == "MITSUBA":
-            #    mass =
-            #elif jsr_name == "WASEDA-SAT-ZERO":
-            #    mass =
-            #elif jsr_name == "MAGNARO A":
-            #    mass =
-            #elif jsr_name == "MAGNARO B":
-            #    mass =
-            #elif jsr_name == "KOSEN-2":
-            #    mass =
-            #elif jsr_name == "FSI-SAT":
-            #    mass =
-            #elif "Unknown payload" in jsr_name:
-            #    mass = 
-            #elif jsr_name == "Pleiades Neo 5":
-            #    mass = 
-            #elif jsr_name == "Pleiades Neo 6":
-            #    mass = 
+            # 2022
+            elif jsr_name == "R5-S1":
+                mass = 1
+            elif jsr_name == "INCA":
+                mass = 3.8
+            elif jsr_name == "QubeSat":
+                mass = 4
+            elif jsr_name == "BAMA-1":
+                mass = 4
+            elif jsr_name == "Jilin-1 Mofang 01A/R":
+                mass = 18
+            elif jsr_name == "TROPICS SV02":
+                mass = 5.34
+            elif jsr_name == "TROPICS SV04":
+                mass = 5.34
+            elif jsr_name == "EOS-02":
+                mass = 145
+            elif jsr_name == "AzaadiSAT":
+                mass = 8
+            elif jsr_name == "ESMS":
+                mass = 200
+            elif jsr_name == "RAISE-3":
+                mass = 110
+            elif jsr_name == "Amateru-I":
+                mass = 170
+            elif jsr_name == "Amateru-II":
+                mass = 170
+            elif jsr_name == "E-SSOD 1":
+                mass = 10
+            elif jsr_name == "E-SSOD 2":
+                mass = 10
+            elif jsr_name == "E-SSOD 3":
+                mass = 10
+            elif jsr_name == "MITSUBA":
+                mass = 1.7
+            elif jsr_name == "WASEDA-SAT-ZERO":
+                mass = 1.2
+            elif jsr_name == "MAGNARO A":
+                mass = 3
+            elif jsr_name == "MAGNARO B":
+                mass = 1.5
+            elif jsr_name == "KOSEN-2":
+                mass = 2.7
+            elif jsr_name == "FSI-SAT":
+                mass = 1.4
+            elif jsr_name == "Zhixing 1B":
+                mass = 50       
+            elif "Unknown payload" in jsr_name:
+                mass = 10
+            elif jsr_name == "Pleiades Neo 5":
+                mass = 920
+            elif jsr_name == "Pleiades Neo 6":
+                mass = 920
                      
         # Add second stage propellant mass to non aluminium mass.    
         if jsr_id in ["2020-F02","2020-F05",
@@ -668,7 +667,7 @@ class build_reentry_list:
             # For some reason, there are 4 CZ-8 boosters listed in JSR rcat for 2020-102.
             # Should only be two, and mass looks correct for each booster. Removing two (Jonathan has since updated his database to correct this).
             # Also removing 1st stage for 2020-F09 (U01 in GCAT). Apogee is 50km but is probably too low using the rocket configs used for stage altitudes.
-            # TODO: Stage altitudes.
+            # TODO: Check failed launch stage altitudes.
             # Check this after updating stage altitudes and for 2021/22.
             
             # Skipping 2021-U01, 2022-U01 and 2022-U03, all military tests.
@@ -1190,8 +1189,10 @@ class build_reentry_list:
         # So for B+1/2S and B+3S, we need a reentry event for each lost booster at the launch site.
         # For B+4S, 2S and 3S, the 1st stage will cutoff and detach within 100 km altitude, so we need a reentry event for each of these.
         
-        # TODO: Stage altitudes.
-        # If we extend to 2021/2022, obviously need to get new information on rocket altitudes and may have to update this.
+        # TODO: Stage altitudes. This should load in the actual BECO/MECO altitudes.
+        # The default is add boosters for B+1/2S and B+3S, and 1st stage for B+4S, 2S, 3S, and 4S.
+        
+    
         # Loop over each launch in 2020, locate the rocket and then filter for rocket configuration.
         for i in range(len(self.dsl["COSPAR_ID"])):
             for count, rocket_name in enumerate(self.dsr["Rocket_Name"].values):
@@ -1242,7 +1243,7 @@ class build_reentry_list:
                         if stage > 1:
                             print(f"Multiple stages for {self.dsl['COSPAR_ID'].values[i]}")
                     
-                    # Adding 1st stages for B+4S, 2S and 3S rockets.
+                    # Adding 1st stages for B+4S, 2S and 3S rockets. # TODO: Edit this.
                     if ((self.dsr["Booster_PropMass"].values[count] == 0) and (self.dsr["Stage4_PropMass"].values[count] == 0)) or ((self.dsr["Booster_PropMass"].values[count] != 0) and (self.dsr["Stage4_PropMass"].values[count] != 0)):    
                         # Check if there is a first stage, and add if not.
                         found_stage = False
