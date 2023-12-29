@@ -142,9 +142,9 @@ class build_reentry_list:
             # Therefore we will just set the lat to the inclination.
             lat = -inc
             lon = round(random.uniform(-180, 180),2)
-        elif latlonstr in ["Pacific","Pacific?","PO","AO","E Pacific","E Pacific?","S Pacific","S POR","Indian O?","SE IOR?","SE IOR","Atlantic","POR"]:
-            lat = 0
-            lon = 0
+        #elif latlonstr in ["Pacific","Pacific?","PO","AO","E Pacific","E Pacific?","S Pacific","S POR","Indian O?","SE IOR?","SE IOR","Atlantic","POR"]:
+        #    lat = 0
+        #    lon = 0
         elif latlonstr == "WSSH":
             # This is the White Sands Missile Range in New Mexico.
             lat = 33.238462 
@@ -664,15 +664,9 @@ class build_reentry_list:
         
         jsr_data_stripped_2020_list = []
         for reentry_count in range(len(jsr_data_stripped)):
-            # For some reason, there are 4 CZ-8 boosters listed in JSR rcat for 2020-102.
-            # Should only be two, and mass looks correct for each booster. Removing two (Jonathan has since updated his database to correct this).
-            # Also removing 1st stage for 2020-F09 (U01 in GCAT). Apogee is 50km but is probably too low using the rocket configs used for stage altitudes.
-            # TODO: Check failed launch stage altitudes.
-            # Check this after updating stage altitudes and for 2021/22.
             
-            # Skipping 2021-U01, 2022-U01 and 2022-U03, all military tests.
-        
-            if jsr_data_stripped["DDate"][reentry_count][0:4] != "-" and jsr_data_stripped["#JCAT"][reentry_count] not in ["R80054","R80055","L80348",
+            # For some reason, there are 4 CZ-8 boosters listed in JSR rcat for 2020-102 (R80052-54), when there should be two (Jonathan has since updated his database to correct this).
+            if jsr_data_stripped["DDate"][reentry_count][0:4] != "-" and jsr_data_stripped["#JCAT"][reentry_count] not in ["R80054","R80055", # 2020-102 boosters.
                                                                                                                            "L80508","L80509","L80510"  # Skipping 2021-F07
                                                                                                                            ]:
                 # Note: A negative apogee means that the object was in a hyperbolic orbit (velocity above escape velocity), so passes by Earth.
@@ -685,7 +679,7 @@ class build_reentry_list:
                     int(jsr_data_stripped["DDate"][reentry_count][0:4]) == self.year                              # This year only
                     and (int(jsr_data_stripped["Apogee"][reentry_count]) >= 50 or int(jsr_data_stripped["Apogee"][reentry_count]) == -54771) # Apogee above 50 km.           
                     and jsr_data_stripped["Piece"][reentry_count][5:6] != "S"                                     # No suborbital launches (mainly military rockets.)
-                    and jsr_data_stripped["Piece"][reentry_count][:8] not in ["2021-U01","2022-U01","2022-U03"]   # No military test flights.
+                    and jsr_data_stripped["Piece"][reentry_count][:8] not in ["2021-U01","2022-U01","2022-U03"]   # Skipping 2021-U01, 2022-U01 and 2022-U03, all military tests.
                     and jsr_data_stripped["Primary"][reentry_count] == "Earth"                                    # Only objects whose primary body is Earth.
                 ): 
                     if jsr_data_stripped["Status"][reentry_count] == "AS":
@@ -733,6 +727,8 @@ class build_reentry_list:
                             "Starliner OFT-2","Artemis I","Chonfu Shiyong Shiyan HQ",
                             "Bernard Kutter LOFTID","Hayabusa 2 Return Capsule","Chang'e-5 Fanhui Qi",
                             ]:
+                burnup = "Partial"
+            elif jsr_name == "Electron Stage 1":
                 burnup = "Partial"
             else:
                 #if jsr_data_stripped_2020["Status"][reentry_count] == "L" and "Falcon 9" not in jsr_name:
@@ -1185,52 +1181,63 @@ class build_reentry_list:
                     reentry["reentry_stage"] = "B" + str(count)
                     count += 1
                     
-        # Based on rocket configurations, boosters will cutoff and detach above 50km for all configs except B+4S.  
-        # So for B+1/2S and B+3S, we need a reentry event for each lost booster at the launch site.
-        # For B+4S, 2S and 3S, the 1st stage will cutoff and detach within 100 km altitude, so we need a reentry event for each of these.
+        stage_alt_dict = {}
+        stage_alt_rockets = np.genfromtxt("./Databases/Stage_Altitudes.csv",dtype=str,skip_header=1,usecols=[0],delimiter=",")
+        stage_alt_data = np.genfromtxt("./Databases/Stage_Altitudes.csv",dtype=np.float64,skip_header=1,usecols=[1,2,3,4],delimiter=",")
+        for i in range(len(stage_alt_data)):
+            if stage_alt_data[i][0] == '':
+                stage_alt_dict[f"{stage_alt_rockets[i]} BECO"] = None
+            else:
+                stage_alt_dict[f"{stage_alt_rockets[i]} BECO"] = np.float64(stage_alt_data[i][0])
+            if stage_alt_data[i][1] == '':
+                stage_alt_dict[f"{stage_alt_rockets[i]} MECO"] = None
+            else:
+                stage_alt_dict[f"{stage_alt_rockets[i]} MECO"] = np.float64(stage_alt_data[i][1])
+            if stage_alt_data[i][2] == '':
+                stage_alt_dict[f"{stage_alt_rockets[i]} SEI1"] = None
+            else:
+                stage_alt_dict[f"{stage_alt_rockets[i]} SEI1"] =  np.float64(stage_alt_data[i][2])
         
-        # TODO: Stage altitudes. This should load in the actual BECO/MECO altitudes.
-        # The default is add boosters for B+1/2S and B+3S, and 1st stage for B+4S, 2S, 3S, and 4S.
-        
-    
         # Loop over each launch in 2020, locate the rocket and then filter for rocket configuration.
         for i in range(len(self.dsl["COSPAR_ID"])):
             for count, rocket_name in enumerate(self.dsr["Rocket_Name"].values):
                 if rocket_name == self.dsl["Rocket_Type"].values[i] and self.dsl["COSPAR_ID"].values[i][5] != "F":
-                    # Count how many boosters are currently added, and compare it to the number of boosters there should be.
-                    booster_count = 0
-                    for reentry in self.unique_reentry_list:
-                        if reentry["id"][:8] == self.dsl["COSPAR_ID"].values[i] and str(reentry["reentry_stage"])[0] == "B":
-                            booster_count += 1
-                    if booster_count != int(self.dsr['Booster_No'].values[count]):
-                        print(f"There are {booster_count} boosters when there should be {self.dsr['Booster_No'].values[count]} boosters.")
-                        # Adding boosters for B+1/2S and B+3S.
-                        if (self.dsr["Booster_PropMass"].values[count] != 0) and (self.dsr["Stage4_PropMass"].values[count] == 0):    
-                            print(f"Adding {int(self.dsr['Booster_No'].values[count])-booster_count} boosters for {self.dsl['COSPAR_ID'].values[i]}")
-                            for j in range(int(self.dsr["Booster_No"].values[count])-booster_count):
-                                mass = self.dsr["Booster_StageMass"].values[count] / int(self.dsr["Booster_No"].values[count])
-                                if np.isnan(mass):
-                                    mass = 0
-                                    
-                                temp_reentry_dict = {
-                                    "id"           : f'{self.dsl["COSPAR_ID"].values[i]}',
-                                    "jcat"         : "N/A",
-                                    "name"         : f"{self.dsl['Rocket_Type'].values[i]} Booster",
-                                    "type"         : "R/B",
-                                    "burnup"       : "Complete",
-                                    "reentry_stage": "B" + str(j+1), # -1 is nothing, B1-4 = Booster, 1-4 = Stage Number, 5 = Payload/Debris
-                                    "time"         : self.dsl["Time(UTC)"].values[i],
-                                    "mon"          : int(self.dsl["Month"].values[i]),
-                                    "day"          : int(self.dsl["Day"].values[i]),
-                                    "lat"          : self.dsl["Latitude"].values[i],
-                                    "lon"          : self.dsl["Longitude"].values[i],
-                                    "al_mass"      : mass,
-                                    "non_al_mass"  : 0,
-                                    "MCS"          : False,
-                                    "manual_loc"   : 0,
-                                }
-                
-                                self.unique_reentry_list.append(temp_reentry_dict) 
+                    if int(self.dsr['Booster_No'].values[count]) > 0:
+                        # Count how many boosters are currently added, and compare it to the number of boosters there should be.
+                        booster_count = 0
+                        for reentry in self.unique_reentry_list:
+                            if reentry["id"][:8] == self.dsl["COSPAR_ID"].values[i] and str(reentry["reentry_stage"])[0] == "B":
+                                booster_count += 1
+                        if booster_count != int(self.dsr['Booster_No'].values[count]):
+                            print(f"There are {booster_count} boosters for {self.dsl['COSPAR_ID'].values[i]} when there should be {self.dsr['Booster_No'].values[count]} boosters.")
+                            # Adding boosters where BECO is above 50km. If average then its for B+1/2S and B+3S only.
+                            beco = stage_alt_dict[f"{rocket_name} BECO"]
+                            if (beco > 50) or (np.isnan(beco) and (self.dsr["Stage4_PropMass"].values[count] == 0)):
+                                print(f"Adding {int(self.dsr['Booster_No'].values[count])-booster_count} boosters for {self.dsl['COSPAR_ID'].values[i]}")
+                                for j in range(int(self.dsr["Booster_No"].values[count])-booster_count):
+                                    mass = self.dsr["Booster_StageMass"].values[count] / int(self.dsr["Booster_No"].values[count])
+                                    if np.isnan(mass):
+                                        mass = 0
+                                        
+                                    temp_reentry_dict = {
+                                        "id"           : f'{self.dsl["COSPAR_ID"].values[i]}',
+                                        "jcat"         : "N/A",
+                                        "name"         : f"{self.dsl['Rocket_Type'].values[i]} Booster",
+                                        "type"         : "R/B",
+                                        "burnup"       : "Complete",
+                                        "reentry_stage": "B" + str(j+1), # -1 is nothing, B1-4 = Booster, 1-4 = Stage Number, 5 = Payload/Debris
+                                        "time"         : self.dsl["Time(UTC)"].values[i],
+                                        "mon"          : int(self.dsl["Month"].values[i]),
+                                        "day"          : int(self.dsl["Day"].values[i]),
+                                        "lat"          : self.dsl["Latitude"].values[i],
+                                        "lon"          : self.dsl["Longitude"].values[i],
+                                        "al_mass"      : mass,
+                                        "non_al_mass"  : 0,
+                                        "MCS"          : False,
+                                        "manual_loc"   : 0,
+                                    }
+                    
+                                    self.unique_reentry_list.append(temp_reentry_dict) 
         
                     # Check the number of stages.
                     stage_count = np.zeros((4))
@@ -1243,8 +1250,19 @@ class build_reentry_list:
                         if stage > 1:
                             print(f"Multiple stages for {self.dsl['COSPAR_ID'].values[i]}")
                     
-                    # Adding 1st stages for B+4S, 2S and 3S rockets. # TODO: Edit this.
-                    if ((self.dsr["Booster_PropMass"].values[count] == 0) and (self.dsr["Stage4_PropMass"].values[count] == 0)) or ((self.dsr["Booster_PropMass"].values[count] != 0) and (self.dsr["Stage4_PropMass"].values[count] != 0)):    
+                    meco = stage_alt_dict[f"{rocket_name} MECO"]
+                    add_first_stage = False
+                    if (50 < meco <= 100):                 
+                        add_first_stage = True
+                    elif np.isnan(meco):
+                        # 2S,3S,4S
+                        if self.dsr["Booster_PropMass"].values[count] == 0: 
+                            add_first_stage = True
+                        # B+4S
+                        if ((self.dsr["Booster_PropMass"].values[count] != 0) and (self.dsr["Stage4_PropMass"].values[count] != 0)):    
+                            add_first_stage = True
+                     
+                    if add_first_stage == True:    
                         # Check if there is a first stage, and add if not.
                         found_stage = False
                         for reentry in self.unique_reentry_list:
@@ -1346,11 +1364,11 @@ class build_reentry_list:
         """        
         
         # Import the shapefiles and create unions for the main oceans.
-        #self.ocean_shapefile = gpd.read_file("./Databases/GOaS_v1_20211214/goas_v01.shp")
-        #pacific = self.ocean_shapefile[self.ocean_shapefile.name.isin(['North Pacific Ocean','South Pacific Ocean'])]
-        #self.pacific_union = gpd.GeoDataFrame(geometry=[pacific.unary_union]) 
-        #atlantic = self.ocean_shapefile[self.ocean_shapefile.name.isin(['North Atlantic Ocean','South Atlantic Ocean'])]
-        #self.atlantic_union = gpd.GeoDataFrame(geometry=[atlantic.unary_union])
+        self.ocean_shapefile = gpd.read_file("./Databases/GOaS_v1_20211214/goas_v01.shp")
+        pacific = self.ocean_shapefile[self.ocean_shapefile.name.isin(['North Pacific Ocean','South Pacific Ocean'])]
+        self.pacific_union = gpd.GeoDataFrame(geometry=[pacific.unary_union]) 
+        atlantic = self.ocean_shapefile[self.ocean_shapefile.name.isin(['North Atlantic Ocean','South Atlantic Ocean'])]
+        self.atlantic_union = gpd.GeoDataFrame(geometry=[atlantic.unary_union])
         
         self.country_shapefile = gpd.read_file("./Databases/ne_110m_admin_0_countries/ne_110m_admin_0_countries.shp") 
         self.states_shapefile = gpd.read_file("./Databases/ne_10m_admin_1_states_provinces/ne_10m_admin_1_states_provinces.shp") 
