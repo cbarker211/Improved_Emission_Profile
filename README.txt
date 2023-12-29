@@ -118,7 +118,7 @@
             stage 3 failed to ignite
         Including first and second stage emissions as normal.
         Not including S3 in missing emissions.
-        F06. Kuaizhou-11 (3 stages) failed at second stage.
+        F06. Kuaizhou-11 (3 stages) failed at third stage.
         Adding payload reentries, dry mass reentry for first and second stage and wet mass reentry for third stage.
         Payloads:
             https://spaceflightnow.com/2020/07/10/new-chinese-satellite-launcher-fails-on-first-flight/ 172 / ~100 kg
@@ -165,8 +165,8 @@
         Failure occured in upper stage, so can include the emissions as normal.
         Not including S4 emissions in missing emissions.
         U01 in JSR.
-        F09. Vega (4 stages) failed at upper stage. 1st stage is potentially too low for reentry so ignoring.
-        Adding payload reentries, dry mass reentry for second and third stage and wet mass reentry for fourth stage.
+        F09. Vega (4 stages) failed at upper stage.
+        Adding payload reentries, dry mass reentry for first, second and third stage and wet mass reentry for fourth stage.
         https://www.arianespace.com/wp-content/uploads/2020/11/VV17-launchkit-EN2.pdf 
         https://spaceflightnow.com/2020/11/17/arianespace-traces-cause-of-vega-launch-failure-to-human-error/ 
         https://spaceflightnow.com/2020/11/17/european-vega-rocket-suffers-second-failure-in-three-launches/ 
@@ -291,7 +291,7 @@
         Firefly - During the two minutes and twenty-five seconds of flight, ...
         According to manual, MECO occurs at 2:37, so only 12 seconds after the explosion.
         As there was an explosion, lets include S1 as normal, and ignore S2.
-        JSR lists apogee as 15km for all items, but MECO for a two stage rocket is 69km. Lets stick with JSR and ignore all re-entries.
+        JSR lists apogee as 15km for all items, but MECO for Alpha is 69km. Lets stick with JSR and ignore all re-entries.
 
     F09 21/10/2021 Nuri
         Wiki - The third stage shut down 46 seconds prematurely, resulting in the vehicle falling short of orbital velocity. 
