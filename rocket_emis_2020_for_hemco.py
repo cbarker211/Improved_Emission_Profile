@@ -460,25 +460,30 @@ class OutputEmis:
             stage_alt_meco = self.meco_levs[rocket_config_type]
             stage_alt_sei  = self.sei_levs[rocket_config_type]    
         
-        # If there are boosters, then this section calculates the propellant consumption profile for the boosters.
+        ###########
+        # Boosters
+        ###########
+        
         if rocket_data.booster_prop_type[valid_index] != '':
             
-            # If BECO occurs below the the GC boundary, then we can use all of the stage 1 emissions.
+            # If BECO occurs above the the GC boundary, then we only use some of the booster emissions.
             if stage_alt_beco * 1e3 > self.top_alt[-1,q,p]:
-                # If BECO occurs above the the GC boundary, then we have to only use some of the booster emissions.
+                
                 self.gc_relative_mass_booster = np.asarray(self.gc_relative_mass)
                 self.booster_alt_index = self.nlev - 1
+                
                 # If BECO is above GC, but in the range of the Ross distribution, we can interpolate to see how much propellant is consumed in GC and before BECO.
                 if stage_alt_beco < 102.5:            
                     self.propellant_below_beco = np.interp(stage_alt_beco,self.ross_alt[::-1], self.ross_cumulative_mass[::-1])
                     # Now we can work out the proportion of propellant consumed within GC, and use this to correct the sum.
                     gc_percent = self.propellant_in_gc / self.propellant_below_beco * 100
                     self.gc_relative_mass_booster = self.gc_relative_mass_booster / np.sum(self.gc_relative_mass_booster) * gc_percent
-                # If BECO is above 102.5, the sum of gc_relative_mass_booster is already equal to propellant_in_gc because its just a simple slice of gc_relative_mass.
+                    
+                # Note: If BECO is above 102.5, the sum of gc_relative_mass_booster is already equal to propellant_in_gc because its just a simple slice of gc_relative_mass.
             
             # If BECO occurs below the the GC boundary, then we can use all of the stage 1 emissions.
             else:
-                # Find out which layer the cutoff occurs in.
+                # Find out which layer BECO occurs in.
                 self.booster_alt_index = np.argmin(np.abs(stage_alt_beco*1e3 - self.mid_alt[:,q,p]))
                 gc_relative_mass_booster = np.asarray(self.gc_relative_mass[self.nlev-self.booster_alt_index-1:])
                 
@@ -488,40 +493,50 @@ class OutputEmis:
                 else:
                     self.gc_relative_mass_booster = gc_relative_mass_booster / np.sum(gc_relative_mass_booster) * 100
                 
-                
-        # Now calculate the propellant consumption profile for stage 1.
+        ###########
+        # Stage 1
+        ###########              
 
-        if launch_rocket == "LauncherOne":
-            fei_alt = 12.37
-            # LauncherOne 1st stage essentially acts like a second stage, starting at 11 km and MECO above GC.
+        if launch_rocket in ["LauncherOne","GSLV Mk III"]:
+            if launch_rocket == "LauncherOne":
+                fei_alt = 12.37
+            elif launch_rocket == "GSLV Mk III":
+                fei_alt = 46.534
+            else:
+                sys.exit("Incorrect rocket found.")
+            # The 1st stage of these rockets essentially act like a second stage, starting in GC with MECO above GC.
             self.fei_alt_index = np.argmin(np.abs(fei_alt*1e3 - self.mid_alt[:,q,p]))
             self.gc_relative_mass_stage1 = np.asarray(self.gc_relative_mass[:self.nlev-self.fei_alt_index])
             # Now interpolate the cumulative mass to optimise what percentage of propellant is within GEOS-Chem.
             fei_mass = np.interp(fei_alt,self.ross_alt[::-1], self.ross_cumulative_mass[::-1])
             gc_percent = (self.propellant_in_gc - fei_mass) / (100 - fei_mass) * 100
-            self.gc_relative_mass_stage1 = self.gc_relative_mass_stage1 / np.sum(self.gc_relative_mass_stage1) * gc_percent
-        elif launch_rocket == "Pegasus XL":
-            fei_alt = 11.79
-            # TODO: Pegasus needs to be treated slightly differently, as it occurs entirely within GC.
+            self.gc_relative_mass_stage1 = self.gc_relative_mass_stage1 / np.sum(self.gc_relative_mass_stage1) * gc_percent            
             
-                
+        # If MECO occurs above the the GC boundary, then we only use some of the booster emissions.        
         elif stage_alt_meco * 1e3 > self.top_alt[-1,q,p]:
-            # If MECO occurs above the the GC boundary, then we have to only use some of the stage 1 emissions.
+            
             self.gc_relative_mass_stage1 = np.asarray(self.gc_relative_mass)
             self.MECO_alt_index = self.nlev - 1
+            
             # If MECO is above GC, but in the range of the Ross distribution, we can interpolate to see how much propellant is consumed in GC and before MECO.
             if stage_alt_meco < 102.5:            
                 self.propellant_below_meco = np.interp(stage_alt_meco,self.ross_alt[::-1], self.ross_cumulative_mass[::-1])
                 # Now we can work out the proportion of propellant consumed within GC, and use this to correct the sum.
                 gc_percent = self.propellant_in_gc / self.propellant_below_meco * 100
                 self.gc_relative_mass_stage1 = self.gc_relative_mass_stage1 / np.sum(self.gc_relative_mass_stage1) * gc_percent
-            # If MECO is above 102.5, the sum of gc_relative_mass_stage1 is already equal to propellant_in_gc because its just a simple slice of gc_relative_mass.
+            # Note: If MECO is above 102.5, the sum of gc_relative_mass_stage1 is already equal to propellant_in_gc because its just a simple slice of gc_relative_mass.
         
+        # If MECO occurs below the the GC boundary, then we can use all of the stage 1 emissions.
         else:
-            # If MECO occurs below the the GC boundary, then we can use all of the stage 1 emissions.
+            
             # Find out which layer MECO occurs in.
             self.MECO_alt_index = np.argmin(np.abs(stage_alt_meco*1e3 - self.mid_alt[:,q,p]))
-            self.gc_relative_mass_stage1 = np.asarray(self.gc_relative_mass[self.nlev-self.MECO_alt_index-1:])
+            if launch_rocket == "Pegasus XL":
+                fei_alt = 11.79
+                self.fei_alt_index = np.argmin(np.abs(fei_alt*1e3 - self.mid_alt[:,q,p]))
+                self.gc_relative_mass_stage1 = np.asarray(self.gc_relative_mass[self.nlev-self.MECO_alt_index-1:self.nlev-self.fei_alt_index])
+            else:
+                self.gc_relative_mass_stage1 = np.asarray(self.gc_relative_mass[self.nlev-self.MECO_alt_index-1:])
             
             # If the rocket is Falcon v1.2 Block 5, then MECO is always in GC, and 93.2% of the emissions are used for ascent.
             # There is an extra 'boostback' burn for ground landings. No information of % of propellant, so assumed to be equal to the reentry burn.
@@ -530,27 +545,55 @@ class OutputEmis:
             # For all other rockets, 100% is used for ascent.
             else:
                 self.gc_relative_mass_stage1 = self.gc_relative_mass_stage1 / np.sum(self.gc_relative_mass_stage1) * 100
-                       
-        # Now calculate the propellant consumption profile for stage 2.
+        
+        ###########
+        # Stage 2
+        ###########
+                               
+        # If SEI occurs above the the GC boundary, then we can ignore the second stage.
         if stage_alt_sei * 1e3 > self.top_alt[-1,q,p]:
-            # If SEI occurs above the the GC boundary, then we can ignore the second stage.
             self.gc_relative_mass_stage2 = np.asarray([0])
             self.SEI_alt_index = self.nlev
         
+        # If SEI is within GC, we need to differentiate based on SECO.
         else:
-            # If SEI occurs below the the GC boundary, then we can use some of the stage 2 emissions.
             self.SEI_alt_index = np.argmin(np.abs(stage_alt_sei*1e3 - self.mid_alt[:,q,p]))
-            self.gc_relative_mass_stage2 = np.asarray(self.gc_relative_mass[:self.nlev-self.SEI_alt_index])
-            # Now interpolate the cumulative mass to optimise what percentage of propellant is within GEOS-Chem.
-            sei_mass = np.interp(stage_alt_sei,self.ross_alt[::-1], self.ross_cumulative_mass[::-1])
-            gc_percent = (self.propellant_in_gc - sei_mass) / (100 - sei_mass) * 100
-            self.gc_relative_mass_stage2 = self.gc_relative_mass_stage2 / np.sum(self.gc_relative_mass_stage2) * gc_percent
             
-         # TODO: For three rockets, SECO is within GEOS-Chem or Ross limits. Should adjust this function to account for that.
-         
-        # Calculate third stage emissions for Minotaur-1.    
-        if launch_rocket == "Minotaur-1":
-            # Minotaur-1 third stage ignition occurs below the the GC boundary, so we can need to add some of the stage 3 emissions.
+            # SECO is only within GC for one rocket.
+            if launch_rocket in ["Minotaur 1"]:
+                seco_alt = 71.70
+                self.seco_alt_index = np.argmin(np.abs(seco_alt*1e3 - self.mid_alt[:,q,p]))
+                self.gc_relative_mass_stage2 = np.asarray(self.gc_relative_mass[self.nlev-self.seco_alt_index-1:self.nlev-self.SEI_alt_index])
+                self.gc_relative_mass_stage2 = self.gc_relative_mass_stage2 / np.sum(self.gc_relative_mass_stage2) * 100
+            
+            # SECO is above GC and below Ross (120km) for two rockets.   
+            elif launch_rocket in ["Minotaur-4","Vega"]:
+                self.gc_relative_mass_stage2 = np.asarray(self.gc_relative_mass[:self.nlev-self.SEI_alt_index])
+                if launch_rocket == "Minotaur-4":
+                    seco_alt = 111.18
+                elif launch_rocket == "Vega":
+                    seco_alt = 113.00          
+                self.propellant_below_seco = np.interp(seco_alt,self.ross_alt[::-1], self.ross_cumulative_mass[::-1])
+                # Now we can work out the proportion of propellant consumed within GC, and use this to correct the sum.
+                gc_percent = self.propellant_in_gc / self.propellant_below_seco * 100
+                self.gc_relative_mass_stage2 = self.gc_relative_mass_stage2 / np.sum(self.gc_relative_mass_stage2) * gc_percent
+                
+            # For everything else, SEI and SECO occur above GC.
+            else:   
+                
+                self.gc_relative_mass_stage2 = np.asarray(self.gc_relative_mass[:self.nlev-self.SEI_alt_index])
+                # Now interpolate the cumulative mass to optimise what percentage of propellant is within GEOS-Chem.
+                sei_mass = np.interp(stage_alt_sei,self.ross_alt[::-1], self.ross_cumulative_mass[::-1])
+                gc_percent = (self.propellant_in_gc - sei_mass) / (100 - sei_mass) * 100
+                self.gc_relative_mass_stage2 = self.gc_relative_mass_stage2 / np.sum(self.gc_relative_mass_stage2) * gc_percent
+            
+        ###########
+        # Stage 3
+        ###########
+                
+        # Calculate third stage emissions for Minotaur 1 only.    
+        if launch_rocket == "Minotaur 1":
+            # Minotaur 1 third stage ignition occurs below the the GC boundary, so we can need to add some of the stage 3 emissions.
             self.TEI_alt_index = np.argmin(np.abs(73.47*1e3 - self.mid_alt[:,q,p]))
             self.gc_relative_mass_stage3 = np.asarray(self.gc_relative_mass[:self.nlev-self.TEI_alt_index])
             # Now interpolate the cumulative mass to optimise what percentage of propellant is within GEOS-Chem.
@@ -769,8 +812,7 @@ class OutputEmis:
                 ############################################################################
                 
                 if launch_id[w] in ['2020-F04','2020-F11',
-                                    '2021-F04',"2021-051"]:
-                    # TODO: Take our 2021-051 later.
+                                    '2021-F04']:
                     print(f'Launch {launch_id[w]} failed. Not processing.')
                     self.csv_count += 3
                     self.csv_count_2 += 8
@@ -889,9 +931,12 @@ class OutputEmis:
                 if np.sum(1e-2 * self.gc_relative_mass_stage1) > 1.01:
                     sys.exit("Error with Stage 1. Propellant distribution exceeds unity.")
                    
-                if rocket_data.rocket_name[valid_index] in ["LauncherOne","Pegasus XL"]:
+                if rocket_data.rocket_name[valid_index] in ["LauncherOne","GSLV Mk III"]:
                     start_ind = None
                     stop_ind  = self.fei_alt_index-1  
+                elif rocket_data.rocket_name[valid_index] == "Pegasus XL":
+                    start_ind = self.MECO_alt_index
+                    stop_ind  = self.fei_alt_index-1
                 else:
                     start_ind = self.MECO_alt_index
                     stop_ind  = None 
@@ -912,8 +957,15 @@ class OutputEmis:
                     if np.sum(1e-2 * self.gc_relative_mass_stage2) > 1.01:
                         sys.exit("Error with Stage 2. Propellant distribution exceeds unity.")
                         
-                    total_vertical_propellant = self.calc_emis(None,
-                                self.SEI_alt_index-1,
+                    if rocket_data.rocket_name[valid_index] in ["Minotaur 1"]:
+                        start_ind = self.seco_alt_index
+                        stop_ind  = self.SEI_alt_index-1
+                    else:
+                        start_ind = None
+                        stop_ind  = self.SEI_alt_index-1
+                                         
+                    total_vertical_propellant = self.calc_emis(start_ind,
+                                stop_ind,
                                 pei_stage2_index,
                                 rocket_data.stage2_prop_mass[valid_index],
                                 self.gc_relative_mass_stage2,
@@ -923,10 +975,10 @@ class OutputEmis:
                                 kg_to_kgm2s,
                                 total_vertical_propellant)
                     
-                # Add third stage emissions for Minotaur-1.
-                if rocket_data.rocket_name[valid_index] == "Minotaur-1":
+                # Add third stage emissions for Minotaur 1.
+                if rocket_data.rocket_name[valid_index] == "Minotaur 1":
                     if np.sum(1e-2 * self.gc_relative_mass_stage3) > 1.01:
-                        sys.exit("Error with Stage 3 for Minotaur-1. Propellant distribution exceeds unity.")
+                        sys.exit("Error with Stage 3 for Minotaur 1. Propellant distribution exceeds unity.")
                         
                     total_vertical_propellant = self.calc_emis(None,
                                 self.TEI_alt_index-1,
@@ -1019,7 +1071,6 @@ class OutputEmis:
                                 total_vertical_propellant)
                   
                 # Calculate the missing emissions from above GEOS-Chem.
-                # TODO: Check failed launch stage altitudes.
                 # Check if there are missing emissions from the first stage.
                 if rocket_data.stage1_prop_type[valid_index] != '' and 100 - np.sum(self.gc_relative_mass_stage1) > 0 and launch_id[w] not in ['2020-F04','2020-F07','2020-F11',
                                                                                                                                                '2021-F01','2021-F07']:
@@ -1053,7 +1104,7 @@ class OutputEmis:
                                                                                             '2022-F02','2022-F05','2022-F07']:
                     if launch_id[w] == "2021-F09":
                         included_emis = 475/521*100
-                    elif rocket_data.rocket_name[valid_index] == "Minotaur-1":
+                    elif rocket_data.rocket_name[valid_index] == "Minotaur 1":
                         included_emis = 100 - np.sum(self.gc_relative_mass_stage3)
                     else:
                         included_emis = 100
