@@ -1027,7 +1027,7 @@ class build_reentry_list:
                         "lon"          : round(random.uniform(-180, 180),2),
                         "al_mass"      : al_mass,
                         "non_al_mass"  : 0,
-                        "manual_loc"   : 0,
+                        "manual_loc"   : 1,
                     }  
                     
                     self.unique_reentry_list.append(temp_reentry_dict)
