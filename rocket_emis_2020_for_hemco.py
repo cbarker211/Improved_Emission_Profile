@@ -215,6 +215,7 @@ class OutputEmis:
         self.year = year
         self.ground_landing_list = ground_landing_list
         self.stage_alt_dict = stage_alt_dict
+        self.total_landing_prop = 0
 
         self.included_prop = 0
         self.missing_prop = 0
@@ -414,7 +415,6 @@ class OutputEmis:
                 #    lon_ind=np.argmin(abs(self.lon-0))
                 #    self.pmin,self.pmax=int(lon_ind),int(lon_ind)
                 #    self.save_netcdf()
-        
         df = pd.DataFrame(self.output_for_csv)
         df_2 = pd.DataFrame(self.output_for_csv_2)
         if len(months) == 12:
@@ -490,6 +490,7 @@ class OutputEmis:
                 # Normalize the vertical emission profile for the booster emissions.
                 if launch_rocket == "Falcon Heavy" and self.include_landing == True:
                     self.gc_relative_mass_booster = gc_relative_mass_booster / np.sum(gc_relative_mass_booster) * landing_prop_percent
+                    self.total_landing_prop += (100 - landing_prop_percent) * rocket_data.booster_prop_mass[valid_index] / 100
                 else:
                     self.gc_relative_mass_booster = gc_relative_mass_booster / np.sum(gc_relative_mass_booster) * 100
                 
@@ -541,7 +542,8 @@ class OutputEmis:
             # If the rocket is Falcon v1.2 Block 5, then MECO is always in GC, and 93.2% of the emissions are used for ascent.
             # There is an extra 'boostback' burn for ground landings. No information of % of propellant, so assumed to be equal to the reentry burn.
             if launch_rocket == "Falcon 9 v1.2" and self.include_landing == True:
-                    self.gc_relative_mass_stage1 = self.gc_relative_mass_stage1 / np.sum(self.gc_relative_mass_stage1) * landing_prop_percent                
+                self.gc_relative_mass_stage1 = self.gc_relative_mass_stage1 / np.sum(self.gc_relative_mass_stage1) * landing_prop_percent 
+                self.total_landing_prop += (100 - landing_prop_percent) * rocket_data.stage1_prop_mass[valid_index] / 100                
             # For all other rockets, 100% is used for ascent.
             else:
                 self.gc_relative_mass_stage1 = self.gc_relative_mass_stage1 / np.sum(self.gc_relative_mass_stage1) * 100
@@ -851,7 +853,7 @@ class OutputEmis:
                 b_prop = rocket_data.booster_prop_mass[valid_index]
                 
                 if "Atlas" in rocket_data.rocket_name[valid_index] and datetime.datetime(self.year,m+1,d+1) >= datetime.datetime(2020,11,13):
-                        b_prop = 44200 * int(rocket_data.rocket_name[valid_index][9])
+                    b_prop = 44200 * int(rocket_data.rocket_name[valid_index][9])
                 
                 ##################################################
                 # Sanity Checks for Propellant Mass Distributions
@@ -1468,6 +1470,7 @@ def check_total_emissions(year,dataset):
         df.to_csv(f".\Emission_Output\EmissionTotals_{year}.csv",sep=',')
     else:
         df.to_csv(f".\Emission_Output\EmissionTotals_{year}_{dataset}.csv",sep=',')
+    print(emis_data.total_landing_prop * 1e-6 / (total_inc_prop + total_missing_prop) * 100)
     
 # Main section of the program
 if __name__ == "__main__":
