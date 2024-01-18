@@ -37,44 +37,40 @@ class import_launches_from_discos:
         end_epoch = f'{str(self.year+1)}-01-01'
         
         #This loop will run until all launches are found.
+        page_number = 1
         while True:
             #Add the filtering here. Currently set up to show successful and unsuccessful launches per year.
             #The filtering params currently get all launches between start_epoch and end_epoch, sorted by epoch.
             params={
                     'filter': f"ge(epoch,epoch:'{start_epoch}')&lt(epoch,epoch:'{end_epoch}')",
-                    'sort' : 'epoch'
+                    'sort' : 'epoch',  
+                    'page[number]' : page_number
                 }
             #Now we need a while loop to deal with the rate limit. 
             #If the response is ok (code <400), then it breaks the while loop, and if not then the while loop continues after a delay.
-            while True:  
-                response = server_request(params, '/launches')
-                if response.ok:
-                    break
-                else:
-                    message = ""
-                    #This line extracts information from the reponse on how long is left until more requests are allowed.
-                    wait_time=(int(response.headers["X-Ratelimit-Reset"])-int(time.time()))+1
-                    wait_function(message,wait_time)
+            response = server_request(params, '/launches')
+            if response.ok:
+                #When the response is OK, the while loop breaks and the data is read from the reponse.
+                #This converts the reponse to a json object.
+                doc = response.json()
+                #Can now extract the data from the json object.
+                temp_launch_list = doc['data']
+                self.full_launch_list.extend(temp_launch_list)
+                #Each request gives a 'page' of results, and the maximum is 30 results per page. 
+                #The script loops to request the next page..
+                if len(temp_launch_list) == 30:
+                    page_number += 1
                     continue
-            
-            #When the reponse is OK, the while loop breaks and the data is read from the reponse.
-            #This converts the reponse to a json object.
-            doc = response.json()
-            #Can now extract the data from the json object.
-            temp_launch_list = doc['data']
-            self.full_launch_list.extend(temp_launch_list)
-            
-            #Each request gives a 'page' of results, and the maximum is 30 results per page.
-            #There might be a way to increase the limit but I can't find it.
-            #Here, we add three seconds onto the start_epoch so we don't double count when the next query starts.
-            if len(temp_launch_list) == 30:
-                old_start_epoch = temp_launch_list[-1]["attributes"]["epoch"][0:19]
-                old_start_epoch = datetime.strptime(old_start_epoch, '%Y-%m-%dT%H:%M:%S')
-                start_epoch = old_start_epoch + timedelta(0,3) # days, seconds, then other fields.
-                start_epoch = start_epoch.isoformat() + "+00:00"
+                else:
+                    break
+            elif response.status_code == 429:
+                message = ""
+                response_error_handler(response,message)
                 continue
             else:
-                break
+                response_error_handler(response,"")
+            break
+                    
         
         #This section simply goes through each launch and counts the numbers of successes and failures.
         #It then prints the totals to the screen. Can be switched off if not needed.    
@@ -110,15 +106,13 @@ class import_launches_from_discos:
             #Filter only the successful launches (can change if required)
             if launch["attributes"]["failure"] == False:
                 
-                #The params select only the objects listed as 'payload', and sort by id.
-                #You can change the params to also collect information about other objectClasses.
-                params={
-                        'filter' : "eq(objectClass,Payload)",
-                        'sort' : 'id'         
-                    }
-                
-                #Same routine as get_yearly_launches function, but now splits into specific error codes.
+                page_number = 1
                 while True:
+                    params={
+                        'filter' : "eq(objectClass,Payload)",
+                        'sort' : 'id',  
+                        'page[number]' : page_number       
+                    }
                     #Now requiring a response from the objects url.
                     response = server_request(params,f'/launches/{launch["id"]}/objects')
                     
@@ -127,33 +121,21 @@ class import_launches_from_discos:
                         doc = response.json()
                         temp_object_list = doc['data']
                         full_object_list.extend(temp_object_list)
-                        
-                        #This section gets around the 30 requests per page limit.
-                        #It assigns the final (30th) object id in the page to a variable.
-                        #Then the params are set so that another request is made starting from the next object id. 
-                        if len(temp_object_list) > 0:
-                            final_object_id = str(int(temp_object_list[-1]["id"]) + 1)
+                        #Each request gives a 'page' of results, and the maximum is 30 results per page. 
+                        #The script loops to request the next page.
                         if len(temp_object_list) == 30:
-                            params={ 
-                                    'filter' : f"eq(objectClass,Payload)&ge(id,{final_object_id})",
-                                    'sort' : 'id'         
-                                }
+                            page_number += 1
                             continue
                         break
                     
-                    #This response usually means the params have incorrect syntax.
-                    elif response.status_code == 400:
-                        print("Client Error")
-                        break
-                    
-                    #This response means that the number of requests has been reached in the 60s limit.
-                    #It will then state how many payloads have been found and output the result while the timer counts down.
                     elif response.status_code == 429:
-                        message = f"Currently found {self.num_payloads} payloads. "
-                        wait_time=(int(response.headers["X-Ratelimit-Reset"])-int(time.time()))+1
-                        wait_function(message,wait_time)
+                        message = f"Currently found {self.num_payloads} payloads."
+                        response_error_handler(response,message)
                         continue
-                    
+                    else:
+                        response_error_handler(response,"")
+                    break
+                                    
                 self.num_payloads += len(full_object_list)
         
         #Print results.
