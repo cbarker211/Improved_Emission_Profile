@@ -427,7 +427,6 @@ def update_mass_info(i,temp_dict,unique_vehicle_name_list):
         # Ryan22 approximated the the final mass using the mean of all four-stage solid rockets.
         # DISCOSweb gives stage4 wet and dry mass as 1200 and 200 kg, can use this to work out propellant mass of 1000 kg.
         # Norbert Brügge gives stage4 propellant mass as ~1.1t, so DISCOSweb figure is reasonable.
-        # For fairing mass, approximating using Shavit. Similar LEO payload mass and size.
         temp_dict[f"Stage4 Propellant Mass"] = 1000 # DISCOSweb(wet/dry)
         temp_dict[f"Fairing Mass"] = 0
     
