@@ -49,15 +49,15 @@ class import_launches_from_discos:
             #Now we need a while loop to deal with the rate limit. 
             #If the response is ok (code <400), then it breaks the while loop, and if not then the while loop continues after a delay.
             response = server_request(params, '/launches')
-            if response.ok:
-                #When the response is OK, the while loop breaks and the data is read from the reponse.
-                #This converts the reponse to a json object.
+            
+            if response.ok:            
+                #This converts the reponse to a json object and exracts the data.
                 doc = response.json()
-                #Can now extract the data from the json object.
                 temp_launch_list = doc['data']
                 self.full_launch_list.extend(temp_launch_list)
+                
                 #Each request gives a 'page' of results, and the maximum is 30 results per page. 
-                #The script loops to request the next page..
+                #The script loops to request the next page.
                 if len(temp_launch_list) == 30:
                     page_number += 1
                     continue
@@ -258,7 +258,7 @@ class import_launches_from_discos:
             #   - Lynk
             #   - E-Space
             params={
-                    'filter' : "(eq(objectClass,Payload))&(contains(name,Starlink)|contains(name,OneWeb)|contains(name,Yinhe)|contains(name,Lynk)|contains(name,E-Space))",
+                    'filter' : "(eq(objectClass,Payload))&(contains(name,Starlink)|contains(name,OneWeb)|contains(name,Oneweb)|contains(name,Yinhe)|contains(name,Lynk)|contains(name,E-Space))",
                     'sort' : 'id'         
                 }
             while True:
@@ -267,14 +267,6 @@ class import_launches_from_discos:
                 if response.ok:
                     doc = response.json()
                     temp_object_list = doc['data']
-                    # This code was to get all objects and then filter, but it takes too long.
-                    #for count,payload in temp_object_list:
-                    #    if any([x in temp_object_list[count]["attributes"]["name"] for x in ["Starlink","Yinhe","OneWeb"]]):
-                    #        self.mcs_check.append(True)
-                    #        print(temp_object_list[count]["attributes"]["name"])
-                    #        print(f"{int(self.launch_day[-1])}/{int(self.launch_month[-1])}")
-                    #    else:
-                    #        self.mcs_check.append(False)
                     if len(temp_object_list) > 0:
                         self.mcs_check.append(True)  
                     else:
@@ -311,7 +303,6 @@ class import_launches_from_discos:
                 if response.ok:
                     doc = response.json()
                     self.rocket_type.append(doc['data']["attributes"]["name"])
-                    #print(doc['data']["attributes"]["name"])
                     self.vehicle_id.append(int(doc["data"]["id"]))
                 elif response.status_code == 429:
                     message = f"On launch {count} of {len(self.full_launch_list)} in {self.year}."
@@ -332,7 +323,7 @@ class import_launches_from_discos:
         #launches = np.arange(len(self.Cospar_Id), dtype=np.int64)
         dims = ('launches')
     
-        #Create the DataArrays (The data is currently lists instead of numpy arrays, I guess this is fine?)
+        #Create the DataArrays.
         data_da_cospar_id = xr.DataArray(self.Cospar_Id, dims=dims,
             attrs=dict(long_name="COSPAR ID",
                        short_name="COSPAR ID"))
