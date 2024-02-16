@@ -80,11 +80,6 @@ class RocketData:
         
         print("Successfully loaded launch information.")
         
-        # Previously, the emissions for each rocket launch were calculated elsewhere.
-        # The values were then loaded in to check for any inconsistencies. 
-        # However, now all the emission calculations are done here.
-        # Therefore, the sanity check is replaced with a variety of other functions elsewhere.
-        
     def read_reentry_emissions(self, reentryfile):
         """Read re-entry emissions from the database.
 
@@ -116,6 +111,8 @@ class RocketData:
         
         #Close Dataset.
         fg.close()
+        
+        print("Successfully loaded re-entry information.")
               
     def read_rocket_info(self, rocketinfofile):
         """Read information about the propellant mass and type for each rocket stage.
@@ -193,7 +190,7 @@ class RocketData:
         print("Successfully loaded PEI information.")
               
 class OutputEmis:
-    def __init__(self, rocketdata, res, ts, levs, booster_levs, meco_levs, sei_levs, reentry_levs, gc_dir, months, dataset, year, ground_landing_list,stage_alt_dict):
+    def __init__(self, rocketdata, res, ts, levs, booster_levs, meco_levs, sei_levs, reentry_levs, gcdir, months, dataset, year, ground_landing_list,stage_alt_dict):
 
         ####################################
         # Initial Setup
@@ -216,7 +213,6 @@ class OutputEmis:
         self.ground_landing_list = ground_landing_list
         self.stage_alt_dict = stage_alt_dict
         self.total_landing_prop = 0
-
         self.included_prop = 0
         self.missing_prop = 0
         
@@ -255,7 +251,6 @@ class OutputEmis:
         
         # Create the arrays for the output file to check prop/species distribution.
         reentry_length = len(rocket_data.reentry_id)
-        #reentry_length = 0
         self.output_for_csv = np.zeros(((len(rocket_data.launch_id)+reentry_length)*3,self.nlev))
         self.csv_count = 0
         self.output_for_csv_2 = np.zeros(((len(rocket_data.launch_id)+reentry_length)*8,self.nlev))
@@ -310,28 +305,26 @@ class OutputEmis:
                 else:
                     self.strday=str(d+1)
 
-                # gc_dir is defined for each scenario in the main section of the python script.
+                # gcdir is defined for each scenario in the main section of the python script.
                 # So only need one block to read GEOS-Chem box height from StateMet file.
                 
-                #self.gc_file = path.join(gc_dir, 'GEOSChem.StateMet.'+str(self.year)+self.strmon+self.strday+'_0000z.nc4')
-                #file_exists = os.path.exists(self.gc_file)
-                #if not file_exists: continue
-                #self.box_height, self.area, self.bot_alt, self.mid_alt, self.top_alt = read_gc_box_height(self.gc_file,self.nlev)
+                self.gc_file = path.join(gcdir, f'{self.year}/GEOSChem.StateMet.{self.year}{self.strmon}{self.strday}_0000z.nc4')
+                file_exists = os.path.exists(self.gc_file)
+                if not file_exists: continue
+                self.box_height, self.area, self.bot_alt, self.mid_alt, self.top_alt = read_gc_box_height(self.gc_file,self.nlev)
                 
-                gc_layer_data = np.loadtxt(".\Databases\GC_47.csv",delimiter=",")
-                self.top_alt = np.zeros((self.nlev,self.nlat,self.nlon))
-                self.bot_alt = np.zeros((self.nlev,self.nlat,self.nlon))
-                self.mid_alt = np.zeros((self.nlev,self.nlat,self.nlon))
-                self.area = np.zeros((self.nlat,self.nlon))
-                for lat in range(self.nlat):
-                    for lon in range(self.nlon):
-                        self.bot_alt[:,lat,lon] = gc_layer_data[::-1,0]*1000
-                        self.mid_alt[:,lat,lon] = gc_layer_data[::-1,1]*1000
-                        self.top_alt[:,lat,lon] = gc_layer_data[::-1,2]*1000
-                        self.area[lat,lon]      = 1
-                        # TODO: Add back after Myriad is back.
-                        # Set this back up when we have access to the StateMet files.
-                        # This is currently set to 1 as its only needed to output the final netcdf files, not the stats.
+                # This code is used when StateMet files aren't available, e.g. for testing without Myriad access.
+                #gc_layer_data = np.loadtxt(".\Databases\GC_47.csv",delimiter=",")
+                #self.top_alt = np.zeros((self.nlev,self.nlat,self.nlon))
+                #self.bot_alt = np.zeros((self.nlev,self.nlat,self.nlon))
+                #self.mid_alt = np.zeros((self.nlev,self.nlat,self.nlon))
+                #self.area = np.zeros((self.nlat,self.nlon))
+                #for lat in range(self.nlat):
+                #    for lon in range(self.nlon):
+                #        self.bot_alt[:,lat,lon] = gc_layer_data[::-1,0]*1000
+                #        self.mid_alt[:,lat,lon] = gc_layer_data[::-1,1]*1000
+                #        self.top_alt[:,lat,lon] = gc_layer_data[::-1,2]*1000
+                #        self.area[lat,lon]      = 1 # This is set to 1 as its only needed to output the final netcdf files, not the stats.
                 
                 # Set up the data arrays which will be saved to file.
                 self.rocket_launch_nox  = np.zeros((self.nhours,self.nlev,self.nlat,self.nlon))
@@ -405,21 +398,21 @@ class OutputEmis:
                 # Save file as NetCDF
                 ####################################
                 
-                #if len(l_ind)>0 or len(r_ind)>0:
-                #    # If there are launches or reentries, then save file normally.
-                #    self.save_netcdf()
-                #else:
-                #    # If there are no launches, create a dummy file to accommodate HEMCO file reading.
-                #    lat_ind=np.argmin(abs(self.lat-0))
-                #    self.qmin,self.qmax=int(lat_ind),int(lat_ind)
-                #    lon_ind=np.argmin(abs(self.lon-0))
-                #    self.pmin,self.pmax=int(lon_ind),int(lon_ind)
-                #    self.save_netcdf()
+                if len(l_ind)>0 or len(r_ind)>0:
+                    # If there are launches or reentries, then save file normally.
+                    self.save_netcdf()
+                else:
+                    # If there are no launches, create a dummy file to accommodate HEMCO file reading.
+                    lat_ind=np.argmin(abs(self.lat-0))
+                    self.qmin,self.qmax=int(lat_ind),int(lat_ind)
+                    lon_ind=np.argmin(abs(self.lon-0))
+                    self.pmin,self.pmax=int(lon_ind),int(lon_ind)
+                    self.save_netcdf()
         df = pd.DataFrame(self.output_for_csv)
         df_2 = pd.DataFrame(self.output_for_csv_2)
         if len(months) == 12:
-            df.to_csv(f"./Emission_Output/Emission_Distribution_{self.year}.csv", float_format='%.3f')
-            df_2.to_csv(f"./Emission_Output/Species_Distribution_{self.year}.csv", float_format='%.3f')
+            df.to_csv(f"./Emission_Output/Emission_Distribution_{self.year}_{dataset}.csv", float_format='%.3f')
+            df_2.to_csv(f"./Emission_Output/Species_Distribution_{self.year}_{dataset}.csv", float_format='%.3f')
              
     def process_launch_event_altitudes(self, valid_index, p, q, launch_rocket,launch_id):
         
@@ -859,15 +852,19 @@ class OutputEmis:
                 # Sanity Checks for Propellant Mass Distributions
                 ##################################################
                 
+                # Each time, use 0.001% as a the maximum error from rounding / floating point errors.
+                error_lim = 0.001
+                
                 # For all rockets with boosters, the propellant consumed for the boosters should never be bigger than the total booster propellant.
-                # Suppressed for Falcon Heavy, as this has reusable boosters.
+                # Suppressed for Falcon Heavy, as this has reusable boosters. 
+                
                 if rocket_data.booster_prop_type[valid_index] != '':
                     self.booster_prop_consumed[self.launch_count] = np.sum(self.gc_relative_mass_booster * b_prop * 1e-2)
-                    if (self.booster_prop_consumed[self.launch_count] - b_prop) > 0.1:
+                    if ((self.booster_prop_consumed[self.launch_count] - b_prop) / b_prop * 100) > error_lim:
                         print(self.booster_prop_consumed[self.launch_count],rocket_data.booster_prop_mass[valid_index])
                         sys.exit(f"Error with Booster emissions - 1. {launch_id[w]}")
                     if stage_alt_meco < 80:
-                        if ((np.abs(self.booster_prop_consumed[self.launch_count] - b_prop) / b_prop * 100) > 1) and (rocket_data.rocket_name[valid_index] != "Falcon Heavy"):
+                        if ((np.abs(self.booster_prop_consumed[self.launch_count] - b_prop) / b_prop * 100) > error_lim) and (rocket_data.rocket_name[valid_index] != "Falcon Heavy"):
                             print(np.abs(self.booster_prop_consumed[self.launch_count]),b_prop,np.abs(self.booster_prop_consumed[self.launch_count] - b_prop) / b_prop * 100)
                             sys.exit(f"Error with booster emissions -2. {launch_id[w]}") 
                         
@@ -875,12 +872,11 @@ class OutputEmis:
                 self.stage2_prop_consumed[self.launch_count]  = np.sum(self.gc_relative_mass_stage2 * rocket_data.stage2_prop_mass[valid_index] * 1e-2)
 
                 # For all rockets, the propellant consumed for each stage should never be bigger than the total propellant in each stage.
-                if (self.stage1_prop_consumed[self.launch_count] - rocket_data.stage1_prop_mass[valid_index]) > 0.1:
+                if ((self.stage1_prop_consumed[self.launch_count] - rocket_data.stage1_prop_mass[valid_index]) / rocket_data.stage1_prop_mass[valid_index] * 100 ) > error_lim:
                     sys.exit(f"Error with Stage 1 emissions - 1.")
-                elif (self.stage1_prop_consumed[self.launch_count] - rocket_data.stage1_prop_mass[valid_index]) > 0.05 and (self.stage1_prop_consumed[self.launch_count] - rocket_data.stage1_prop_mass[valid_index]) < 0.1:
-                    print(f"Warning: Floating point difference of {np.abs(self.stage1_prop_consumed[self.launch_count] - rocket_data.stage1_prop_mass[valid_index])}")
-                if (self.stage2_prop_consumed[self.launch_count] - rocket_data.stage2_prop_mass[valid_index]) > 0.1:
-                    sys.exit("Error with Stage 2 emissions.")
+                if (rocket_data.rocket_name[valid_index] != "Long March (CZ) 5B"):
+                    if (((self.stage2_prop_consumed[self.launch_count] - rocket_data.stage2_prop_mass[valid_index]) / rocket_data.stage2_prop_mass[valid_index] * 100 ) > error_lim):
+                        sys.exit("Error with Stage 2 emissions.")
                 
                 # When MECO occurs in GC, the consumed propellant should be within 1% of the total propellant mass of stage 1.  
                 # The error is suppressed for 2020-F07, 2021-F01, and 2021-F07 where rockets failed early. 
@@ -1160,7 +1156,7 @@ class OutputEmis:
 
                 # Complete burnup on re-entry.
                 if rocket_data.reentry_burnup[index[w]] == 'Complete': 
-                    nox_burnup_factor = 1                                   # NOx emissions of 100% of reentering mass.
+                    nox_burnup_factor = 0.4                                   # NOx emissions of 100% of reentering mass.
                     if (rocket_data.reentry_stage[index[w]] in [0,1]):
                         al_burnup_factor = 0.3 * 0.7  # https://doi.org/10.1016/j.asr.2020.10.036 (70% survivability) and https://hdl.handle.net/1721.1/151393 (70% Al)
                     elif "fairing" in rocket_data.reentry_name[index[w]].lower(): 
@@ -1239,7 +1235,7 @@ class OutputEmis:
                                                 
         updated_coords = False
         if (self.qmax+2)>=self.nlat:
-            print('Latitude index out of bounds: updating')  
+            #print('Latitude index out of bounds: updating')  
             updated_coords = True
             if ( self.qmax==self.qmin ):
                 self.qmax,self.qmin=self.nlat-2,self.nlat-2
@@ -1247,7 +1243,7 @@ class OutputEmis:
                 self.qmax=self.nlat-2  
                           
         if (self.pmax+2)>=self.nlon:
-            print('Longitude index out of bounds: updating')
+            #print('Longitude index out of bounds: updating')
             updated_coords = True
             if ( self.pmax==self.pmin ):
                 self.pmax,self.pmin=self.nlon-2,self.nlon-2
@@ -1268,8 +1264,8 @@ class OutputEmis:
                             + np.sum(self.rocket_cl[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
                             + np.sum(self.rocket_cl2[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
                                                             
-            print(f'{emis_initial:.2e},{emis_final:.2e}') 
-            if np.abs(emis_initial-emis_final) / emis_initial * 100 > 0.000001:
+            #print(f'{emis_initial:.2e},{emis_final:.2e}') 
+            if np.abs(emis_initial-emis_final) / emis_initial * 100 > 0.01:
                 sys.exit('Error: index correction removes relevant data')                
 
         # Check that output range isn't out-of-bounds:
@@ -1466,43 +1462,56 @@ def check_total_emissions(year,dataset):
                                         total_missing_emis,percent_missing_emis, total_missing_prop, percent_missing_prop]}
     df = pd.DataFrame(data)
     print(df.round(2))    
-    if dataset == 3:
-        df.to_csv(f".\Emission_Output\EmissionTotals_{year}.csv",sep=',')
-    else:
-        df.to_csv(f".\Emission_Output\EmissionTotals_{year}_{dataset}.csv",sep=',')
-    print(emis_data.total_landing_prop * 1e-6 / (total_inc_prop + total_missing_prop) * 100)
+    df.to_csv(f"./Emission_Output/EmissionTotals_{year}_{dataset}.csv",sep=',')
+    print("Total propellant used for reusable stages: ", np.round(emis_data.total_landing_prop * 1e-6 / (total_inc_prop + total_missing_prop) * 100,2))
     
 # Main section of the program
 if __name__ == "__main__":
 
-    # Configure additional arguments when running the script.
-
+    # Configure the script arguments.
     parser = argparse.ArgumentParser()
     parser.add_argument('-l', "--levels", default="47", choices=["47", "72"], help="Vertical resolution.")
     parser.add_argument('-g', "--grid_res", default = "4x5", choices=["4x5", "2x2.5"], help='Grid resolution.')
     parser.add_argument('-sm', "--start_month", default = "1", choices=str(np.arange(1,13)), help='Start Month (will override final month if greater than final month).')
     parser.add_argument('-fm', "--final_month", default = "12", choices=str(np.arange(1,13)), help='Final Month.')
-    parser.add_argument('-d', "--dataset", default = "3", choices=str(np.arange(1,4)), help='Dataset. 1=Non-SMC, 2=SMC, 3=All')
+    parser.add_argument('-sd', "--start_dataset", default = "1", choices=str(np.arange(1,4)), help='Dataset. 1=Non-SMC, 2=SMC, 3=All')
+    parser.add_argument('-fd', "--final_dataset", default = "3", choices=str(np.arange(1,4)), help='Dataset. 1=Non-SMC, 2=SMC, 3=All')
     parser.add_argument('-sy', "--start_year", default = "2020", choices=str(np.arange(2020,2023)), help='Start Year.')
     parser.add_argument('-fy', "--final_year", default = "2020", choices=str(np.arange(2020,2023)), help='Final Year.')
     args = parser.parse_args()
 
     # Sort out the year range.
-    start_year = int(args.start_year)
-    final_year = int(args.final_year)
+    start_year, final_year = int(args.start_year), int(args.final_year)
     if start_year > final_year:
         final_year = start_year + 1
     print(f"Processing from year {start_year} to {final_year}.")
     year_range = np.arange(start_year,final_year+1)  
     
+    # Sort out the month range.
+    start_month, final_month = int(args.start_month), int(args.final_month)
+    if start_month > final_month:
+        final_month = start_month + 1
+    print(f"Processing from month {start_month} to {final_month}.")
+    months = np.arange(start_month-1,final_month)
+    
+    # Sort out the dataset range.
+    start_dataset, final_dataset = int(args.start_dataset), int(args.final_dataset)
+    if start_dataset > final_dataset:
+        final_dataset = start_dataset + 1
+    print(f"Processing from dataset {start_dataset} to {final_dataset}.")
+    dataset_range = np.arange(start_dataset,final_dataset+1)
+    
     # Import the Falcon landing data.
     fiona.drvsupport.supported_drivers['KML'] = 'rw'
     raul_data = gpd.read_file('./Databases/General_SpaceX_Map_Raul.kml', driver='KML', layer =2)
       
-    #### Define booster and re-entry levels.
+    #################################
+    # Define launch event altitudes.
+    #################################
     
-    # In 2019, boosters set to extend to ~45 km (layer 44 of the 47-layer model, layer 57 of the 72-layer model).
+    # In 2019, boosters were set to extend to ~45 km (layer 44 of the 47-layer model, layer 57 of the 72-layer model).
     # In updated model, the actual BECO, MECO and SEI values are used wherever possible. 
+    # When not available, the average of other rockets with the same configuration is used.
 
     stage_alt_dict = {}
     stage_alt_rockets = np.genfromtxt("./Databases/Stage_Altitudes.csv",dtype=str,skip_header=1,usecols=[0],delimiter=",")
@@ -1521,7 +1530,7 @@ if __name__ == "__main__":
         else:
             stage_alt_dict[f"{stage_alt_rockets[i]} SEI1"] =  np.float64(stage_alt_data[i][2])
     
-    # B+1/2S B+3S B+4S 2S 3S 4S    
+    # B+1/2S, B+3S, B+4S, 2S, 3S, 4S,    
     booster_cutoff_alts = [66,55,29,0,0,0]
     MECO_alts           = [220,120,64,90,56,52]
     SEI_alts            = [229,120,64,103,61,59]
@@ -1530,8 +1539,6 @@ if __name__ == "__main__":
     # The emissions are evenly distributed across two vertical layers in the model.
     # 46-47 for the 47-layer model, 65-72 for the 72-layer model (equivalent to 60-80 km).
     # This means greater smoothing for the 47-layer model.
-    
-    # All indices have been subtracted by 1 to account for python indexing.
     levels = int(args.levels)
     if levels==47:
         reentry_levs = [45,46] 
@@ -1542,8 +1549,10 @@ if __name__ == "__main__":
         
     ground_landing_list = ["2020-016","2020-059","2020-086","2020-101", "2021-059", "2022-002","2022-008","2022-009",
                            "2022-040","2022-057","2022-063","2022-144","2022-166","2022-168","2022-173","2022-179"]
-        
-    ''' Define resolutions and set timings '''
+    
+    ######################################   
+    # Define resolutions and set timings.
+    ###################################### 
     
     # Define timesteps.
     grid_res = args.grid_res
@@ -1554,71 +1563,41 @@ if __name__ == "__main__":
     else:
         sys.exit("Invalid grid resolution.")
 
-    ''' Define locations of StateMet files '''
-    
     # Define paths dependent on resolution and levels. Errors should be handled above but included here just in case.
-    # Can't use ~ for home directory, have to use '/home/ucfacb0/<path>'
-    if grid_res == '4x5':
-        if levels == 72:
-            pass
-            #gcdir = '/home/ucfacb0/uptrop/GC/run_12.9.3_72L/methane_fluxes/merra2_4x5_og/StateMet/'
-        elif levels == 47:
-            gcdir = '/home/ucfacb0/rundirs/StateMet_Runs/gc_4x5_47L_merra2_nochem_StateMet/StateMet'
-        else:
-            sys.exit("Invalid number of levels.")
-    elif grid_res == '2x2.5':
-        if levels == 72:
-            gcdir = '/home/ucfacb0/rundirs/StateMet_Runs/gc_2x25_72L_merra2_nochem_StateMet/StateMet/'
-            #gcdir = '/home/ucfacb0/uptrop/GC/run_12.9.3_72L/methane_fluxes/merra2_2x25_og/StateMet'
-        elif levels == 47:
-            pass
-        else:
-            sys.exit("Invalid number of levels.")
+    # TODO: This path should be loaded in from file somehow. 
+    if grid_res in ['2x2.5','4x5'] and levels in [47,72]:
+        gcdir = f'/home/ucfacb0/Scratch/StateMet/{grid_res}/'
     else:
-        sys.exit("Invalid grid resolution.")
-        # For different resolutions, would first need to run GEOS-Chem to get StateMet files.
-        
-    start_month = int(args.start_month)
-    final_month = int(args.final_month)
-    if start_month > final_month:
-        final_month = start_month + 1
-    print(f"Processing from month {start_month} to {final_month}.")
-    months = np.arange(start_month-1,final_month)    
+        sys.exit("Invalid grid resolution or number of levels.")    
     
     #Loop over all years and run functions depending on input arguments.
     for year in year_range:
+        for dataset in dataset_range:
+            print(f"Year: {year} Dataset: {dataset}")
+            # Read the rocket emissions from the database.
+            datadir = './Databases/'
+            launch_path       = path.join(datadir, f'launch_info_{year}.nc')
+            rocket_info_path  = path.join(datadir, f'rocket_info_{year}.nc')
+            pei_path          = path.join(datadir, 'PEI_info.csv')
+            reentry_path      = path.join(datadir, f'reentry_info_{year}_jcat_150224.nc')
+            outdir            = f'/home/ucfacb0/Scratch/Emission_Inv/{year}/'    
+            rocket_data       = RocketData(launch_path, reentry_path, rocket_info_path, pei_path)
+        
+            # Go through process of gridding and saving rocket emissions:
+            emis_data = OutputEmis(rocket_data, 
+                                grid_res, 
+                                timestep, 
+                                levels, 
+                                booster_cutoff_alts, 
+                                MECO_alts, 
+                                SEI_alts, 
+                                reentry_levs, 
+                                gcdir, 
+                                months,
+                                dataset,
+                                year,
+                                ground_landing_list,
+                                stage_alt_dict
+                                )
 
-        # Read the rocket emissions from the database.
-        datadir = './Databases/'
-        launch_path          = path.join(datadir, f'launch_info_{year}.nc')
-        if year == 2020:
-            reentry_path     = path.join(datadir, f'reentry_info_{year}_jcat_test.nc')
-        elif year == 2021:
-            reentry_path     = path.join(datadir, f'reentry_info_{year}_jcat_test.nc')
-        elif year == 2022:
-            reentry_path     = path.join(datadir, f'reentry_info_{year}_jcat_test.nc')
-        else:
-            reentry_path     = ""
-        rocket_info_path = path.join(datadir, f'rocket_info_{year}.nc')
-        pei_path         = path.join(datadir, 'PEI_info.csv')
-        outdir = f'./Output/{year}/'    
-        rocket_data = RocketData(launch_path, reentry_path, rocket_info_path, pei_path)
-    
-        # Go through process of gridding and saving rocket emissions:
-        emis_data = OutputEmis(rocket_data, 
-                            grid_res, 
-                            timestep, 
-                            levels, 
-                            booster_cutoff_alts, 
-                            MECO_alts, 
-                            SEI_alts, 
-                            reentry_levs, 
-                            gcdir, 
-                            months,
-                            int(args.dataset),
-                            year,
-                            ground_landing_list,
-                            stage_alt_dict
-                            )
-
-        check_total_emissions(year,int(args.dataset))
+            check_total_emissions(year,dataset)
