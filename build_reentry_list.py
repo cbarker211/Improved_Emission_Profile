@@ -11,7 +11,7 @@ import fiona
 
 class build_reentry_list:
     
-    def __init__(self,year):
+    def __init__(self,year, ocean_shapefile, pacific_union, atlantic_union, country_shapefile, states_shapefile):
         """This function sets up the class.
 
         Args:
@@ -147,7 +147,9 @@ class build_reentry_list:
             # Therefore we will just set the lat to the inclination.
             lat = -inc
             lon = round(random.uniform(-180, 180),2)
-        #elif latlonstr in ["Pacific","Pacific?","PO","AO","E Pacific","E Pacific?","S Pacific","S POR","Indian O?","SE IOR?","SE IOR","Atlantic","POR"]:
+        #elif latlonstr in ["Pacific","Pacific?","PO","AO","E Pacific","E Pacific?","S Pacific",
+        #                   "S POR","Indian O?","SE IOR?","SE IOR","Atlantic","POR","Kazakhstan",
+        #                   "Mexico","S Africa","Gujarat"]:
         #    lat = 0
         #    lon = 0
         elif latlonstr == "WSSH":
@@ -1373,8 +1375,6 @@ class build_reentry_list:
             - fixes any geolocations on grid border (180E) 
         """        
         
-
-        
         # Import the netcdf files.
         self.ds_dw = xr.open_dataset(f"./Databases/Reentry/discosweb_reentries_{self.year}.nc", decode_times=False)
         self.dsr = xr.open_dataset(f"./Databases/rocket_info_{self.year}.nc", decode_times=False)
@@ -1488,10 +1488,10 @@ class build_reentry_list:
         ################################################ 
                     
         for reentry in self.unique_reentry_list:
-            if reentry["id"][:4] in np.arange(2020,self.year):
+            if int(reentry["id"][:4]) in np.arange(2020,self.year):
                 dsr_year = xr.open_dataset(f"./Databases/rocket_info_{reentry['id'][:4]}.nc", decode_times=False)
                 dsl_year = xr.open_dataset(f"./Databases/launch_info_{reentry['id'][:4]}.nc", decode_times=False)
-            elif reentry["id"][:4] == self.year:
+            elif int(reentry["id"][:4]) == self.year:
                 dsr_year = self.dsr
                 dsl_year = self.dsl
             else:
@@ -1627,7 +1627,7 @@ class build_reentry_list:
         #Save to file and close the DataSet  
         datestr = datetime.today().strftime('%Y%m%d_%H%M%S') 
         #ds.to_netcdf(f'./Databases/reentry_info_{self.year}_jcat_{datestr}.nc')
-        ds.to_netcdf(f'./Databases/reentry_info_{self.year}_jcat_test_150224.nc')
+        ds.to_netcdf(f'./Databases/reentry_info_{self.year}_jcat_150224.nc')
         ds.close()
         
 if __name__ == "__main__":
