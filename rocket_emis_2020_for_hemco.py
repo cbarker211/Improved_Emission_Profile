@@ -91,23 +91,23 @@ class RocketData:
         fg = Dataset(reentryfile, mode='r')
         
         # Extract variables:
-        self.reentry_id           = fg.variables['RE_ID'][:]
-        self.reentry_name         = fg.variables['RE_Name'][:]
-        self.reentry_type         = fg.variables['RE_Type'][:]
-        self.reentry_burnup       = fg.variables['RE_Burnup'][:]
-        self.reentry_stage        = fg.variables['RE_Stage'][:]
+        self.reentry_id           = fg.variables['ID'][:]
+        self.reentry_name         = fg.variables['Name'][:]
+        self.reentry_type         = fg.variables['Type'][:]
+        self.reentry_burnup       = fg.variables['Burnup'][:]
+        self.reentry_stage        = fg.variables['Stage'][:]
         for i in range(len(self.reentry_stage)):
             if str(self.reentry_stage[i])[0] == "B":
                 self.reentry_stage[i] = 0
         self.reentry_stage = self.reentry_stage.astype(int)
-        self.reentry_lats         = fg.variables['RE_Lat'][:]
-        self.reentry_lons         = fg.variables['RE_Lon'][:]
-        self.reentry_month        = fg.variables['RE_Mon'][:].astype(int)
-        self.reentry_day          = fg.variables['RE_Day'][:].astype(int)
-        self.reentry_time         = fg.variables['RE_Time'][:] # UTC hours
-        self.reentry_al_mass      = fg.variables['RE_Al_Mass'][:]
-        self.reentry_non_al_mass  = fg.variables['RE_Non_Al_Mass'][:]
-        self.reentry_mcs          = fg.variables['RE_MCS'][:]
+        self.reentry_lats         = fg.variables['Lat'][:]
+        self.reentry_lons         = fg.variables['Lon'][:]
+        self.reentry_month        = fg.variables['Mon'][:].astype(int)
+        self.reentry_day          = fg.variables['Day'][:].astype(int)
+        self.reentry_time         = fg.variables['Time'][:] # UTC hours
+        self.reentry_al_mass      = fg.variables['Al_Mass'][:]
+        self.reentry_non_al_mass  = fg.variables['Non_Al_Mass'][:]
+        self.reentry_mcs          = fg.variables['MCS'][:]
         
         #Close Dataset.
         fg.close()
@@ -230,6 +230,7 @@ class OutputEmis:
         self.nox_launch_total, self.bc_total, self.h2o_total = 0.0, 0.0, 0.0
         self.co_total,self.al2o3_launch_total, self.cl_total = 0.0, 0.0, 0.0
         self.hcl_total, self.cl2_total, self.nox_reentry_total, self.al2o3_reentry_total = 0.0, 0.0, 0.0, 0.0
+        self.mass_survive = 0
         self.missing_emis = np.zeros(8)
         self.booster_prop_consumed, self.stage1_prop_consumed, self.stage2_prop_consumed = np.zeros(len(self.launch_id)), np.zeros(len(self.launch_id)), np.zeros(len(self.launch_id))
         self.total_prop_consumed = np.zeros((len(rocket_data.h2o_pei),3))
@@ -1158,27 +1159,43 @@ class OutputEmis:
                 if rocket_data.reentry_burnup[index[w]] == 'Complete': 
                     nox_burnup_factor = 0.4                                   # NOx emissions of 100% of reentering mass.
                     if (rocket_data.reentry_stage[index[w]] in [0,1]):
-                        al_burnup_factor = 0.3 * 0.7  # https://doi.org/10.1016/j.asr.2020.10.036 (70% survivability) and https://hdl.handle.net/1721.1/151393 (70% Al)
+                        survive = 0.7 # https://doi.org/10.1016/j.asr.2020.10.036 (70% survivability)
+                        al_comp = 0.7 # https://hdl.handle.net/1721.1/151393 (70% Al)
+                        al_burnup_factor = (1-survive) * al_comp
                     elif "fairing" in rocket_data.reentry_name[index[w]].lower(): 
-                        al_burnup_factor = 0.3 * 0.7  # https://doi.org/10.1016/j.asr.2020.10.036 (70% survivability) and https://hdl.handle.net/1721.1/151393 (70% Al)
+                        survive = 0.7 # https://doi.org/10.1016/j.asr.2020.10.036 (70% survivability)
+                        al_comp = 0.7 # https://hdl.handle.net/1721.1/151393 (70% Al)
+                        al_burnup_factor = (1-survive) * al_comp
                     elif rocket_data.reentry_stage[index[w]] in [2,3,4]:
-                        al_burnup_factor = 0.65 * 0.7 # https://doi.org/10.1016/j.asr.2020.10.036 (35% survivability) and https://hdl.handle.net/1721.1/151393 (70% Al)
+                        survive = 0.35 # https://doi.org/10.1016/j.asr.2020.10.036 (35% survivability)
+                        al_comp = 0.7  # https://hdl.handle.net/1721.1/151393 (70% Al)
+                        al_burnup_factor = (1-survive) * al_comp
                     elif rocket_data.reentry_stage[index[w]] == 5:
                         if rocket_data.reentry_mcs[index[w]] == True:
-                            al_burnup_factor = 0.4       # https://doi.org/10.1016/j.asr.2020.10.036 (0% survivability, 40% Al)
+                            survive = 0   # https://doi.org/10.1016/j.asr.2020.10.036 (0% survivability)
+                            al_comp = 0.4 # https://doi.org/10.1016/j.asr.2020.10.036 (40% Al)
+                            al_burnup_factor = (1-survive) * al_comp
                         else:
-                            al_burnup_factor = 0.4 * 0.8 # https://doi.org/10.1016/j.asr.2020.10.036 (20% survivability, 40% Al)
+                            survive = 0.2 # https://doi.org/10.1016/j.asr.2020.10.036 (20% survivability)
+                            al_comp = 0.4 # https://doi.org/10.1016/j.asr.2020.10.036 (40% Al)
+                            al_burnup_factor = (1-survive) * al_comp
                     else:
+                        survive = 1
+                        print("UFO",rocket_data.reentry_stage[index[w]])
                         al_burnup_factor = 0
                         
                 # Partial burnup on re-entry - reusable capsules and Falcon 9 1st stage / fairings:
                 # Still using the 17.5% value for NOx emissions.
                 # For Al2O3, we assume no emissions from reusuable components.
-                else: 
+                else:
+                    survive = 0 # Not including reusable components in this statistic. 
                     if rocket_data.reentry_stage[index[w]] not in [1,5]:
                         print("Reusuable reentry not payload or 1st stage.") 
                     al_burnup_factor = 0
                     nox_burnup_factor = 0.175
+                    
+                # Calculate the total mass surviving re-entry in kg
+                self.mass_survive += ((rocket_data.reentry_al_mass[index[w]] + rocket_data.reentry_non_al_mass[index[w]]) * survive)
                  
                 # For consistency with launch emissions, the totals are kept in g units. 
                            
@@ -1447,19 +1464,20 @@ def check_total_emissions(year,dataset):
     total_inc_prop = np.sum(emis_data.included_prop)*1e-6
     percent_missing_prop = total_missing_prop / (total_inc_prop + total_missing_prop) * 100
     percent_inc_prop = total_inc_prop / (total_inc_prop + total_missing_prop) * 100
-                   
+    print(emis_data.mass_survive)        
     data = {'Species'        : ['BC', 'NOx (Launch)', 'H2O', 'CO', 'Al2O3 (Launch)', 'HCl', 'Cl', 'Cl2', 'NOx (Reentry)', 'Al2O3 (Reentry)',
-                                'Total Emis', 'Total Percent Emis','Total Prop', 'Total Percent Prop'],
+                                'Total Emis', 'Total Percent Emis','Total Prop', 'Total Percent Prop','Surviving Mass'],
             #'PEI Estimate'   : [estimated_bc*1e-9, estimated_nox*1e-9, estimated_h2o*1e-9, estimated_co*1e-9, 
             #                    estimated_al2o3*1e-9, estimated_hcl*1e-9, estimated_cl*1e-9, estimated_cl2*1e-9, 0, 0],
             'Included Emissions / Gg': [emis_data.bc_total*1e-9, emis_data.nox_launch_total*1e-9,   emis_data.h2o_total*1e-9, 
                                         emis_data.co_total*1e-9, emis_data.al2o3_launch_total*1e-9, emis_data.hcl_total*1e-9, 
                                         emis_data.cl_total*1e-9, emis_data.cl2_total*1e-9, emis_data.nox_reentry_total*1e-9, 
-                                        emis_data.al2o3_reentry_total*1e-9, total_inc_emis, percent_inc_emis, total_inc_prop, percent_inc_prop],
+                                        emis_data.al2o3_reentry_total*1e-9, total_inc_emis, percent_inc_emis, 
+                                        total_inc_prop, percent_inc_prop,emis_data.mass_survive * 1e-6],
             'Missing Emissions / g': [emis_data.missing_emis[0] * 1e-9, emis_data.missing_emis[2] * 1e-9, emis_data.missing_emis[3] * 1e-9, 
                                         emis_data.missing_emis[1] * 1e-9, emis_data.missing_emis[4] * 1e-9, emis_data.missing_emis[5] * 1e-9,
                                         emis_data.missing_emis[6] * 1e-9, emis_data.missing_emis[7] * 1e-9, 0, 0, 
-                                        total_missing_emis,percent_missing_emis, total_missing_prop, percent_missing_prop]}
+                                        total_missing_emis,percent_missing_emis, total_missing_prop, percent_missing_prop,0]}
     df = pd.DataFrame(data)
     print(df.round(2))    
     df.to_csv(f"./Emission_Output/EmissionTotals_{year}_{dataset}.csv",sep=',')
@@ -1579,7 +1597,7 @@ if __name__ == "__main__":
             launch_path       = path.join(datadir, f'launch_info_{year}.nc')
             rocket_info_path  = path.join(datadir, f'rocket_info_{year}.nc')
             pei_path          = path.join(datadir, 'PEI_info.csv')
-            reentry_path      = path.join(datadir, f'reentry_info_{year}_jcat_150224.nc')
+            reentry_path      = path.join(datadir, f'reentry_info_{year}_final.nc')
             outdir            = f'/home/ucfacb0/Scratch/Emission_Inv/{year}/'    
             rocket_data       = RocketData(launch_path, reentry_path, rocket_info_path, pei_path)
         
