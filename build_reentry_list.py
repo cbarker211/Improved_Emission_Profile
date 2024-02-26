@@ -706,7 +706,9 @@ class build_reentry_list:
             jsr_name = jsr_data_stripped_2020["Name"][reentry_count]
             jsr_inc = np.float64(jsr_data_stripped_2020["Inc"][reentry_count])
             jsr_dest = jsr_data_stripped_2020["Dest"][reentry_count]
-            jsr_apogee = int(jsr_data_stripped["Apogee"][reentry_count])
+            jsr_apogee = int(jsr_data_stripped_2020["Apogee"][reentry_count])
+            if str(jsr_name) == "Hayabusa 2 Return Capsule":
+                jsr_apogee = jsr_apogee * -1
          
             # The failure numbers are labelled differently for 2020 in DW and JSR. To make sure the main script runs OK, adjust the COSPAR ID here.
             if jsr_id == "2020-F09":
@@ -835,6 +837,7 @@ class build_reentry_list:
                     "attached_al_mass" : 0,
                     "manual_loc"       : manual_loc,
                     "inc"              : jsr_inc,
+                    "apogee"           : jsr_apogee,
                 }
                 
                 self.unique_reentry_list.append(temp_reentry_dict)   
@@ -1037,6 +1040,7 @@ class build_reentry_list:
                         "non_al_mass"      : 0,
                         "attached_al_mass" : 0,
                         "manual_loc"       : True,
+                        "apogee"           : 100,
                     }  
                     
                     self.unique_reentry_list.append(temp_reentry_dict)
@@ -1158,6 +1162,7 @@ class build_reentry_list:
                         "non_al_mass"      : 0, 
                         "attached_al_mass" : 0,
                         "manual_loc"       : True, 
+                        "apogee"           : 100,
                     }
 
                     self.unique_reentry_list.append(temp_reentry_dict)  
@@ -1223,6 +1228,15 @@ class build_reentry_list:
                             # Adding boosters where BECO is above 50km. If average then its for B+1/2S and B+3S only.
                             beco = stage_alt_dict[f"{rocket_name} BECO"]
                             if (beco > 50) or (np.isnan(beco) and (self.dsr["Stage4_PropMass"].values[count] == 0)):
+                                
+                                # Set beco so we can add to the netcdf output.
+                                if np.isnan(beco):
+                                    if self.dsr["Stage3_PropMass"].values[count] == 0:
+                                        beco = 66
+                                    else:
+                                        beco = 55
+                                
+                                # Now add the boosters.        
                                 print(f"Adding {int(self.dsr['Booster_No'].values[count])-booster_count} boosters for {self.dsl['COSPAR_ID'].values[i]}")
                                 for j in range(int(self.dsr["Booster_No"].values[count])-booster_count):
                                     mass = self.dsr["Booster_StageMass"].values[count] / int(self.dsr["Booster_No"].values[count])
@@ -1246,6 +1260,7 @@ class build_reentry_list:
                                         "attached_al_mass" : 0,
                                         "MCS"              : False,
                                         "manual_loc"       : False,
+                                        "apogee"           : beco,
                                     }
                     
                                     self.unique_reentry_list.append(temp_reentry_dict) 
@@ -1269,9 +1284,16 @@ class build_reentry_list:
                         # 2S,3S,4S
                         if self.dsr["Booster_PropMass"].values[count] == 0: 
                             add_first_stage = True
+                            if ((self.dsr["Stage3_PropMass"].values[count] == 0) and (self.dsr["Stage4_PropMass"].values[count] == 0)):
+                                meco = 90 #2S
+                            elif ((self.dsr["Stage3_PropMass"].values[count] != 0) and (self.dsr["Stage4_PropMass"].values[count] == 0)):
+                                meco = 56 #3S
+                            elif ((self.dsr["Stage3_PropMass"].values[count] != 0) and (self.dsr["Stage4_PropMass"].values[count] != 0)):
+                                meco = 52 #4S
                         # B+4S
                         if ((self.dsr["Booster_PropMass"].values[count] != 0) and (self.dsr["Stage4_PropMass"].values[count] != 0)):    
                             add_first_stage = True
+                            meco = 64
                      
                     if add_first_stage == True:    
                         # Check if there is a first stage, and add if not.
@@ -1302,6 +1324,7 @@ class build_reentry_list:
                                 "attached_al_mass" : 0,                           
                                 "MCS"              : False,
                                 "manual_loc"       : False,
+                                "apogee"           : meco,
                             }
         
                             self.unique_reentry_list.append(temp_reentry_dict)
@@ -1573,7 +1596,7 @@ class build_reentry_list:
         id_list, name_list, type_list, burnup_list = [], [], [], []
         stage_list, time_list,  mon_list , day_list  = [], [], [], []
         lat_list,  lon_list,  al_mass_list, non_al_mass_list = [], [], [], []
-        mcs_list, manual_loc_list  = [], []
+        mcs_list, manual_loc_list, apogee_list  = [], [], []
         
         for reentry in self.unique_reentry_list:
             id_list.append(reentry["id"])
@@ -1589,7 +1612,8 @@ class build_reentry_list:
             al_mass_list.append(reentry["al_mass"]+reentry["attached_al_mass"])
             non_al_mass_list.append(reentry["non_al_mass"])
             mcs_list.append(reentry["MCS"])
-            manual_loc_list.append(reentry["manual_loc"])    
+            manual_loc_list.append(reentry["manual_loc"]) 
+            apogee_list.append(reentry["apogee"])   
             
         #Create the DataArrays.
         data_da_id           = xr.DataArray(id_list,          dims=dims, attrs=dict(long_name="Reentry ID"))
@@ -1606,28 +1630,30 @@ class build_reentry_list:
         data_da_non_al_mass  = xr.DataArray(non_al_mass_list, dims=dims, attrs=dict(long_name="Reentry Non Al Mass", units="kg"))
         data_da_mcs          = xr.DataArray(mcs_list,         dims=dims, attrs=dict(long_name="Reentry MCS Check"))
         data_da_manual_loc   = xr.DataArray(manual_loc_list,  dims=dims, attrs=dict(long_name="Reentry Randomised Check"))
+        data_da_apogee       = xr.DataArray(apogee_list,      dims=dims, attrs=dict(long_name="Reentry Apogee", units="km"))
     
         # Create an xarray Dataset from the DataArrays.
         ds = xr.Dataset()
-        ds['RE_ID']          = data_da_id
-        ds['RE_Name']        = data_da_name
-        ds['RE_Type']        = data_da_type
-        ds['RE_Burnup']      = data_da_burnup
-        ds['RE_Stage']       = data_da_stage
-        ds['RE_Time']        = data_da_time
-        ds['RE_Mon']         = data_da_mon
-        ds['RE_Day']         = data_da_day
-        ds['RE_Lat']         = data_da_lat
-        ds['RE_Lon']         = data_da_lon
-        ds['RE_Al_Mass']     = data_da_al_mass
-        ds['RE_Non_Al_Mass'] = data_da_non_al_mass
-        ds['RE_MCS']         = data_da_mcs
-        ds['RE_Manual_Loc']  = data_da_manual_loc
+        ds['ID']          = data_da_id
+        ds['Name']        = data_da_name
+        ds['Type']        = data_da_type
+        ds['Burnup']      = data_da_burnup
+        ds['Stage']       = data_da_stage
+        ds['Time']        = data_da_time
+        ds['Mon']         = data_da_mon
+        ds['Day']         = data_da_day
+        ds['Lat']         = data_da_lat
+        ds['Lon']         = data_da_lon
+        ds['Al_Mass']     = data_da_al_mass
+        ds['Non_Al_Mass'] = data_da_non_al_mass
+        ds['MCS']         = data_da_mcs
+        ds['Manual_Loc']  = data_da_manual_loc
+        ds['Apogee']      = data_da_apogee
              
         #Save to file and close the DataSet  
         datestr = datetime.today().strftime('%Y%m%d_%H%M%S') 
         #ds.to_netcdf(f'./Databases/reentry_info_{self.year}_jcat_{datestr}.nc')
-        ds.to_netcdf(f'./Databases/reentry_info_{self.year}_jcat_150224.nc')
+        ds.to_netcdf(f'./Databases/reentry_info_{self.year}_final.nc')
         ds.close()
         
 if __name__ == "__main__":
