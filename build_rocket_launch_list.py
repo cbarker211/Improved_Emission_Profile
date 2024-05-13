@@ -6,7 +6,7 @@ import xarray as xr
 import argparse
 from discosweb_api_func import server_request, wait_function, response_error_handler
 from time import sleep
-from update_mass import update_mass_info
+from update_rocket_info import update_mass_info
 
 """ Script to request data from the DISCOSweb database. 
 NB: Each request is limited to 30 results, and there is a maximum limit of requests in a certain timeframe (20 requests per 60s).
@@ -550,19 +550,22 @@ class import_launches_from_discos:
         
         return temp_dict
     
-    def get_rocket_info(self):
+    def get_rocket_info(self,year_range):
         
         self.unique_rocket_list = []
         
         #Open file and get a list of unique vehicles.
-        ds = xr.open_dataset(f'Databases/launch_info_{self.year}.nc', decode_times=False)
-        vehicle_name_list = ds['Rocket_Type'].values
-        vehicle_id_list = ds['Vehicle_ID'].values
+        vehicle_name_list, vehicle_id_list = [], []
+        for year in year_range:
+            ds = xr.open_dataset(f'./Databases/launch_info_{year}.nc', decode_times=False)
+            vehicle_name_list = np.concatenate([vehicle_name_list,ds['Rocket_Type'].values])
+            vehicle_id_list = np.concatenate([vehicle_id_list,ds['Vehicle_ID'].values]).astype(int)
+            ds.close()
         unique_vehicle_name_list = sorted(list(set(vehicle_name_list)))
-        ds.close()
-            
+        #print(unique_vehicle_name_list)  
+        
         #Loop over all rockets, and pull the information for each.
-        #unique_vehicle_name_list = unique_vehicle_name_list[49:]
+        #unique_vehicle_name_list = unique_vehicle_name_list[:1]
         for i in range(0,len(unique_vehicle_name_list)):
             
             temp_vehicle_id = vehicle_id_list[np.where(vehicle_name_list == unique_vehicle_name_list[i])[0][0]]
@@ -574,29 +577,29 @@ class import_launches_from_discos:
             # Get the propellant mass info.
             while True:
                 response = server_request({},f'/launch-vehicles/{temp_vehicle_id}/stages')
-
                 if response.ok:
                     doc = response.json()
                     vehicle_info = doc['data']
                     # Usually 2-5 stages, so won't need to account for the maximum of 30 items in a list.
-                    run_func = True
-                    if run_func == True:
-                        #Set up the arrays
-                        temp_dict[f"Booster Propellant Mass"] = 0
-                        temp_dict[f"Booster Fuel Type"] = ""
-                        temp_dict[f"Booster Propellant Name"] = ""
-                        temp_dict[f"Booster Stage Mass"] = 0
-                        for j in range(0,4):
-                            temp_dict[f"Stage{j+1} Propellant Mass"] = 0
-                            temp_dict[f"Stage{j+1} Fuel Type"] = ""
-                            temp_dict[f"Stage{j+1} Propellant Name"] = ""
-                            temp_dict[f"Stage{j+1} Stage Mass"] = 0
-                            
-                        for count,stage in enumerate(vehicle_info):
-                            temp_dict = self.handle_stage_info(count,stage,i,temp_dict,unique_vehicle_name_list) 
+                
+                    #Set up the arrays
+                    temp_dict[f"Booster Propellant Mass"] = 0
+                    temp_dict[f"Booster Fuel Type"] = ""
+                    temp_dict[f"Booster Propellant Name"] = ""
+                    temp_dict[f"Booster Stage Mass"] = 0
+                    temp_dict[f"Booster Number"] = 0
+                    temp_dict[f"Fairing Mass"] = 0
+                    for j in range(0,4):
+                        temp_dict[f"Stage{j+1} Propellant Mass"] = 0
+                        temp_dict[f"Stage{j+1} Fuel Type"] = ""
+                        temp_dict[f"Stage{j+1} Propellant Name"] = ""
+                        temp_dict[f"Stage{j+1} Stage Mass"] = 0
+                        
+                    for count,stage in enumerate(vehicle_info):
+                        temp_dict = self.handle_stage_info(count,stage,i,temp_dict,unique_vehicle_name_list) 
                                                
                 elif response.status_code == 429:
-                    message = f"On rocket {i+1} of {len(unique_vehicle_name_list)} in {self.year}."
+                    message = f"On rocket {i+1} of {len(unique_vehicle_name_list)}. "
                     response_error_handler(response,message)
                     continue
                 else:
@@ -604,7 +607,7 @@ class import_launches_from_discos:
                 break      
             
             # Handle any incomplete/incorrect propellant/stage mass information.
-            temp_dict = update_mass_info(i,temp_dict,unique_vehicle_name_list)
+            #temp_dict = update_mass_info(i,temp_dict,unique_vehicle_name_list)
             # Update the rocket list.   
             self.unique_rocket_list.append(temp_dict)    
         
@@ -701,10 +704,11 @@ class import_launches_from_discos:
         ds['Stage4_PropName']       = data_da_stage4_propname
         ds['Stage4_StageMass']      = data_da_stage4_stagemass
         ds['Fairing_Mass']          = data_da_fairing_stagemass
-        ds['Total_Prop_Mass']       = np.sum(booster_propmass_list) + np.sum(data_da_stage1_propmass) + np.sum(data_da_stage2_propmass) + np.sum(data_da_stage3_propmass) + np.sum(data_da_stage4_propmass) 
+        #ds['Total_Prop_Mass']       = np.sum(booster_propmass_list) + np.sum(data_da_stage1_propmass) + np.sum(data_da_stage2_propmass) + np.sum(data_da_stage3_propmass) + np.sum(data_da_stage4_propmass) 
              
         #Save to file and close the DataSet     
-        ds.to_netcdf(f'./Databases/rocket_info_{year}.nc')
+        #ds.to_netcdf(f'./Databases/rocket_info_{year}.nc')
+        ds.to_netcdf(f'./Databases/rocket_info_noupdate.nc')
         ds.close()
         
     def save_discosweb_reentries(self):
@@ -790,7 +794,7 @@ class import_launches_from_discos:
         ds['DISCOSweb_Reentry_Epoch']    = data_da_epoch
              
         #Save to file and close the DataSet     
-        ds.to_netcdf(f'./Databases/discosweb_reentries_{year}.nc')
+        ds.to_netcdf(f'./Databases/Reentry/discosweb_reentries_{year}.nc')
         ds.close()
                          
 if __name__ == "__main__":
@@ -810,8 +814,8 @@ if __name__ == "__main__":
     parser.add_argument('-ri', "--rocket_info", action='store_true', help='Get rocket info.')
     parser.add_argument('-sri', "--save_rocket_info", action='store_true', help='Save launch info.')
     parser.add_argument('-sdwr', "--save_discosweb_reentries", action='store_true', help='Save launch info.')
-    parser.add_argument('-sy', "--start_year", default = "2020", choices=str(np.arange(1957,2023)), help='Start Year.')
-    parser.add_argument('-fy', "--final_year", default = "2020", choices=str(np.arange(1957,2023)), help='Final Year.')
+    parser.add_argument('-sy', "--start_year", default = "2020", choices=str(np.arange(1957,2024)), help='Start Year.')
+    parser.add_argument('-fy', "--final_year", default = "2020", choices=str(np.arange(1957,2024)), help='Final Year.')
     args = parser.parse_args()
     
     # Sort out the year range.
@@ -834,11 +838,12 @@ if __name__ == "__main__":
         if args.launch_info == True:
             LaunchData.get_launch_info()      
             if args.save_launch_info == True:
-                LaunchData.launch_info_to_netcdf()              
-        if args.rocket_info == True:
-            LaunchData.get_rocket_info()      
-            if args.save_rocket_info == True:
-                LaunchData.rocket_info_to_netcdf()  
+                LaunchData.launch_info_to_netcdf()               
         if args.save_discosweb_reentries == True:
-            LaunchData.save_discosweb_reentries()        
+            LaunchData.save_discosweb_reentries() 
+            
+    if args.rocket_info == True:
+        LaunchData.get_rocket_info(year_range)      
+        if args.save_rocket_info == True:
+            LaunchData.rocket_info_to_netcdf()        
     

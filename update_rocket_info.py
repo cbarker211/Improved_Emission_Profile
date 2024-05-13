@@ -2,8 +2,14 @@ def update_mass_info(i,temp_dict,unique_vehicle_name_list):
     ''' For details on rocket approximations, see Launch and Rocket Checks.xlsx, sheet: Missing Propellant Info.
         All rockets with the same number of stages are compared using prop type, LEO payload and rocket length.
         
-        This document goes through each rocket from 2020-2022 to update the information provided by DISCOSweb (which is often wrong).
-        Rocket manuals / mission guides take priority, then Space Launch Report and Spaceflight101, then Norbert Brugge or Jonathan's Space Report GCAT (dry mass only).
+        All rocket mass information (propellant, stage, and fairing mass) is initially compiled using DISCOSweb.
+        However, DISCOSweb can contain incomplete, out of date, or incorrect information.
+        This file updates the propellant, stage, and fairing mass for each rocket from 2020-2022. 
+        Priority for information is as follows:
+            -   Rocket manuals / Mission guides 
+            -   Space Launch Report / Spaceflight101
+            -   DISCOSweb / DISCOSweb (wet-dry)
+            -   Norbert Brugge / Jonathan's Space Report GCAT (dry mass only).
     '''
     temp_dict[f"Booster Number"] = 0
     temp_dict[f"Fairing Mass"] = 0
