@@ -156,8 +156,8 @@ class RocketData:
     
     def define_pei(self, peifile):
         """ Define the primary emission indices.
-            Each array should contain 4 values, corresponding to the emission index for :
-                Hypergolic, Kerosene, Solid, Hydrogen
+            Each array should contain 5 values, corresponding to the emission index for :
+                Hypergolic, Kerosene, Solid, Hydrogen, Methane
 
         Args:
             peifile (str): The path of the pei database.
@@ -399,16 +399,16 @@ class OutputEmis:
                 # Save file as NetCDF
                 ####################################
                 
-                if len(l_ind)>0 or len(r_ind)>0:
-                    # If there are launches or reentries, then save file normally.
-                    self.save_netcdf()
-                else:
-                    # If there are no launches, create a dummy file to accommodate HEMCO file reading.
-                    lat_ind=np.argmin(abs(self.lat-0))
-                    self.qmin,self.qmax=int(lat_ind),int(lat_ind)
-                    lon_ind=np.argmin(abs(self.lon-0))
-                    self.pmin,self.pmax=int(lon_ind),int(lon_ind)
-                    self.save_netcdf()
+        #        if len(l_ind)>0 or len(r_ind)>0:
+        #            # If there are launches or reentries, then save file normally.
+        #            self.save_netcdf()
+        #        else:
+        #            # If there are no launches, create a dummy file to accommodate HEMCO file reading.
+        #            lat_ind=np.argmin(abs(self.lat-0))
+        #            self.qmin,self.qmax=int(lat_ind),int(lat_ind)
+        #            lon_ind=np.argmin(abs(self.lon-0))
+        #            self.pmin,self.pmax=int(lon_ind),int(lon_ind)
+        #            self.save_netcdf()
         df = pd.DataFrame(self.output_for_csv)
         df_2 = pd.DataFrame(self.output_for_csv_2)
         if len(months) == 12:
@@ -457,6 +457,8 @@ class OutputEmis:
         ###########
         # Boosters
         ###########
+        
+        # TODO: This section needs to be able to run for different vertical heights (maybe up to 120??)
         
         if rocket_data.booster_prop_type[valid_index] != '':
             
@@ -618,44 +620,35 @@ class OutputEmis:
     def calc_emis(self,start_ind,stop_ind,pei_index,prop_mass,vertical_profile,time_index, q, p, kg_to_kgm2s, total_vertical_propellant):
         ei_bc = calculate_bc_ei(self.mid_alt[start_ind:stop_ind:-1,q,p]*1e-3,rocket_data.bc_pei[pei_index])
         t_bc_emis = ei_bc * prop_mass * 1e-2 * vertical_profile
-        self.bc_total += np.sum(t_bc_emis)
         self.rocket_bc[time_index,start_ind:stop_ind:-1,q,p] += t_bc_emis * 1e-3 / kg_to_kgm2s
         
         ei_co = calculate_co_ei(self.mid_alt[start_ind:stop_ind:-1,q,p]*1e-3, rocket_data.co_pei[pei_index], rocket_data.co2_pei[pei_index])
         t_co_emis = ei_co * prop_mass * 1e-2 * vertical_profile
-        self.co_total += np.sum(t_co_emis)
         self.rocket_co[time_index,start_ind:stop_ind:-1,q,p] += t_co_emis * 1e-3 / kg_to_kgm2s
         
         ei_sec_nox = calculate_nox_ei(self.mid_alt[start_ind:stop_ind:-1,q,p]*1e-3)
         t_launch_nox_emis = ei_sec_nox * prop_mass * 1e-2 * vertical_profile
-        self.nox_launch_total += np.sum(t_launch_nox_emis)
         self.rocket_launch_nox[time_index,start_ind:stop_ind:-1,q,p] = t_launch_nox_emis * 1e-3 / kg_to_kgm2s
         
         t_fuel_nox_emis = rocket_data.nox_pei[pei_index] * prop_mass * 1e-2 * vertical_profile
-        self.nox_launch_total += np.sum(t_fuel_nox_emis)
         self.rocket_fuel_nox[time_index,start_ind:stop_ind:-1,q,p] += t_fuel_nox_emis * 1e-3 / kg_to_kgm2s
         
         self.ei_h2o =  rocket_data.h2o_pei[pei_index] + rocket_data.h2_pei[pei_index] * self.mw_h2o / self.mw_h2 
         t_h2o_emis = self.ei_h2o * prop_mass * 1e-2 * vertical_profile
-        self.h2o_total += np.sum(t_h2o_emis)
         self.rocket_h2o[time_index,start_ind:stop_ind:-1,q,p] += t_h2o_emis * 1e-3 / kg_to_kgm2s
         
         t_al2o3_emis = rocket_data.al2o3_pei[pei_index] * prop_mass * 1e-2 * vertical_profile
-        self.al2o3_launch_total += np.sum(t_al2o3_emis)
         self.rocket_launch_al[time_index,start_ind:stop_ind:-1,q,p] += t_al2o3_emis * 1e-3 / kg_to_kgm2s
         
         ei_cl, ei_hcl, ei_cl2 = calculate_cl_ei(self.mid_alt[start_ind:stop_ind:-1,q,p]*1e-3, rocket_data.cly_pei[pei_index])  
         
         t_cl_emis = ei_cl * prop_mass * 1e-2 * vertical_profile
-        self.cl_total += np.sum(t_cl_emis)
         self.rocket_cl[time_index,start_ind:stop_ind:-1,q,p] += t_cl_emis * 1e-3 / kg_to_kgm2s
 
         t_hcl_emis = ei_hcl * prop_mass * 1e-2 * vertical_profile
-        self.hcl_total += np.sum(t_hcl_emis)
         self.rocket_hcl[time_index,start_ind:stop_ind:-1,q,p] += t_hcl_emis * 1e-3 / kg_to_kgm2s
         
         t_cl2_emis = ei_cl2 * prop_mass * 1e-2 * vertical_profile
-        self.cl2_total += np.sum(t_cl2_emis)
         self.rocket_cl2[time_index,start_ind:stop_ind:-1,q,p] += t_cl2_emis * 1e-3 / kg_to_kgm2s
         
         # These are all for viewing the individual propellant / species vertical distribution per launch.
@@ -672,7 +665,17 @@ class OutputEmis:
         
         vertical_propellant = prop_mass * vertical_profile
         
+        #if pei_index == 3:
         self.included_prop += np.sum(vertical_propellant) * 1e-2
+        self.bc_total += np.sum(t_bc_emis)
+        self.co_total += np.sum(t_co_emis)
+        self.nox_launch_total += np.sum(t_launch_nox_emis)
+        self.nox_launch_total += np.sum(t_fuel_nox_emis)
+        self.h2o_total += np.sum(t_h2o_emis)
+        self.al2o3_launch_total += np.sum(t_al2o3_emis)
+        self.cl_total += np.sum(t_cl_emis)
+        self.hcl_total += np.sum(t_hcl_emis)
+        self.cl2_total += np.sum(t_cl2_emis)
 
         total_vertical_propellant[stop_index_mod:start_index_mod,0]   += vertical_propellant[::-1]
         total_vertical_propellant[stop_index_mod:start_index_mod,1]   += t_bc_emis[::-1]
@@ -858,35 +861,35 @@ class OutputEmis:
                 
                 # For all rockets with boosters, the propellant consumed for the boosters should never be bigger than the total booster propellant.
                 # Suppressed for Falcon Heavy, as this has reusable boosters. 
-                
-                if rocket_data.booster_prop_type[valid_index] != '':
-                    self.booster_prop_consumed[self.launch_count] = np.sum(self.gc_relative_mass_booster * b_prop * 1e-2)
-                    if ((self.booster_prop_consumed[self.launch_count] - b_prop) / b_prop * 100) > error_lim:
-                        print(self.booster_prop_consumed[self.launch_count],rocket_data.booster_prop_mass[valid_index])
-                        sys.exit(f"Error with Booster emissions - 1. {launch_id[w]}")
-                    if stage_alt_meco < 80:
-                        if ((np.abs(self.booster_prop_consumed[self.launch_count] - b_prop) / b_prop * 100) > error_lim) and (rocket_data.rocket_name[valid_index] != "Falcon Heavy"):
-                            print(np.abs(self.booster_prop_consumed[self.launch_count]),b_prop,np.abs(self.booster_prop_consumed[self.launch_count] - b_prop) / b_prop * 100)
-                            sys.exit(f"Error with booster emissions -2. {launch_id[w]}") 
-                        
-                self.stage1_prop_consumed[self.launch_count]  = np.sum(self.gc_relative_mass_stage1 * rocket_data.stage1_prop_mass[valid_index] * 1e-2)
-                self.stage2_prop_consumed[self.launch_count]  = np.sum(self.gc_relative_mass_stage2 * rocket_data.stage2_prop_mass[valid_index] * 1e-2)
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    if rocket_data.booster_prop_type[valid_index] != '':
+                        self.booster_prop_consumed[self.launch_count] = np.sum(self.gc_relative_mass_booster * b_prop * 1e-2)
+                        if ((self.booster_prop_consumed[self.launch_count] - b_prop) / b_prop * 100) > error_lim:
+                            print(self.booster_prop_consumed[self.launch_count],rocket_data.booster_prop_mass[valid_index])
+                            sys.exit(f"Error with Booster emissions - 1. {launch_id[w]}")
+                        if stage_alt_meco < 80:
+                            if ((np.abs(self.booster_prop_consumed[self.launch_count] - b_prop) / b_prop * 100) > error_lim) and (rocket_data.rocket_name[valid_index] != "Falcon Heavy"):
+                                print(np.abs(self.booster_prop_consumed[self.launch_count]),b_prop,np.abs(self.booster_prop_consumed[self.launch_count] - b_prop) / b_prop * 100)
+                                sys.exit(f"Error with booster emissions -2. {launch_id[w]}") 
+                            
+                    self.stage1_prop_consumed[self.launch_count]  = np.sum(self.gc_relative_mass_stage1 * rocket_data.stage1_prop_mass[valid_index] * 1e-2)
+                    self.stage2_prop_consumed[self.launch_count]  = np.sum(self.gc_relative_mass_stage2 * rocket_data.stage2_prop_mass[valid_index] * 1e-2)
 
-                # For all rockets, the propellant consumed for each stage should never be bigger than the total propellant in each stage.
-                if ((self.stage1_prop_consumed[self.launch_count] - rocket_data.stage1_prop_mass[valid_index]) / rocket_data.stage1_prop_mass[valid_index] * 100 ) > error_lim:
-                    sys.exit(f"Error with Stage 1 emissions - 1.")
-                if (rocket_data.rocket_name[valid_index] != "Long March (CZ) 5B"):
-                    if (((self.stage2_prop_consumed[self.launch_count] - rocket_data.stage2_prop_mass[valid_index]) / rocket_data.stage2_prop_mass[valid_index] * 100 ) > error_lim):
-                        sys.exit("Error with Stage 2 emissions.")
-                
-                # When MECO occurs in GC, the consumed propellant should be within 1% of the total propellant mass of stage 1.  
-                # The error is suppressed for 2020-F07, 2021-F01, and 2021-F07 where rockets failed early. 
-                # Also suppressed for Falcon 9, as this has a reusable first stage.
-                # A check that the Falcon landing distribution is no greater than 7% of the stage 1 emissions is undertaken later in the grid_emis function.
-                if stage_alt_meco < 80:
-                    if (launch_id[w] not in ['2020-F07','2021-F01','2021-F07']) and rocket_data.rocket_name[valid_index] != "Falcon 9 v1.2" and ((np.abs(self.stage1_prop_consumed[self.launch_count] - rocket_data.stage1_prop_mass[valid_index]) / rocket_data.stage1_prop_mass[valid_index] * 100) > 1):
-                        print(launch_id[w],self.stage1_prop_consumed[self.launch_count],rocket_data.stage1_prop_mass[valid_index],(np.abs(self.stage1_prop_consumed[self.launch_count] - rocket_data.stage1_prop_mass[valid_index]) / rocket_data.stage1_prop_mass[valid_index] * 100))
-                        sys.exit("Error with Stage 1 emissions - 2.")  
+                    # For all rockets, the propellant consumed for each stage should never be bigger than the total propellant in each stage.
+                    if ((self.stage1_prop_consumed[self.launch_count] - rocket_data.stage1_prop_mass[valid_index]) / rocket_data.stage1_prop_mass[valid_index] * 100 ) > error_lim:
+                        sys.exit(f"Error with Stage 1 emissions - 1.")
+                    if (rocket_data.rocket_name[valid_index] != "Long March (CZ) 5B"):
+                        if (((self.stage2_prop_consumed[self.launch_count] - rocket_data.stage2_prop_mass[valid_index]) / rocket_data.stage2_prop_mass[valid_index] * 100 ) > error_lim):
+                            sys.exit("Error with Stage 2 emissions.")
+
+                    # When MECO occurs in GC, the consumed propellant should be within 1% of the total propellant mass of stage 1.  
+                    # The error is suppressed for 2020-F07, 2021-F01, and 2021-F07 where rockets failed early. 
+                    # Also suppressed for Falcon 9, as this has a reusable first stage.
+                    # A check that the Falcon landing distribution is no greater than 7% of the stage 1 emissions is undertaken later in the grid_emis function.
+                    if stage_alt_meco < 80:
+                        if (launch_id[w] not in ['2020-F07','2021-F01','2021-F07']) and rocket_data.rocket_name[valid_index] != "Falcon 9 v1.2" and ((np.abs(self.stage1_prop_consumed[self.launch_count] - rocket_data.stage1_prop_mass[valid_index]) / rocket_data.stage1_prop_mass[valid_index] * 100) > 1):
+                            print(launch_id[w],self.stage1_prop_consumed[self.launch_count],rocket_data.stage1_prop_mass[valid_index],(np.abs(self.stage1_prop_consumed[self.launch_count] - rocket_data.stage1_prop_mass[valid_index]) / rocket_data.stage1_prop_mass[valid_index] * 100))
+                            sys.exit("Error with Stage 1 emissions - 2.")  
                         
                 self.total_prop_consumed[pei_booster_index,0] += self.booster_prop_consumed[self.launch_count]
                 self.total_prop_consumed[pei_stage1_index,1]  += self.stage1_prop_consumed[self.launch_count]
@@ -1014,6 +1017,7 @@ class OutputEmis:
                         elif matching.shape[0] == 0:
                             # The database hasn't been well updated for 2022, so lets just fill in based on most common geolocation for all other 2020-2022 launches.
                             #print(f"Warning: problem geolocating Falcon Stage 1 landing for {launch_id[w]}.") 
+                            # TODO: This should be changed so it works for other resolutions.
                             if lon[w] == -81.0 and lat[w] == 28.5:
                                 falcon_p = 21
                                 falcon_q = 31
@@ -1045,6 +1049,7 @@ class OutputEmis:
                         prop_mass = rocket_data.booster_prop_mass[valid_index]
                         # NOTE: If this script is run for future years (2023), then check if the Falcon Heavy still lands both boosters and not core stage.
                     
+                    # TODO: This script should implement the boostback burn if the vertical height is increased to 100 km.
                     # First the entry emissions.
                     total_vertical_propellant = self.calc_emis(self.entry_top,
                                 self.entry_bot-1,
@@ -1068,7 +1073,8 @@ class OutputEmis:
                                 falcon_p, 
                                 kg_to_kgm2s,
                                 total_vertical_propellant)
-                  
+                
+                # TODO: Ideally this should be able to work for different vertical heights. 
                 # Calculate the missing emissions from above GEOS-Chem.
                 # Check if there are missing emissions from the first stage.
                 if rocket_data.stage1_prop_type[valid_index] != '' and 100 - np.sum(self.gc_relative_mass_stage1) > 0 and launch_id[w] not in ['2020-F04','2020-F07','2020-F11',
@@ -1125,8 +1131,8 @@ class OutputEmis:
                 ##############################################
                 # Output the emissions to a file for viewing.
                 ##############################################                  
-        
-                total_vertical_propellant[:,0] = total_vertical_propellant[:,0] / total_prop_mass
+                #with np.errstate(divide='ignore', invalid='ignore'):
+                #    total_vertical_propellant[:,0] = total_vertical_propellant[:,0] / total_prop_mass
                 self.output_for_csv[self.csv_count,:] = total_vertical_propellant[:,0]
                 self.csv_count += 1
                 self.output_for_csv[self.csv_count,:] = self.mid_alt[:,q,p]*1e-3
@@ -1318,7 +1324,7 @@ class OutputEmis:
         # Time:
         time = ncout.createVariable('time', np.int64, ('time',))
         time.long_name = 'time'
-        time.units = 'hours since 2020-'+self.strmon+'-'+self.strday+' 00:00:00'
+        time.units = 'hours since '+str(self.year)+'-'+self.strmon+'-'+self.strday+' 00:00:00'
         #time.units = 'seconds since 2020-'+self.strmon+'-'+self.strday+' 00:00:00'
         time.calendar = 'standard'
         time.axis = 'T'
@@ -1460,8 +1466,8 @@ def check_total_emissions(year,dataset):
     percent_missing_emis = total_missing_emis / (total_inc_emis + total_missing_emis) * 100
     percent_inc_emis = total_inc_emis / (total_inc_emis + total_missing_emis) * 100
     
-    total_missing_prop = np.sum(emis_data.missing_prop)*1e-6
-    total_inc_prop = np.sum(emis_data.included_prop)*1e-6
+    total_missing_prop = emis_data.missing_prop*1e-6
+    total_inc_prop = emis_data.included_prop*1e-6
     percent_missing_prop = total_missing_prop / (total_inc_prop + total_missing_prop) * 100
     percent_inc_prop = total_inc_prop / (total_inc_prop + total_missing_prop) * 100
     print(emis_data.mass_survive)        
@@ -1480,7 +1486,7 @@ def check_total_emissions(year,dataset):
                                         total_missing_emis,percent_missing_emis, total_missing_prop, percent_missing_prop,0]}
     df = pd.DataFrame(data)
     print(df.round(2))    
-    df.to_csv(f"./Emission_Output/EmissionTotals_{year}_{dataset}.csv",sep=',')
+    #df.to_csv(f"./Emission_Output/EmissionTotals_{year}_{dataset}.csv",sep=',')
     print("Total propellant used for reusable stages: ", np.round(emis_data.total_landing_prop * 1e-6 / (total_inc_prop + total_missing_prop) * 100,2))
     
 # Main section of the program
@@ -1557,6 +1563,7 @@ if __name__ == "__main__":
     # The emissions are evenly distributed across two vertical layers in the model.
     # 46-47 for the 47-layer model, 65-72 for the 72-layer model (equivalent to 60-80 km).
     # This means greater smoothing for the 47-layer model.
+    # TODO: Reentry layers, timestep, resolution should all be set in a separate input file.
     levels = int(args.levels)
     if levels==47:
         reentry_levs = [45,46] 
@@ -1597,7 +1604,7 @@ if __name__ == "__main__":
             launch_path       = path.join(datadir, f'launch_info_{year}.nc')
             rocket_info_path  = path.join(datadir, f'rocket_info_{year}.nc')
             pei_path          = path.join(datadir, 'PEI_info.csv')
-            reentry_path      = path.join(datadir, f'reentry_info_{year}_final.nc')
+            reentry_path      = path.join(datadir, f'reentry_info_{year}_final_atlasbugfix.nc')
             outdir            = f'/home/ucfacb0/Scratch/Emission_Inv/{year}/'    
             rocket_data       = RocketData(launch_path, reentry_path, rocket_info_path, pei_path)
         
