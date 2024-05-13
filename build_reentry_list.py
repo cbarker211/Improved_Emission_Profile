@@ -72,11 +72,19 @@ class build_reentry_list:
         Returns:
             lat(np.float64) : The latitude of the object.
             lon(np.float64) : The longitude of the object.
-            manual_loc(int) : A toggle for whether the location was randomised (True) or not (False).
+            manual_loc(int) : A toggle for whether the location was
+                                1 - Lat/Lon Provided
+                                2 - Launch Site
+                                3 - Named Location / Manually Located
+                                4 - Political Region
+                                5 - Ocean/Continent
+                                6 - Falcon Reusable
+                                7 - Inclination Bounded Random
+                                8 - Non-bounded Random
         """        
         
         # Adjust the inclination so its useful for our purpose of bounding the lat.
-        manual_loc = False
+        manual_loc = -1
         if inc > 90:
             inc = 180-inc
         elif inc == 0:
@@ -90,10 +98,11 @@ class build_reentry_list:
                     if jsr_id[:8] == self.dsl["COSPAR_ID"].values[i][:8]:
                         lat = self.dsl["Latitude"].values[i]
                         lon = self.dsl["Longitude"].values[i]
+                        manual_loc = 2  
             else: 
                 lat = round(random.uniform(-inc, inc),2)
                 lon = round(random.uniform(-180, 180),2)
-                manual_loc = True  
+                manual_loc = 7  
         elif latlonstr == "Alashan": 
             # Landing expected east of Jiuquan launch site (this was actually launched from Wenchang).
             # Assuming that Alashan refers to Helen Shan Mountain (new name for Alashan Mountain).
@@ -103,6 +112,7 @@ class build_reentry_list:
             # https://www.nasaspaceflight.com/2020/05/china-next-generation-crew-capsule/
             lat = 38.833
             lon = 105.95
+            manual_loc = 3
         elif latlonstr == "Jiuquan":
             # This refers to the Chinese launch center, sources say it landed 'in the desert near Jiuquan', and 'in China’s Inner Mongolia autonomous region'.
             # Using lat/lon for Jiuquan launch site.
@@ -112,6 +122,7 @@ class build_reentry_list:
             # https://spaceflightnow.com/2020/05/08/chinas-next-generation-crew-spacecraft-lands-after-unpiloted-test-flight/ 
             lat = 41.3
             lon = 100.3               
+            manual_loc = 2              
         elif latlonstr == "LOPNOR RW05":
             # Reported test flight of a Chinese reusable experimental spacecraft.
             # Runway 05/22 at Lop Nor air base in Xinjiang (https://planet4589.org/space/gcat/data/tables/lp.html).
@@ -119,6 +130,7 @@ class build_reentry_list:
             # https://twitter.com/planet4589/status/1302486141090885632                
             lat = 40.78
             lon = 89.27
+            manual_loc = 2
         elif latlonstr == "Ocean":
             # Electron Stage 1 (rcat) is occasionally recovered in the ocean.
             # From https://spaceflightnow.com/2020/11/05/rocket-lab-to-attempt-booster-recovery-on-next-mission/:
@@ -127,7 +139,9 @@ class build_reentry_list:
             # Geoloating 400km south of launch site.
             lat = -42.86 
             lon = 177.87
+            manual_loc = 3
         elif latlonstr == "Antarctic?":
+            manual_loc = 5
             while True:
                 lat = round(random.uniform(-inc, inc),2)
                 lon = round(random.uniform(-180, 180),2)
@@ -135,6 +149,7 @@ class build_reentry_list:
                 if lat <= -60:
                     break 
         elif latlonstr == "Arctic": 
+            manual_loc = 5
             while True:
                 lat = round(random.uniform(-inc, inc),2)
                 lon = round(random.uniform(-180, 180),2)
@@ -142,6 +157,7 @@ class build_reentry_list:
                 if lat >= 66:
                     break
         elif latlonstr in ["S Ocean", "S Ocean?"]:
+            manual_loc = 5
             # For these three objects in auxcat, the inclination is 51.65-53.
             # This is outside of the general definition of the southern ocean (<60S).
             # Therefore we will just set the lat to the inclination.
@@ -153,20 +169,24 @@ class build_reentry_list:
         #    lat = 0
         #    lon = 0
         elif latlonstr == "WSSH":
+            manual_loc = 3
             # This is the White Sands Missile Range in New Mexico.
             lat = 33.238462 
             lon = -106.346383 
         elif latlonstr == "GM 86.2W 29.7N":
+            manual_loc = 1
             # Gulf of Mexico
             lat = 29.7
             lon = -86.2
         elif latlonstr == "Splash?":
+            manual_loc = 3
             # This is the Electron failed helicopter stage 1 recovery in May 22. 
             # https://www.youtube.com/watch?v=BY0CXlOeWHI "Several hundred kilometers from the launch site."
             # Using inclination of 94 degrees (wiki), and distance of 300km.
             lat = -36.57
             lon = 177.63
         elif latlonstr == "Gujarat":
+            manual_loc = 4
             gujurat     = self.states_shapefile[self.states_shapefile.name_en.isin(['Gujarat'])] 
             while True:
                 lat = round(random.uniform(-inc, inc),2)
@@ -176,9 +196,11 @@ class build_reentry_list:
                     break
         elif latlonstr == "KSC SLF": # https://www.world-airport-codes.com/united-states/nasa-shuttle-landing-facility-69738.html
             # https://www.spaceforce.mil/News/Article/3217077/x-37b-orbital-test-vehicle-concludes-sixth-successful-mission/
+            manual_loc = 2
             lat = 28.61
             lon = -80.69
         elif latlonstr == "Kazakhstan":
+            manual_loc = 4
             kazakhstan     = self.country_shapefile[self.country_shapefile.NAME.isin(['Kazakhstan'])]
             while True:
                 lat = round(random.uniform(-inc, inc),2)
@@ -187,6 +209,7 @@ class build_reentry_list:
                 if kazakhstan.geometry.contains(coordinate).any():
                     break
         elif latlonstr == "Mexico":
+            manual_loc = 4
             mexico     = self.country_shapefile[self.country_shapefile.NAME.isin(['Mexico'])]
             while True:
                 lat = round(random.uniform(-inc, inc),2)
@@ -195,6 +218,7 @@ class build_reentry_list:
                 if mexico.geometry.contains(coordinate).any():
                     break
         elif latlonstr == "S Africa":
+            manual_loc = 4
             s_africa     = self.country_shapefile[self.country_shapefile.NAME.isin(['South Africa'])]
             while True:
                 lat = round(random.uniform(-inc, inc),2)
@@ -203,24 +227,31 @@ class build_reentry_list:
                 if s_africa.geometry.contains(coordinate).any():
                     break
         elif latlonstr == "100 03E 41 39N":
+            manual_loc = 1
             lon = 100.05
             lat = 41.65
         elif latlonstr == "47 20N 69 34E":     
+            manual_loc = 1     
             lon = 69.57
             lat = 47.33
         elif latlonstr == "41 39N 100 09E":     
+            manual_loc = 1     
             lon = 100.15
             lat = 41.65            
         elif latlonstr == "47 20N 69 35E?":     
+            manual_loc = 1     
             lon = 69.58
             lat = 47.33      
         elif latlonstr == "100 04E 41 37N":
+            manual_loc = 1
             lon = 100.07
             lat = 41.62
         elif latlonstr == "69 37E 47 21N":
+            manual_loc = 1
             lon = 69.62
             lat = 47.35
         elif latlonstr in ["Pacific", "Pacific?", "PO", "POR"]:
+            manual_loc = 5
             while True:
                 random_location = self.pacific_union.sample_points(1).get_coordinates()
                 lon = random_location["x"].values[0]
@@ -228,6 +259,7 @@ class build_reentry_list:
                 if -inc <= lat <= inc:
                     break
         elif latlonstr in ["AO","Atlantic"]: 
+            manual_loc = 5 
             while True:
                 random_location = self.atlantic_union.sample_points(1).get_coordinates()
                 lon = random_location["x"].values[0]
@@ -235,6 +267,7 @@ class build_reentry_list:
                 if -inc <= lat <= inc:
                     break
         elif latlonstr in ["E Pacific", "E Pacific?"]:
+            manual_loc = 5
             while True:
                 random_location = self.pacific_union.sample_points(1).get_coordinates()
                 lon = random_location["x"].values[0]
@@ -242,6 +275,7 @@ class build_reentry_list:
                 if -inc <= lat <= inc and -180 <= lon <= -60: # Bounded to East Pacific only.
                     break 
         elif latlonstr in ["S Pacific", "S POR"]:
+            manual_loc = 5
             while True:
                 random_location = self.pacific_union.sample_points(1).get_coordinates()
                 lon = random_location["x"].values[0]
@@ -249,6 +283,7 @@ class build_reentry_list:
                 if -inc <= lat <= inc and lat <= 0: # Bounded to South Pacific only.
                     break 
         elif latlonstr in ["Indian O?"]:
+            manual_loc = 5
             indian_ocean = self.ocean_shapefile[self.ocean_shapefile.name.isin(['Indian Ocean'])] 
             while True:
                 lat = round(random.uniform(-inc, inc),2)
@@ -257,6 +292,7 @@ class build_reentry_list:
                 if indian_ocean.geometry.contains(coordinate).any():
                     break 
         elif latlonstr in ["S of Tasmania?"]:
+            manual_loc = 5
             lon_lat_list = [[153.23, -30.02],[146.83, -43.64],[166.00, -50.92], [167.53, -47.29],
                             [168.14, -46.85], [168.85, -46.66], [174.28, -41.72], [175.28, -41.62], [173.01, -34.39]]
             tasman_sea_geom = Polygon(lon_lat_list)
@@ -268,6 +304,7 @@ class build_reentry_list:
                 if tasman_sea.geometry.contains(coordinate).any():
                     break 
         elif latlonstr in ["SE IOR?","SE IOR"]:
+            manual_loc = 5
             indian_ocean = self.ocean_shapefile[self.ocean_shapefile.name.isin(['Indian Ocean'])] 
             while True:
                 lat = round(random.uniform(-inc, -30),2)
@@ -276,6 +313,7 @@ class build_reentry_list:
                 if indian_ocean.geometry.contains(coordinate).any():
                     break 
         elif latlonstr.replace("?","").split()[0][-1] in ["E","W","S","N"]:
+            manual_loc = 1
             geolocation = latlonstr.replace("?","").split()
             if geolocation[0][-1] in ["E","W"]: # If the longitude comes first.
                 lon_data = geolocation[0]
@@ -798,11 +836,11 @@ class build_reentry_list:
             if ("Falcon 9 Stage 1" in jsr_name) and (jsr_data_stripped_2020["#JCAT"][reentry_count] != "R81716"):
                 lat, lon = self.falcon_stage_lat_lon(daystr,monstr,jsr_id)
                 burnup = "Partial"
-                manual_loc = False
+                manual_loc = 6
             elif ("Falcon 9 Fairing" in jsr_name) or ("Falcon Heavy Fairing" in jsr_name):    
                 lat, lon = self.falcon_fairing_lat_lon(daystr,monstr,jsr_id)
                 burnup = "Partial"
-                manual_loc = False
+                manual_loc = 6
             else:   
                 lat, lon, manual_loc = self.convert_lat_lon(jsr_dest, jsr_inc, reentry_stage, jsr_apogee, jsr_id)
             
@@ -986,12 +1024,17 @@ class build_reentry_list:
             jsr_id_list.append(reentry["id"])
         
         # Add time information from Aerospace Corp for any JSR entries missing time information.
+        ac_time_update_mass, ac_time_update_count = 0,0
         for reentry in (self.unique_reentry_list):
             if reentry["time"] == -1:
                 for reentry_count in range(len(aerospace_corp_data_year)): 
                     if aerospace_corp_data_year["International Designator"][reentry_count] == reentry["id"]:
                         reentry_time = aerospace_corp_data_year["Aerospace Reentry Prediction (UTC)"][reentry_count][11:16]
                         reentry["time"] = np.float64(int(reentry_time[0:2]) + int(reentry_time[3:5]) / 60)
+                        ac_time_update_mass += (reentry["al_mass"] +reentry["non_al_mass"])
+                        ac_time_update_count += 1
+                        
+        print(f"Time set by Aerospace Corp: {ac_time_update_mass},{ac_time_update_count}")
         
         # Now add any new entries.
         for reentry_count in range(len(aerospace_corp_data_year)):  
@@ -1039,7 +1082,7 @@ class build_reentry_list:
                         "al_mass"          : al_mass,
                         "non_al_mass"      : 0,
                         "attached_al_mass" : 0,
-                        "manual_loc"       : True,
+                        "manual_loc"       : 8,
                         "apogee"           : 100,
                     }  
                     
@@ -1161,7 +1204,7 @@ class build_reentry_list:
                         "al_mass"          : mass,
                         "non_al_mass"      : 0, 
                         "attached_al_mass" : 0,
-                        "manual_loc"       : True, 
+                        "manual_loc"       : 7, 
                         "apogee"           : 100,
                     }
 
@@ -1213,6 +1256,8 @@ class build_reentry_list:
             else:
                 stage_alt_dict[f"{stage_alt_rockets[i]} SEI1"] =  np.float64(stage_alt_data[i][2])
         
+        missing_boosters_count, missing_first_count = 0,0
+        missing_boosters_mass, missing_first_mass = 0,0
         # Loop over each launch in 2020, locate the rocket and then filter for rocket configuration.
         for i in range(len(self.dsl["COSPAR_ID"])):
             for count, rocket_name in enumerate(self.dsr["Rocket_Name"].values):
@@ -1242,7 +1287,8 @@ class build_reentry_list:
                                     mass = self.dsr["Booster_StageMass"].values[count] / int(self.dsr["Booster_No"].values[count])
                                     if np.isnan(mass):
                                         mass = 0
-                                        
+                                    missing_boosters_count += 1
+                                    missing_boosters_mass += mass    
                                     temp_reentry_dict = {
                                         "id"               : f'{self.dsl["COSPAR_ID"].values[i]}',
                                         "jcat"             : "N/A",
@@ -1259,7 +1305,7 @@ class build_reentry_list:
                                         "non_al_mass"      : 0,
                                         "attached_al_mass" : 0,
                                         "MCS"              : False,
-                                        "manual_loc"       : False,
+                                        "manual_loc"       : 2,
                                         "apogee"           : beco,
                                     }
                     
@@ -1306,7 +1352,8 @@ class build_reentry_list:
                             mass = self.dsr["Stage1_StageMass"].values[count]
                             if np.isnan(mass):
                                 mass = 0
-                            
+                            missing_first_count += 1
+                            missing_first_mass += mass
                             temp_reentry_dict = {
                                 "id"               : f'{self.dsl["COSPAR_ID"].values[i]}S1',
                                 "jcat"             : "N/A",
@@ -1323,11 +1370,14 @@ class build_reentry_list:
                                 "non_al_mass"      : 0,  
                                 "attached_al_mass" : 0,                           
                                 "MCS"              : False,
-                                "manual_loc"       : False,
+                                "manual_loc"       : 2,
                                 "apogee"           : meco,
                             }
         
                             self.unique_reentry_list.append(temp_reentry_dict)
+        
+        print(f"Missing Boosters:    {missing_boosters_mass},{missing_boosters_count}")
+        print(f"Missing First Stage: {missing_first_mass},{missing_first_count}")
     
     def import_raul_spacex_map(self):
         """Import and set up the geolocation lists for falcon landings.
@@ -1529,7 +1579,7 @@ class build_reentry_list:
                             if rocket_name == dsl_year["Rocket_Type"].values[i]:
                                 if reentry["reentry_stage"] in ["B1","B2","B3","B4","B5","B6"]:
                                     if "Atlas" in rocket_name and datetime(self.year,int(reentry["mon"]),int(reentry["day"])) >= datetime(2020,11,13):
-                                        reentry["al_mass"] = 44200
+                                        reentry["al_mass"] = 5100
                                     else:    
                                         reentry["al_mass"] = dsr_year["Booster_StageMass"].values[count] / int(dsr_year["Booster_No"].values[count])
                                 elif reentry["reentry_stage"] == 1:
@@ -1552,7 +1602,10 @@ class build_reentry_list:
             
             dsr_year.close()
             dsl_year.close()
-             
+        time_update_mass_1, time_update_count_1 = 0,0     
+        time_update_mass_2, time_update_count_2 = 0,0  
+        missing_time_count = 0 
+        print(len(self.unique_reentry_list))
         for reentry in self.unique_reentry_list:                 
             # For West Ford dipoles, these are part of the West Ford Needles project. # https://space.skyrocket.de/doc_sdat/westford.htm
             # The needles each weigh 40 ng, and one 'clump' reentered in 2020. The needles are Copper, and so will not contribute to Al emissions.  
@@ -1569,17 +1622,27 @@ class build_reentry_list:
             # Also set to midnight if the reentry is from a launch in a previous year.
             # When the reentry is on the same day, set it to the launch time.
             if reentry["time"] == -1:  
+                missing_time_count +=1                
                 for count, launch_id in enumerate(self.dsl["COSPAR_ID"].values):
                     if reentry["id"][:8] == launch_id:
                         if (int(reentry["mon"]) == int(self.dsl["Month"].values[count])) and (int(reentry["day"]) == int(self.dsl["Day"].values[count])):
                             reentry["time"] = self.dsl["Time(UTC)"].values[count]
+                            time_update_mass_1 += (reentry["al_mass"] +reentry["non_al_mass"])
+                            time_update_count_1 += 1
                         else:    
                             reentry["time"] = 0
+                            time_update_mass_2 += (reentry["al_mass"] +reentry["non_al_mass"])
+                            time_update_count_2 += 1
                 if int(reentry["id"][:4]) < self.year:
                     reentry["time"] = 0    
+                    time_update_mass_2 += (reentry["al_mass"] +reentry["non_al_mass"])
+                    time_update_count_2 += 1  
             if reentry["time"] == -1:
                 print(f"Need to add timings for {reentry['id']} {reentry['jcat']}")
         
+        print(f"Time set to launch:   {time_update_mass_1},{time_update_count_1}")
+        print(f"Time set to midnight: {time_update_mass_2},{time_update_count_2}")
+        print(f"Time missing:         {missing_time_count}")
         self.dsl.close()
         self.dsr.close()
         self.ds_dw.close()
@@ -1651,9 +1714,9 @@ class build_reentry_list:
         ds['Apogee']      = data_da_apogee
              
         #Save to file and close the DataSet  
-        datestr = datetime.today().strftime('%Y%m%d_%H%M%S') 
+        #datestr = datetime.today().strftime('%Y%m%d_%H%M%S') 
         #ds.to_netcdf(f'./Databases/reentry_info_{self.year}_jcat_{datestr}.nc')
-        ds.to_netcdf(f'./Databases/reentry_info_{self.year}_final.nc')
+        ds.to_netcdf(f'./Databases/reentry_info_{self.year}_fordatasetpaper.nc')
         ds.close()
         
 if __name__ == "__main__":
