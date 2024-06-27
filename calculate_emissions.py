@@ -28,6 +28,7 @@
                                             rocket_cl
                                             rocket_cl2
                                             rocket_co  
+                                            rocket_co2
 """
 
 # Import modules:
@@ -228,10 +229,10 @@ class OutputEmis:
 
         # Create variables for totals for a future sanity check:
         self.nox_launch_total, self.bc_total, self.h2o_total = 0.0, 0.0, 0.0
-        self.co_total,self.al2o3_launch_total, self.cl_total = 0.0, 0.0, 0.0
+        self.co_total,self.al2o3_launch_total, self.cl_total, self.co2_total = 0.0, 0.0, 0.0, 0.0
         self.hcl_total, self.cl2_total, self.nox_reentry_total, self.al2o3_reentry_total = 0.0, 0.0, 0.0, 0.0
         self.mass_survive = 0
-        self.missing_emis = np.zeros(8)
+        self.missing_emis = np.zeros(9)
         self.booster_prop_consumed, self.stage1_prop_consumed, self.stage2_prop_consumed = np.zeros(len(self.launch_id)), np.zeros(len(self.launch_id)), np.zeros(len(self.launch_id))
         self.total_prop_consumed = np.zeros((len(rocket_data.h2o_pei),3))
         self.launch_count = 0
@@ -254,7 +255,7 @@ class OutputEmis:
         reentry_length = len(rocket_data.reentry_id)
         self.output_for_csv = np.zeros(((len(rocket_data.launch_id)+reentry_length)*3,self.nlev))
         self.csv_count = 0
-        self.output_for_csv_2 = np.zeros(((len(rocket_data.launch_id)+reentry_length)*8,self.nlev))
+        self.output_for_csv_2 = np.zeros(((len(rocket_data.launch_id)+reentry_length)*9,self.nlev))
         self.csv_count_2 = 0
         
         # Build the ocean landing list for the year in question.
@@ -334,6 +335,7 @@ class OutputEmis:
                 self.rocket_h2o         = np.zeros((self.nhours,self.nlev,self.nlat,self.nlon))
                 self.rocket_bc          = np.zeros((self.nhours,self.nlev,self.nlat,self.nlon))
                 self.rocket_co          = np.zeros((self.nhours,self.nlev,self.nlat,self.nlon))
+                self.rocket_co2         = np.zeros((self.nhours,self.nlev,self.nlat,self.nlon))
                 self.rocket_launch_al   = np.zeros((self.nhours,self.nlev,self.nlat,self.nlon))
                 self.rocket_reentry_al  = np.zeros((self.nhours,self.nlev,self.nlat,self.nlon))
                 self.rocket_hcl         = np.zeros((self.nhours,self.nlev,self.nlat,self.nlon))
@@ -411,9 +413,9 @@ class OutputEmis:
         #            self.save_netcdf()
         df = pd.DataFrame(self.output_for_csv)
         df_2 = pd.DataFrame(self.output_for_csv_2)
-        if len(months) == 12:
-            df.to_csv(f"./Emission_Output/Emission_Distribution_{self.year}_{dataset}.csv", float_format='%.3f')
-            df_2.to_csv(f"./Emission_Output/Species_Distribution_{self.year}_{dataset}.csv", float_format='%.3f')
+        #if len(months) == 12:
+        #    df.to_csv(f"./Emission_Output/Emission_Distribution_{self.year}_{dataset}.csv", float_format='%.3f')
+        #    df_2.to_csv(f"./Emission_Output/Species_Distribution_{self.year}_{dataset}.csv", float_format='%.3f')
              
     def process_launch_event_altitudes(self, valid_index, p, q, launch_rocket,launch_id):
         
@@ -622,9 +624,11 @@ class OutputEmis:
         t_bc_emis = ei_bc * prop_mass * 1e-2 * vertical_profile
         self.rocket_bc[time_index,start_ind:stop_ind:-1,q,p] += t_bc_emis * 1e-3 / kg_to_kgm2s
         
-        ei_co = calculate_co_ei(self.mid_alt[start_ind:stop_ind:-1,q,p]*1e-3, rocket_data.co_pei[pei_index], rocket_data.co2_pei[pei_index])
+        ei_co, ei_co2 = calculate_co_ei(self.mid_alt[start_ind:stop_ind:-1,q,p]*1e-3, rocket_data.co_pei[pei_index], rocket_data.co2_pei[pei_index])
         t_co_emis = ei_co * prop_mass * 1e-2 * vertical_profile
+        t_co2_emis = ei_co2 * prop_mass * 1e-2 * vertical_profile
         self.rocket_co[time_index,start_ind:stop_ind:-1,q,p] += t_co_emis * 1e-3 / kg_to_kgm2s
+        self.rocket_co2[time_index,start_ind:stop_ind:-1,q,p] += t_co2_emis * 1e-3 / kg_to_kgm2s
         
         ei_sec_nox = calculate_nox_ei(self.mid_alt[start_ind:stop_ind:-1,q,p]*1e-3)
         t_launch_nox_emis = ei_sec_nox * prop_mass * 1e-2 * vertical_profile
@@ -669,6 +673,7 @@ class OutputEmis:
         self.included_prop += np.sum(vertical_propellant) * 1e-2
         self.bc_total += np.sum(t_bc_emis)
         self.co_total += np.sum(t_co_emis)
+        self.co2_total += np.sum(t_co2_emis)
         self.nox_launch_total += np.sum(t_launch_nox_emis)
         self.nox_launch_total += np.sum(t_fuel_nox_emis)
         self.h2o_total += np.sum(t_h2o_emis)
@@ -686,6 +691,7 @@ class OutputEmis:
         total_vertical_propellant[stop_index_mod:start_index_mod,6]   += t_cl_emis[::-1]
         total_vertical_propellant[stop_index_mod:start_index_mod,7]   += t_hcl_emis[::-1]
         total_vertical_propellant[stop_index_mod:start_index_mod,8]   += t_cl2_emis[::-1]
+        total_vertical_propellant[stop_index_mod:start_index_mod,9]   += t_co2_emis[::-1]
         
         return total_vertical_propellant
     
@@ -695,9 +701,11 @@ class OutputEmis:
         t_bc_emis = ei_bc * prop_mass * 1e-2 * percent_included
         self.missing_emis[0] += np.sum(t_bc_emis)
         
-        ei_co = calculate_co_ei([80], rocket_data.co_pei[pei_index], rocket_data.co2_pei[pei_index])
+        ei_co, ei_co2 = calculate_co_ei([80], rocket_data.co_pei[pei_index], rocket_data.co2_pei[pei_index])
         t_co_emis = ei_co * prop_mass * 1e-2 * percent_included
+        t_co2_emis = ei_co2 * prop_mass * 1e-2 * percent_included
         self.missing_emis[1] += np.sum(t_co_emis)
+        self.missing_emis[8] += np.sum(t_co2_emis)
         
         ei_sec_nox = calculate_nox_ei([80])
         t_launch_nox_emis = ei_sec_nox * prop_mass * 1e-2 * percent_included
@@ -911,7 +919,7 @@ class OutputEmis:
                 
                 # Creating a 2d array for the prop output.
                 # Total prop, bc, co, nox, h2o, al2o3, cl, hcl, cl2
-                total_vertical_propellant = np.zeros((len(self.mid_alt[:,q,p]),9))      
+                total_vertical_propellant = np.zeros((len(self.mid_alt[:,q,p]),10))      
                                 
                 # Check whether there is a booster:
                 if ( rocket_data.booster_prop_type[valid_index] != '' ):
@@ -1143,7 +1151,7 @@ class OutputEmis:
                 if np.sum(self.gc_relative_mass[::-1]) == 0 and np.sum(total_vertical_propellant[:,0]) == 0:
                     print(rocket_data.rocket_name[valid_index])
                 
-                for i in range(1,9):
+                for i in range(1,10):
                     self.output_for_csv_2[self.csv_count_2,:] = total_vertical_propellant[:,i]
                     self.csv_count_2 += 1 
 
@@ -1213,7 +1221,7 @@ class OutputEmis:
                 self.al2o3_reentry_total += t_al2o3_reentry
                 self.rocket_reentry_al[time_index,self.bot_reenter:self.top_reenter+1,q,p] += t_al2o3_reentry / self.n_reenter_levs * 1e-3 / kg_to_kgm2s
                 
-                total_vertical_propellant = np.zeros((len(self.mid_alt[:,q,p]),9))    
+                total_vertical_propellant = np.zeros((len(self.mid_alt[:,q,p]),10))    
                 total_vertical_propellant[self.bot_reenter:self.top_reenter+1,3]   += [t_nox_reentry/2, t_nox_reentry/2]
                 total_vertical_propellant[self.bot_reenter:self.top_reenter+1,5]   += [t_al2o3_reentry/2, t_al2o3_reentry/2]
                 
@@ -1224,7 +1232,7 @@ class OutputEmis:
                 self.output_for_csv[self.csv_count,:] = 0
                 self.csv_count += 1 
                 
-                for i in range(1,9):
+                for i in range(1,10):
                     self.output_for_csv_2[self.csv_count_2,:] = total_vertical_propellant[:,i]
                     self.csv_count_2 += 1
                      
@@ -1250,6 +1258,7 @@ class OutputEmis:
                         + np.sum(self.rocket_h2o[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
                         + np.sum(self.rocket_bc[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
                         + np.sum(self.rocket_co[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
+                        + np.sum(self.rocket_co2[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
                         + np.sum(self.rocket_launch_al[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
                         + np.sum(self.rocket_reentry_al[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
                         + np.sum(self.rocket_hcl[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
@@ -1281,6 +1290,7 @@ class OutputEmis:
                             + np.sum(self.rocket_h2o[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
                             + np.sum(self.rocket_bc[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
                             + np.sum(self.rocket_co[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
+                            + np.sum(self.rocket_co2[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
                             + np.sum(self.rocket_launch_al[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
                             + np.sum(self.rocket_reentry_al[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
                             + np.sum(self.rocket_hcl[:,:,self.qmin-1:self.qmax+2,self.pmin-1:self.pmax+2]) \
@@ -1460,9 +1470,9 @@ def check_total_emissions(year,dataset):
     
     total_missing_emis = np.sum(emis_data.missing_emis)*1e-9 
     total_inc_emis = np.sum([emis_data.bc_total*1e-9, emis_data.nox_launch_total*1e-9,   emis_data.h2o_total*1e-9, 
-                                    emis_data.co_total*1e-9, emis_data.al2o3_launch_total*1e-9, emis_data.hcl_total*1e-9, 
-                                    emis_data.cl_total*1e-9, emis_data.cl2_total*1e-9, emis_data.nox_reentry_total*1e-9, 
-                                    emis_data.al2o3_reentry_total*1e-9])
+                                    emis_data.co_total*1e-9, emis_data.co2_total*1e-9, emis_data.al2o3_launch_total*1e-9, 
+                                    emis_data.hcl_total*1e-9, emis_data.cl_total*1e-9, emis_data.cl2_total*1e-9, 
+                                    emis_data.nox_reentry_total*1e-9, emis_data.al2o3_reentry_total*1e-9])
     percent_missing_emis = total_missing_emis / (total_inc_emis + total_missing_emis) * 100
     percent_inc_emis = total_inc_emis / (total_inc_emis + total_missing_emis) * 100
     
@@ -1471,22 +1481,22 @@ def check_total_emissions(year,dataset):
     percent_missing_prop = total_missing_prop / (total_inc_prop + total_missing_prop) * 100
     percent_inc_prop = total_inc_prop / (total_inc_prop + total_missing_prop) * 100
     print(emis_data.mass_survive)        
-    data = {'Species'        : ['BC', 'NOx (Launch)', 'H2O', 'CO', 'Al2O3 (Launch)', 'HCl', 'Cl', 'Cl2', 'NOx (Reentry)', 'Al2O3 (Reentry)',
+    data = {'Species'        : ['BC', 'NOx (Launch)', 'H2O', 'CO', 'CO2', 'Al2O3 (Launch)', 'HCl', 'Cl', 'Cl2', 'NOx (Reentry)', 'Al2O3 (Reentry)',
                                 'Total Emis', 'Total Percent Emis','Total Prop', 'Total Percent Prop','Surviving Mass'],
             #'PEI Estimate'   : [estimated_bc*1e-9, estimated_nox*1e-9, estimated_h2o*1e-9, estimated_co*1e-9, 
             #                    estimated_al2o3*1e-9, estimated_hcl*1e-9, estimated_cl*1e-9, estimated_cl2*1e-9, 0, 0],
             'Included Emissions / Gg': [emis_data.bc_total*1e-9, emis_data.nox_launch_total*1e-9,   emis_data.h2o_total*1e-9, 
-                                        emis_data.co_total*1e-9, emis_data.al2o3_launch_total*1e-9, emis_data.hcl_total*1e-9, 
+                                        emis_data.co_total*1e-9, emis_data.co2_total*1e-9, emis_data.al2o3_launch_total*1e-9, emis_data.hcl_total*1e-9, 
                                         emis_data.cl_total*1e-9, emis_data.cl2_total*1e-9, emis_data.nox_reentry_total*1e-9, 
                                         emis_data.al2o3_reentry_total*1e-9, total_inc_emis, percent_inc_emis, 
                                         total_inc_prop, percent_inc_prop,emis_data.mass_survive * 1e-6],
             'Missing Emissions / g': [emis_data.missing_emis[0] * 1e-9, emis_data.missing_emis[2] * 1e-9, emis_data.missing_emis[3] * 1e-9, 
-                                        emis_data.missing_emis[1] * 1e-9, emis_data.missing_emis[4] * 1e-9, emis_data.missing_emis[5] * 1e-9,
+                                        emis_data.missing_emis[1] * 1e-9, emis_data.missing_emis[8] * 1e-9, emis_data.missing_emis[4] * 1e-9, emis_data.missing_emis[5] * 1e-9,
                                         emis_data.missing_emis[6] * 1e-9, emis_data.missing_emis[7] * 1e-9, 0, 0, 
                                         total_missing_emis,percent_missing_emis, total_missing_prop, percent_missing_prop,0]}
     df = pd.DataFrame(data)
     print(df.round(2))    
-    #df.to_csv(f"./Emission_Output/EmissionTotals_{year}_{dataset}.csv",sep=',')
+    df.to_csv(f"./Emission_Output/EmissionTotals_{year}_{dataset}.csv",sep=',')
     print("Total propellant used for reusable stages: ", np.round(emis_data.total_landing_prop * 1e-6 / (total_inc_prop + total_missing_prop) * 100,2))
     
 # Main section of the program

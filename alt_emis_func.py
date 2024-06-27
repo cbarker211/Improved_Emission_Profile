@@ -57,11 +57,15 @@ def calculate_co_ei(height, co_pei, co2_pei):
     """    
         
     ei_co = np.zeros_like(height)
+    ei_co2 = np.zeros_like(height)
+    mw_co2 = 44.01
+    mw_co  = 28.01
 
     for i, h in enumerate(height):
         ei_co[i] = min(co_pei, 0.0025*np.exp(0.067*h)*(co2_pei + co_pei))
+        ei_co2[i] = co2_pei + mw_co2/mw_co * (co_pei-ei_co[i])
 
-    return ei_co
+    return ei_co, ei_co2
         
 def calculate_cl_ei(height, cly_pei):    
     """ Calculate emission indices for all chlorine species in g per kg propellant burned.
