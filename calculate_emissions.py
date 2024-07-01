@@ -669,7 +669,7 @@ class OutputEmis:
         
         vertical_propellant = prop_mass * vertical_profile
         
-        #if pei_index == 3:
+        #if pei_index == 2:
         self.included_prop += np.sum(vertical_propellant) * 1e-2
         self.bc_total += np.sum(t_bc_emis)
         self.co_total += np.sum(t_co_emis)
@@ -699,41 +699,38 @@ class OutputEmis:
         
         ei_bc = calculate_bc_ei([80],rocket_data.bc_pei[pei_index])
         t_bc_emis = ei_bc * prop_mass * 1e-2 * percent_included
-        self.missing_emis[0] += np.sum(t_bc_emis)
         
         ei_co, ei_co2 = calculate_co_ei([80], rocket_data.co_pei[pei_index], rocket_data.co2_pei[pei_index])
         t_co_emis = ei_co * prop_mass * 1e-2 * percent_included
         t_co2_emis = ei_co2 * prop_mass * 1e-2 * percent_included
-        self.missing_emis[1] += np.sum(t_co_emis)
-        self.missing_emis[8] += np.sum(t_co2_emis)
         
         ei_sec_nox = calculate_nox_ei([80])
         t_launch_nox_emis = ei_sec_nox * prop_mass * 1e-2 * percent_included
-        self.missing_emis[2] += np.sum(t_launch_nox_emis)
         
         t_fuel_nox_emis = rocket_data.nox_pei[pei_index] * prop_mass * 1e-2 * percent_included
-        self.missing_emis[2] += np.sum(t_fuel_nox_emis)
         
         self.ei_h2o =  rocket_data.h2o_pei[pei_index] + rocket_data.h2_pei[pei_index] * self.mw_h2o / self.mw_h2 
         t_h2o_emis = self.ei_h2o * prop_mass * 1e-2 * percent_included
-        self.missing_emis[3] += np.sum(t_h2o_emis)
         
         t_al2o3_emis = rocket_data.al2o3_pei[pei_index] * prop_mass * 1e-2 * percent_included
-        self.missing_emis[4] += np.sum(t_al2o3_emis)
         
         ei_cl, ei_hcl, ei_cl2 = calculate_cl_ei([80], rocket_data.cly_pei[pei_index])  
-        
         t_cl_emis = ei_cl * prop_mass * 1e-2 * percent_included
-        self.missing_emis[5] += np.sum(t_cl_emis)
-
         t_hcl_emis = ei_hcl * prop_mass * 1e-2 * percent_included
-        self.missing_emis[6] += np.sum(t_hcl_emis)
-        
         t_cl2_emis = ei_cl2 * prop_mass * 1e-2 * percent_included
-        self.missing_emis[7] += np.sum(t_cl2_emis)
         
+        #if pei_index == 2:
         self.missing_prop += prop_mass * 1e-2 * percent_included
-             
+        self.missing_emis[0] += np.sum(t_bc_emis) 
+        self.missing_emis[1] += np.sum(t_co_emis)
+        self.missing_emis[2] += np.sum(t_launch_nox_emis)
+        self.missing_emis[2] += np.sum(t_fuel_nox_emis)
+        self.missing_emis[3] += np.sum(t_h2o_emis)
+        self.missing_emis[4] += np.sum(t_al2o3_emis)
+        self.missing_emis[5] += np.sum(t_cl_emis)
+        self.missing_emis[6] += np.sum(t_hcl_emis)
+        self.missing_emis[7] += np.sum(t_cl2_emis)
+        self.missing_emis[8] += np.sum(t_co2_emis)            
     def grid_emis(self,index,lon,lat,hour,emis_type,launch_id,launch_rocket,d,m):
         """Grid the data onto the GEOS-Chem horizontal and vertical grid"""
         

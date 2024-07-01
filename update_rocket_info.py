@@ -506,8 +506,8 @@ def update_mass_info(i,temp_dict,unique_vehicle_name_list):
         temp_dict[f"Booster Propellant Mass"] = (37800+40800) / 2 * 4   # SLR/Sp101
         temp_dict[f"Booster Stage Mass"]      = (3000+3200) / 2 * 4     # SLR/Sp101
         temp_dict[f"Stage1 Stage Mass"]       = (9500+12500) / 2        # SLR/Sp101
-        temp_dict[f"Stage1 Propellant Mass"]  = (187000+186500) / 2 * 4 # SLR/Sp101
-        temp_dict[f"Stage2 Propellant Mass"]  = (86000+91500) / 2 * 4   # SLR/Sp101
+        temp_dict[f"Stage1 Propellant Mass"]  = (187000+186500) / 2 * 4 # SLR/Sp101 # NOTE: This should be changed.
+        temp_dict[f"Stage2 Propellant Mass"]  = (86000+91500) / 2 * 4   # SLR/Sp101 # NOTE: This should be changed.
         temp_dict[f"Fairing Mass"]            = 6000                    # http://www.b14643.de/Spacerockets_1/China/CZ-2EF/Description/Frame.htm
         
     if "Long March (CZ) 3" in unique_vehicle_name_list[i]:
@@ -805,7 +805,7 @@ def update_mass_info(i,temp_dict,unique_vehicle_name_list):
         temp_dict[f"Stage2 Stage Mass"]         = (5400+5300) / 2   # SLR/Sp101
         temp_dict[f"Stage3 Stage Mass"]         = (700+1100) / 2    # SLR/Sp101
         temp_dict[f"Stage4 Stage Mass"]         = (420+920) / 2     # SLR/Sp101
-        temp_dict[f"Fairing Mass"]              = (1150+1100) / 2
+        temp_dict[f"Fairing Mass"]              = (1150+1100) / 2   # SLR/Sp101
 
     if "Proton" in unique_vehicle_name_list[i]:
         # DISCOSweb hasn't updated to include the 'Enhanced' variant, which has been standard since 2007.
@@ -824,17 +824,17 @@ def update_mass_info(i,temp_dict,unique_vehicle_name_list):
         # Fairing masses:
         # Sp101    :  2000 (Briz-M Proton), 1600 (Briz-M Angara A5), 2000 (DM-03)
     
-        temp_dict[f"Stage1 Propellant Mass"] = 428300
-        temp_dict[f"Stage3 Propellant Mass"] = 46562
-        temp_dict[f"Stage1 Stage Mass"]      = 30600
+        temp_dict[f"Stage1 Propellant Mass"] = 428300 # SLR
+        temp_dict[f"Stage3 Propellant Mass"] = 46562  # SLR/Sp101
+        temp_dict[f"Stage1 Stage Mass"]      = 30600  # SLR
         if unique_vehicle_name_list[i] == "Proton-M":
-            temp_dict[f"Fairing Mass"] = 2000 # Sp101 has this value for Proton Medium and Briz-M / DM-03. Using here.
+            temp_dict[f"Fairing Mass"] = 2000  # Sp101 has this value for Proton Medium and Briz-M / DM-03. Using here.
         elif unique_vehicle_name_list[i] == "Proton-M/Briz-M":
-            temp_dict[f"Fairing Mass"] = 2000 
+            temp_dict[f"Fairing Mass"] = 2000  # Sp101
         elif unique_vehicle_name_list[i] == "Proton-M/DM-3":
-            temp_dict[f"Fairing Mass"] = 2000 
-            temp_dict[f"Stage4 Propellant Mass"] = 18600
-            temp_dict[f"Stage4 Stage Mass"]      = 3500
+            temp_dict[f"Fairing Mass"] = 2000  # Sp101
+            temp_dict[f"Stage4 Propellant Mass"] = 18600 # Sp101
+            temp_dict[f"Stage4 Stage Mass"]      = 3500  # Sp101
             
     if "Pegasus XL" in unique_vehicle_name_list[i]:
         # Manual: https://www.mach5lowdown.com/wp-content/uploads/PUG/pegasus-user-guide-2007-1.pdf 
@@ -884,10 +884,10 @@ def update_mass_info(i,temp_dict,unique_vehicle_name_list):
         temp_dict[f"Stage3 Fuel Type"]       = "Solid"
         temp_dict[f"Stage1 Propellant Mass"] = 14400 # SLR
         temp_dict[f"Stage2 Propellant Mass"] = 1500  # NB 
-        temp_dict[f"Stage3 Propellant Mass"] = 398   # Misassigned in all sources, using average.
+        temp_dict[f"Stage3 Propellant Mass"] = 398   # Misassigned in all sources, using average of SLR and NB.
         temp_dict[f"Stage1 Stage Mass"]      = 2700  # SLR
         temp_dict[f"Stage2 Stage Mass"]      = 200   # NB
-        temp_dict[f"Stage3 Stage Mass"]      = (30+55+315)/ 3 # Misassigned in all sources, using average.
+        temp_dict[f"Stage3 Stage Mass"]      = (30+55+315)/ 3 # Misassigned in all sources, using average of SLR and NB.
         temp_dict[f"Fairing Mass"]           = 100 # SLR
     
     if unique_vehicle_name_list[i] == "Shavit":
@@ -1055,7 +1055,7 @@ def update_mass_info(i,temp_dict,unique_vehicle_name_list):
         elif unique_vehicle_name_list[i] in ["Soyuz-2-1A","Soyuz-2-1B","Soyuz-2-1V","Soyuz-2-1V Volga"]:
             temp_dict[f"Fairing Mass"] = 1000 # NB
         elif unique_vehicle_name_list[i] in ["Soyuz-2-1A Fregat","Soyuz-2-1A Fregat-M","Soyuz-2-1B Fregat","Soyuz-2-1B Fregat-M"]:
-            temp_dict[f"Fairing Mass"] = 1800
+            temp_dict[f"Fairing Mass"] = 1800 # NB
              
     if unique_vehicle_name_list[i] == "Vega":            
         # Manual - https://www.arianespace.com/wp-content/uploads/2018/05/Vega-Users-Manual_Issue-04_April-2014.pdf
