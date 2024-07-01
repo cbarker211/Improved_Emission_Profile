@@ -506,8 +506,8 @@ def update_mass_info(i,temp_dict,unique_vehicle_name_list):
         temp_dict[f"Booster Propellant Mass"] = (37800+40800) / 2 * 4   # SLR/Sp101
         temp_dict[f"Booster Stage Mass"]      = (3000+3200) / 2 * 4     # SLR/Sp101
         temp_dict[f"Stage1 Stage Mass"]       = (9500+12500) / 2        # SLR/Sp101
-        temp_dict[f"Stage1 Propellant Mass"]  = (187000+186500) / 2 * 4 # SLR/Sp101 # NOTE: This should be changed.
-        temp_dict[f"Stage2 Propellant Mass"]  = (86000+91500) / 2 * 4   # SLR/Sp101 # NOTE: This should be changed.
+        temp_dict[f"Stage1 Propellant Mass"]  = (187000+186500) / 2     # SLR/Sp101
+        temp_dict[f"Stage2 Propellant Mass"]  = (86000+91500) / 2       # SLR/Sp101 
         temp_dict[f"Fairing Mass"]            = 6000                    # http://www.b14643.de/Spacerockets_1/China/CZ-2EF/Description/Frame.htm
         
     if "Long March (CZ) 3" in unique_vehicle_name_list[i]:
@@ -825,7 +825,7 @@ def update_mass_info(i,temp_dict,unique_vehicle_name_list):
         # Sp101    :  2000 (Briz-M Proton), 1600 (Briz-M Angara A5), 2000 (DM-03)
     
         temp_dict[f"Stage1 Propellant Mass"] = 428300 # SLR
-        temp_dict[f"Stage3 Propellant Mass"] = 46562  # SLR/Sp101
+        temp_dict[f"Stage3 Propellant Mass"] = 46562  # SLR
         temp_dict[f"Stage1 Stage Mass"]      = 30600  # SLR
         if unique_vehicle_name_list[i] == "Proton-M":
             temp_dict[f"Fairing Mass"] = 2000  # Sp101 has this value for Proton Medium and Briz-M / DM-03. Using here.

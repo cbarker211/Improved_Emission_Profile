@@ -86,136 +86,6 @@ class import_launches_from_discos:
         print(f'\nIn {self.year}, there were {launch_success} successful launches and {launch_failure} unsuccessful launches.')
 
         return self.full_launch_list
-        
-    def payloads_launched_per_year(self): 
-        """This function calculates and outputs the number of payloads 
-        launched each year.
-
-        Args:
-            year (int): The year to look at.
-            
-        Returns:
-            self.num_payloads : The number of payloads.
-        """        
-        full_launch_list = self.get_yearly_launches()
-        self.num_payloads = 0
-        
-        #Loop over all launches.
-        for launch in full_launch_list:
-            full_object_list = []
-            #Filter only the successful launches (can change if required)
-            if launch["attributes"]["failure"] == False:
-                
-                page_number = 1
-                while True:
-                    params={
-                        'filter' : "eq(objectClass,Payload)",
-                        'sort' : 'id',  
-                        'page[number]' : page_number       
-                    }
-                    #Now requiring a response from the objects url.
-                    response = server_request(params,f'/launches/{launch["id"]}/objects')
-                    
-                    #If the request is successful, go through and sum the payloads.
-                    if response.ok:
-                        doc = response.json()
-                        temp_object_list = doc['data']
-                        full_object_list.extend(temp_object_list)
-                        #Each request gives a 'page' of results, and the maximum is 30 results per page. 
-                        #The script loops to request the next page.
-                        if len(temp_object_list) == 30:
-                            page_number += 1
-                            continue
-                        break
-                    
-                    elif response.status_code == 429:
-                        message = f"Currently found {self.num_payloads} payloads."
-                        response_error_handler(response,message)
-                        continue
-                    else:
-                        response_error_handler(response,"")
-                    break
-                                    
-                self.num_payloads += len(full_object_list)
-        
-        #Print results.
-        print(f'\nIn {self.year}, there were {self.num_payloads} payloads successfully launched.')   
-        
-        return self.num_payloads 
-
-    def propellant_per_year(self):
-        """Sums the propellant masses for a given year, split into fuel, oxidiser, and solid.
-
-        Returns:
-            fuel_mass,oxidiser_mass,solid_mass,total_mass: Masses of each propellant component.
-        """        
-        
-        # Start similar to the payloads function by pulling the data for all successful launches.
-        full_launch_list = self.get_yearly_launches()
-        oxidiser_mass = np.float32(0)
-        fuel_mass = np.float32(0)
-        solid_mass = np.float32(0)
-        total_mass = np.float32(0)
-        
-        #For only testing first five launches
-        #self.full_launch_list = self.full_launch_list[:5]
-        
-        for count, launch in enumerate(full_launch_list):
-            #First filter only the successful launches.
-            if launch["attributes"]["failure"] == False:
-                #First identify the vehicle, and account for errors in same way as before.
-                while True:
-                    response = server_request({},f'/launches/{launch["id"]}/vehicle')
-                    if response.ok:
-                        doc = response.json()
-                        launch_info = doc['data']
-                        #Then loop over all stages
-                        while True:
-                            response = server_request({},f'/launch-vehicles/{launch_info["id"]}/stages')
-                            if response.ok:
-                                doc = response.json()
-                                vehicle_info = doc['data']
-                                # Usually 2-5 stages, so won't need to account for the maximum of 30 items in a list.
-                                #Now go over each stage and request the masses of fuel, oxidiser, and solid propellant.
-                                for stage in vehicle_info:
-                                    
-                                    temp_fuel_mass = stage["attributes"]["fuelMass"]
-                                    if temp_fuel_mass == None:
-                                        temp_fuel_mass = 0
-                                    fuel_mass += temp_fuel_mass
-                                    
-                                    temp_oxidiser_mass = stage["attributes"]["oxidiserMass"]
-                                    if temp_oxidiser_mass == None:
-                                        temp_oxidiser_mass = 0
-                                    oxidiser_mass += temp_oxidiser_mass
-                                    
-                                    temp_solid_mass = stage["attributes"]["solidPropellantMass"]
-                                    if temp_solid_mass == None:
-                                        temp_solid_mass = 0
-                                    solid_mass += temp_solid_mass
-                                    
-                                    #Calculate the total mass.
-                                    total_mass = fuel_mass + solid_mass + oxidiser_mass
-                                break
-                            elif response.status_code == 400:
-                                print("Client Error")
-                                break
-                            elif response.status_code == 429:
-                                message = f"On launch {count} of {len(full_launch_list)} in {self.year}. Currently found {total_mass} kg of propellant. "
-                                wait_time=(int(response.headers["X-Ratelimit-Reset"])-int(time.time()))+1
-                                wait_function(message,wait_time)
-                                continue
-                        break
-                    elif response.status_code == 400:
-                        print("Client Error")
-                        break
-                    elif response.status_code == 429:
-                        message = f"On launch {count} of {len(full_launch_list)} in {self.year}. Currently found {total_mass} kg of propellant. "
-                        wait_time=(int(response.headers["X-Ratelimit-Reset"])-int(time.time()))+1
-                        wait_function(message,wait_time)
-                        continue 
-        
-        return fuel_mass,oxidiser_mass,solid_mass,total_mass
 
     def get_launch_info(self):
         """This function gathers all of the required launch information that HEMCO needs.
@@ -607,7 +477,7 @@ class import_launches_from_discos:
                 break      
             
             # Handle any incomplete/incorrect propellant/stage mass information.
-            #temp_dict = update_mass_info(i,temp_dict,unique_vehicle_name_list)
+            temp_dict = update_mass_info(i,temp_dict,unique_vehicle_name_list)
             # Update the rocket list.   
             self.unique_rocket_list.append(temp_dict)    
         
@@ -807,8 +677,6 @@ if __name__ == "__main__":
     # Set up the arguments for each function.
     parser = argparse.ArgumentParser()
     parser.add_argument('-yl', "--yearly_launches", action='store_true', help="Get yearly launches.")
-    parser.add_argument('-ypa', "--yearly_payloads", action='store_true', help='Get yearly launched payloads.')
-    parser.add_argument('-ypr', "--yearly_propellant", action='store_true', help='Get yearly propellant.')
     parser.add_argument('-li', "--launch_info", action='store_true', help='Get launch info.')
     parser.add_argument('-sli', "--save_launch_info", action='store_true', help='Save launch info.')
     parser.add_argument('-ri', "--rocket_info", action='store_true', help='Get rocket info.')
@@ -831,10 +699,6 @@ if __name__ == "__main__":
         LaunchData = import_launches_from_discos(year)    
         if args.yearly_launches == True:
             LaunchData.get_yearly_launches()
-        if args.yearly_payloads == True:
-            LaunchData.payloads_launched_per_year()
-        if args.yearly_propellant == True:
-            LaunchData.propellant_per_year()
         if args.launch_info == True:
             LaunchData.get_launch_info()      
             if args.save_launch_info == True:

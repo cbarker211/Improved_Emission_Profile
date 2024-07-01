@@ -1,36 +1,3 @@
-###############################
-# Notes on Emission Indices
-###############################
-
-1) General Routine:
-
-        Calculate emission indices of individual pollutants:
-        These are given in g pollutant per kg propellant.
-        Methodology is from https://crp.trb.org/uat/acrp0356/wp-content/uploads/sites/26/2021/07/ACRP-Web-Only-51-Commercial-Space-Vehicle-Emissions-Modeling.pdf
-        General structure is this for each species:
-              0) Check if species is emitted
-              1) calculate vertical profile of emission indices (g(xx) / kg(propellant)) using function self.calculate_xx_ei
-              2) multiply propellant mass by (0.01 * ei * vertical mass profile) to get mass vertical profile (in g)
-              3) add vertical mass profile (in g) to sanity check total
-              3) convert vertical mass profile from kg to kgm2s and add to output variable
-
-2) Species Specific Information
-
-        NOx:
-        In 2019, only Virgin Galactic space plane has primary NOx emissions of 4g/kg.
-        Now in 2020, updated so all propellants produce secondary NOx, but only N-containing fuels (hypergolic/solid) produce primary NOx.
-
-        H2O:
-        E_f(H2O) = E_p(H2O) + E_P(H)*MW_H2O/MW_H + E_p(H2)*MW_H2O/MW_H2 + E_p(OH) - James 2021
-        No H or OH primary emissions, so ignore that term (Would be present for Starship (Methane) and Minotaur I (APCP PBAN)).
-        E_f(H2O) = E_p(H2O) + E_p(H2) * MW_H2O / MW_H2
-
-        Alumina:   
-        Represented by a trimodal distribution, ongoing...
-        
-        Chlorine:
-        See calculate_cl_ei function in main script.
-
 #######################
 # Failed Launches
 #######################                                        
