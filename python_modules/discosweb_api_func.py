@@ -1,6 +1,8 @@
 import requests
 import numpy as np
 import time
+from pathlib import Path
+path = Path(__file__).parent.absolute()
 
 def server_request(user_params,url_mod):
     """This function requests data from the API.
@@ -15,7 +17,7 @@ def server_request(user_params,url_mod):
     
     #Define the URL for the data, and the authorisation token (get a new token here if needed https://discosweb.esoc.esa.int/tokens).
     api_url = 'https://discosweb.esoc.esa.int/api'
-    token = np.loadtxt("./Databases/DISCOSweb_token.txt", dtype=str)
+    token = np.loadtxt(str(path)+"/DISCOSweb_token.txt", dtype=str)
 
     response = requests.get(
             #Set up the url name.

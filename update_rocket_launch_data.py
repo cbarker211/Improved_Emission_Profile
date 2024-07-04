@@ -80,26 +80,33 @@ def update_mass_info(i,temp_dict,unique_vehicle_name_list):
         temp_dict[f"Fairing Mass"]              = 2675      # Manual        
     
     if unique_vehicle_name_list[i][:5] == "Atlas":
-        # Booster propellant and stage mass changed on November 13th 2020 when updated from AJ-60A to GEM63. 
-        # Set here as AJ-60A, corrected in main script for launches after 13/11/20. 
+        # Booster propellant and stage mass changed on November 13th 2020 when updated from AJ-60A to GEM63.  
         # https://web.archive.org/web/20180918143456/http://www.northropgrumman.com/Capabilities/GEM/Documents/GEM_63_GEM_63XL.pdf  
         
         # The Centaur upper stage has used the RL-10C-1 engine since 2014.
         # Two launches have used the RL-10C-1-1A engine since (https://en.wikipedia.org/wiki/RL10 and NB), on 18/05/2021 and 04/08/2022.
         # https://web.archive.org/web/20190629113839/https://www.rocket.com/sites/default/files/documents/Capabilities/PDFs/RL10_data_sheet.pdf
-        # No propellant info, assuming constant.
-        # Dry mass only varies by 2kg, corrected in reentry script.
+        # https://ntrs.nasa.gov/api/citations/20110015783/downloads/20110015783.pdf
+        # Dry mass reduced by 2kg.
         
         # Fairing mass:
         #   - https://www.ulalaunch.com/docs/default-source/rockets/atlasvusersguide2010.pdf            2305 kg (EPF) / 3524 kg (5m short)
         #   - https://spaceflight101.com/spacerockets/atlas-v-531/                                      2305 kg (EPF) / 3524 kg (5m short) 
         #   - https://web.archive.org/web/20220406013818/http://www.spacelaunchreport.com/atlas5.html   2260 kg (EPF)                                    
                 
-        temp_dict[f"Booster Number"] = unique_vehicle_name_list[i][9] 
-        temp_dict[f"Booster Propellant Mass"]   = 42630 * int(temp_dict[f"Booster Number"]) # SLR for AJ-60A 
-        temp_dict[f"Booster Stage Mass"]        = 3630 * int(temp_dict[f"Booster Number"])  # SLR for AJ-60A
+        temp_dict[f"Booster Number"] = unique_vehicle_name_list[i][9]
+        if unique_vehicle_name_list[i][-5:] in ["v2020","v2021"]: 
+            temp_dict[f"Booster Propellant Mass"]   = 44200 * int(temp_dict[f"Booster Number"]) # Manual for GEM63
+            temp_dict[f"Booster Stage Mass"]        = 5100 * int(temp_dict[f"Booster Number"])  # Manual for GEM63
+        else:
+            temp_dict[f"Booster Propellant Mass"]   = 42630 * int(temp_dict[f"Booster Number"]) # SLR for AJ-60A
+            temp_dict[f"Booster Stage Mass"]        = 3630 * int(temp_dict[f"Booster Number"])  # SLR for AJ-60A
+            
         temp_dict[f"Stage2 Propellant Mass"]    = 20800 # SLR for RL-10C-1
-        temp_dict[f"Stage2 Stage Mass"]         = 2030  # SLR for RL-10C-1
+        if unique_vehicle_name_list[i][-5:] in ["v2021"]: 
+            temp_dict[f"Stage2 Stage Mass"] = 2028  # Manual for RL-10C-1-1A
+        else:
+            temp_dict[f"Stage2 Stage Mass"] = 2030  # SLR for RL-10C-1
         
         # The 400 series.
         if unique_vehicle_name_list[i][8] == "4":    
@@ -176,13 +183,6 @@ def update_mass_info(i,temp_dict,unique_vehicle_name_list):
         temp_dict[f"Stage3 Stage Mass"]      = 684   # SLR Shavit
         temp_dict[f"Stage4 Stage Mass"]      = 71    # SLR Shavit
         temp_dict[f"Fairing Mass"]           = 57    # Shavit http://www.b14643.de/Spacerockets_1/Rest_World/Shavit/Description/Frame.htm
-    
-    if unique_vehicle_name_list[i] == "Chang'e 5 SSQ (Ascent Stage)":
-        pass
-        # This is the Chinese lunar exploration mission.
-        # Specifically, the 'ascender' launching from the moon to dock with the 'orbiter'.
-        # It eventually was 'crashed' back onto the moon to avoid space debris, so didn't re-enter. 
-        # This can be ignored for the purpose of our study.
         
     if unique_vehicle_name_list[i] == "Delta 4H":
         
@@ -1105,7 +1105,7 @@ def update_mass_info(i,temp_dict,unique_vehicle_name_list):
         temp_dict[f"Stage2 Stage Mass"]      = 1392                # Antares 230
         temp_dict[f"Fairing Mass"]           = 971                 # Antares 230
        
-    if temp_dict["Fairing Mass"] == 0 and unique_vehicle_name_list[i] != "Chang'e 5 SSQ (Ascent Stage)":
+    if temp_dict["Fairing Mass"] == 0 and unique_vehicle_name_list[i] != "Atlas V N22 v2020":
         print(f"Setting fairing mass to average (1756) for {unique_vehicle_name_list[i]}")
         temp_dict["Fairing Mass"] = 1756
        
