@@ -77,10 +77,10 @@ class build_reentry_list:
                                 1 - Lat/Lon Provided
                                 2 - Launch Site / Named Location
                                 3 - Political Region
-                                4- Ocean/Continent
-                                5- Falcon Reusable
-                                6- Inclination Bounded Random
-                                7- Non-bounded Random
+                                4 - Ocean/Continent
+                                5 - Falcon Reusable
+                                6 - Inclination Bounded Random
+                                7 - Non-bounded Random
         """        
         
         # Adjust the inclination so its useful for our purpose of bounding the lat.
@@ -1646,7 +1646,7 @@ class build_reentry_list:
         dims = ('reentries')
         
         #Set up the data
-        id_list, name_list, category_list, time_list = [], [], [], []
+        id_list, name_list, category_list, time_list, burnup_list, type_list = [], [], [], [], [], []
         mon_list, day_list, year_list , lat_list  = [], [], [], []
         lon_list,  abl_mass_list,  abl_deg_list, abl_per_list = [], [], [], []
         other_mass_list, smc_list, location_list, apogee_list  = [], [], [], []
@@ -1654,6 +1654,10 @@ class build_reentry_list:
         for reentry in self.unique_reentry_list:
             id_list.append(reentry["id"])
             name_list.append(reentry["name"])
+            burnup_list.append(reentry["burnup"])
+            print(reentry["id"])
+            print(reentry["type"])
+            type_list.append(reentry["type"])
             category_list.append(reentry["reentry_stage"])
             time_list.append(reentry["time"])
             year_list.append(reentry["year"])
@@ -1672,6 +1676,8 @@ class build_reentry_list:
         #Create the DataArrays.
         data_da_id           = xr.DataArray(id_list,          dims=dims, attrs=dict(long_name="COSPAR_ID"))
         data_da_name         = xr.DataArray(name_list,        dims=dims, attrs=dict(long_name="Object Name"))
+        data_da_burnup       = xr.DataArray(burnup_list,      dims=dims, attrs=dict(long_name="Burnup"))
+        data_da_type         = xr.DataArray(type_list,        dims=dims, attrs=dict(long_name="Type"))
         data_da_category     = xr.DataArray(category_list,    dims=dims, attrs=dict(long_name="Category"))
         data_da_time         = xr.DataArray(time_list,        dims=dims, attrs=dict(long_name="Time (UTC)"))
         data_da_year         = xr.DataArray(year_list,        dims=dims, attrs=dict(long_name="Year"))
@@ -1691,6 +1697,8 @@ class build_reentry_list:
         ds = xr.Dataset()
         ds['COSPAR_ID']               = data_da_id
         ds['Object_Name']             = data_da_name
+        ds['Burnup']                  = data_da_burnup
+        ds['Type']                    = data_da_type
         ds['Category']                = data_da_category
         ds['Time (UTC)']              = data_da_time
         ds['Year']                    = data_da_year
