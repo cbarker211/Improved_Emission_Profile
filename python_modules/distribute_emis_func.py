@@ -89,12 +89,10 @@ def read_gc_box_height(gc_file,nlev):
         if l==0:
             top_alt[l,:,:] = box_height[l,:,:]
             mid_alt[l,:,:] = 0.5*np.add(bot_alt[l,:,:], top_alt[l,:,:])
-            #print(f"{l} {bot_alt[l,0,0]*1e-3:.2f} {box_height[l,0,0]*1e-3:.2f} {top_alt[l,0,0]*1e-3:.2f}")
             continue
         bot_alt[l,:,:] = top_alt[l-1,:,:]
         top_alt[l,:,:] = np.add(top_alt[l-1,:,:], box_height[l,:,:])
         mid_alt[l,:,:] = 0.5*np.add(bot_alt[l,:,:], top_alt[l,:,:])
-        #print(f"{l} {bot_alt[l,0,0]*1e-3:.2f} {box_height[l,0,0]*1e-3:.2f} {top_alt[l,0,0]*1e-3:.2f}")
     
     return box_height, area, bot_alt, mid_alt, top_alt
 
@@ -105,10 +103,6 @@ def get_ross_profiles():
     # Centre altitude (km):
     # These are in 5-km increments, so 80-85, 75-80 and so on.
     ross_alt = np.arange(102.5, 0, -5)
-
-    # Percent of propellant mass (unitless):
-    # Old values        
-    # ross_prop_mass = [2.3, 3.4, 3.5, 3.6, 3.8, 4.0, 3.5, 2.8, 3.0, 3.3, 3.5, 3.7, 4.0, 4.5, 5.0, 7.5, 17.5]
     
     # New values using webplotdigitizer. Percentages add to 79% so 21% unaccounted for, and must be emitted above 100 km.
     # So adding an extra bin at midpoint 102.5 containing 21% of emissions.    
@@ -129,33 +123,32 @@ def get_ross_profiles():
 def interp_prop_mass(bot_alt, mid_alt, top_alt, ross_alt, ross_cumulative_mass, ross_prop_mass, nlev, i, j):
     
     """Interpolate proportional propellant mass burned from Ross and Sheaffer
-        5-km incremental grid to GEOS-Chem vertical grid.
+        5-km incremental grid to desired vertical grid.
         Input  (i) and  (j) 
         
-        GEOS-Chem grids are ordered [alt, lat, lon].
+        Vertical grids are ordered [alt, lat, lon].
 
     Args:
         i (numpy.int64): longitude index of model gridbox where launch occurs.
         j (numpy.int64): latitude index of model gridbox where launch occurs.
     """        
     # Interpolate the cumulative distribution to work out how much propellant is emitted above the top altitude.
-    propellant_in_gc = np.interp(top_alt[-1,j,i]*1e-3, ross_alt[::-1], ross_cumulative_mass[::-1])
+    propellant_in_model = np.interp(top_alt[-1,j,i]*1e-3, ross_alt[::-1], ross_cumulative_mass[::-1])
     
     
-    # Define array of percent distribution of propellant mass on GEOS-Chem grid:
-    # This sets up an array over number of GEOS-Chem levels (47 or 72).
-    gc_relative_mass = np.zeros_like(mid_alt[:,j,i])
+    # Define array of percent distribution of propellant mass on model grid:
+    # This sets up an array over number of model levels.
+    model_relative_mass = np.zeros_like(mid_alt[:,j,i])
     # Loop over GEOS-Chem layers in reverse:
     for l, h in enumerate(reversed(mid_alt[:,j,i])):
         # Interpolate, and clip so that no values are above 17.3%.
-        gc_relative_mass[l] = np.clip(np.interp(h*1e-3,ross_alt[::-1], ross_prop_mass[::-1]),None,17.3)
+        model_relative_mass[l] = np.clip(np.interp(h*1e-3,ross_alt[::-1], ross_prop_mass[::-1]),None,17.3)
         
         # Now scale by the box height and the fact that the Ross altitude is in 5 km bins.
-        gc_relative_mass[l] = gc_relative_mass[l] / 5 * (top_alt[nlev-l-1,j,i]*1e-3 - bot_alt[nlev-l-1,j,i]*1e-3)
+        model_relative_mass[l] = model_relative_mass[l] / 5 * (top_alt[nlev-l-1,j,i]*1e-3 - bot_alt[nlev-l-1,j,i]*1e-3)
         
     
-    # ~ 22% of propellant is consumed above the GC-boundary each time.
-    # Normalize so that the portion in GC adds to ~ 68%:
-    gc_relative_mass = gc_relative_mass / np.sum(gc_relative_mass) * propellant_in_gc
+    # ~ A portion of propellant is consumed above the model limits each time, so normalize to account for this.
+    model_relative_mass = model_relative_mass / np.sum(model_relative_mass) * propellant_in_model
     
-    return propellant_in_gc, gc_relative_mass
+    return propellant_in_model, model_relative_mass

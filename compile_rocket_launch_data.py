@@ -1,13 +1,13 @@
 from datetime import datetime, timedelta
-import time
-import datetime
-import sys
-sys.path.append('./python_modules/')
+from time import sleep
 import numpy as np
 import xarray as xr
 import argparse
+
+
+import sys
+sys.path.append('./python_modules/')
 from discosweb_api_func import server_request, wait_function, response_error_handler
-from time import sleep
 from update_rocket_launch_data import update_mass_info
 
 """ Script to request data from the DISCOSweb database. 
@@ -109,8 +109,7 @@ class import_launches_from_discos:
                 
         self.Cospar_Id = []
         self.launch_time = []
-        self.launch_day = []
-        self.launch_month = []
+        self.launch_datestr = []
         self.latitude = []
         self.longitude = []
         self.rocket_name = []
@@ -121,8 +120,7 @@ class import_launches_from_discos:
             
             self.Cospar_Id.append(launch["attributes"]["cosparLaunchNo"])
             temp_launch_epoch = launch["attributes"]["epoch"]
-            self.launch_day.append(int(temp_launch_epoch[8:10]))
-            self.launch_month.append(int(temp_launch_epoch[5:7]))
+            self.launch_datestr.append(temp_launch_epoch[:10].replace("-",""))
             
             temp_launch_time = temp_launch_epoch[10:]
             hour = int(temp_launch_time[1:3])
@@ -184,7 +182,7 @@ class import_launches_from_discos:
                 if response.ok:
                     doc = response.json()
                     if doc['data']["attributes"]["name"][:5] == "Atlas":
-                        if datetime.datetime(int(self.Cospar_Id[-1][:4]),int(self.launch_month[-1]),int(self.launch_day[-1])) < datetime.datetime(2020,11,13):
+                        if datetime(int(self.launch_datestr[-1][:4]),int(self.launch_datestr[-1][4:6]),int(self.launch_datestr[-1][6:8])) < datetime(2020,11,13):
                             self.rocket_name.append(doc['data']["attributes"]["name"])
                         elif self.Cospar_Id[-1] in ["2021-042","2022-092"]:
                             self.rocket_name.append(doc['data']['attributes']["name"] + " v2021")
@@ -200,11 +198,8 @@ class import_launches_from_discos:
                 else:
                     response_error_handler(response,"")
                 break
-            print(self.Cospar_Id[-1],self.rocket_name[-1])
-            for var in [self.Cospar_Id, self.launch_time, self.launch_day, self.launch_month, self.latitude, self.longitude, self.rocket_name, self.mcs_check, self.vehicle_id]:
-                print(len(var))
                     
-        return [self.Cospar_Id, self.launch_time, self.launch_day, self.launch_month, self.latitude, self.longitude, self.rocket_name, self.mcs_check]
+        return [self.Cospar_Id, self.launch_time, self.launch_datestr, self.latitude, self.longitude, self.rocket_name, self.mcs_check]
             
     def launch_info_to_netcdf(self):
         """This saves the launch information as a NetCDF file for later processing for GEOS-Chem.
@@ -225,14 +220,9 @@ class import_launches_from_discos:
                        short_name="Time (UTC)",
                        ))
         
-        data_da_month = xr.DataArray(self.launch_month, dims=dims,
-            attrs=dict(long_name="Month",
-                       short_name="Month",
-                       ))
-        
-        data_da_day = xr.DataArray(self.launch_day, dims=dims,
-            attrs=dict(long_name="Day",
-                       short_name="Day",
+        data_da_date = xr.DataArray(self.launch_datestr, dims=dims,
+            attrs=dict(long_name="Date in form YYYYMMDD",
+                       short_name="Date",
                        ))
         
         data_da_lon = xr.DataArray(self.longitude, dims=dims,
@@ -264,8 +254,7 @@ class import_launches_from_discos:
         ds = xr.Dataset()
         ds['COSPAR_ID'] = data_da_cospar_id
         ds['Time(UTC)'] = data_da_time
-        ds['Month'] = data_da_month
-        ds['Day'] = data_da_day
+        ds['Date'] = data_da_date
         ds['Longitude'] = data_da_lon
         ds['Latitude'] = data_da_lat
         ds['Rocket_Name'] = data_da_rocket_name
@@ -273,7 +262,7 @@ class import_launches_from_discos:
         ds['Megaconstellation_Flag'] = data_da_launch_MCS
              
         #Save to file and close the DataSet     
-        ds.to_netcdf(f'./databases/launch_activity_data_{self.start_year}_{self.final_year}.nc')
+        ds.to_netcdf(f'./databases/launch_activity_data_{self.start_year}-{self.final_year}.nc')
         ds.close()
         
     def handle_stage_info(self, count, stage, i, temp_dict, unique_vehicle_name_list):
@@ -597,8 +586,8 @@ class import_launches_from_discos:
         ds['Proxy_Rocket']          = data_da_proxy
              
         #Save to file and close the DataSet     
-        #ds.to_netcdf(f'./databases/rocket_attributes_{self.start_year}_{self.final_year}_noupdate.nc')
-        ds.to_netcdf(f'./databases/rocket_attributes_{self.start_year}_{self.final_year}.nc')
+        #ds.to_netcdf(f'./databases/rocket_attributes_{self.start_year}-{self.final_year}_noupdate.nc')
+        ds.to_netcdf(f'./databases/rocket_attributes_{self.start_year}-{self.final_year}.nc')
         ds.close()
         
     def save_discosweb_reentries(self):
@@ -684,7 +673,7 @@ class import_launches_from_discos:
         ds['DISCOSweb_Reentry_Epoch']    = data_da_epoch
              
         #Save to file and close the DataSet     
-        ds.to_netcdf(f'./databases/reentry/DISCOSweb/discosweb_reentries_{self.start_year}_{self.final_year}.nc')
+        ds.to_netcdf(f'./databases/reentry/DISCOSweb/discosweb_reentries_{self.start_year}-{self.final_year}.nc')
         ds.close()
                          
 if __name__ == "__main__":

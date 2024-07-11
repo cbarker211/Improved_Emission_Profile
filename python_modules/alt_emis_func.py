@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-from atmos_pressure_func import print_pressures
 import matplotlib.pyplot as plt
 import sys
 
