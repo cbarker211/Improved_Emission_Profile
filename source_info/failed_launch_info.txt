@@ -72,7 +72,7 @@
                 https://spacenews.com/rocket-lab-electron-launch-fails/                                         67  / N/A / N/A kg
                 https://spaceflightnow.com/2020/07/04/rocket-lab-satellite-launch-fails-before-reaching-orbit/  67  / N/A / N/A kg
                 https://pubs.usgs.gov/of/2021/1030/f/ofr20211030f.pdf                                           N/A / 5.8 /     kg
-                JSR lists the re-flight of the same satellite (which hosts other payloads itself) as 10 kg.     N/A / N/A / 10  kg
+                GCAT lists the re-flight of the same satellite (which hosts other payloads itself) as 10 kg.     N/A / N/A / 10  kg
 
     F06 - 10/07/2020 Kuaizhou-11
         https://web.archive.org/web/20220411235210/http://www.spacelaunchreport.com/log2020.html
@@ -131,7 +131,7 @@
             AVUM stage TVC cabeling error
         Failure occured in upper stage, so can include the emissions as normal.
         Not including S4 emissions in missing emissions.
-        U01 in JSR.
+        U01 in GCAT.
         F09. Vega (4 stages) failed at upper stage.
         Adding payload reentries, dry mass reentry for first, second and third stage and wet mass reentry for fourth stage.
         https://www.arianespace.com/wp-content/uploads/2020/11/VV17-launchkit-EN2.pdf 
@@ -181,7 +181,7 @@
 		So ignoring second stage emissions, not adding to missing emissions.
 		Adding payload reentries, dry mass reentry for first stage and wet mass reentry for second and third stages.
 		Payload Mass:
-			50 - JSR
+			50 - GCAT
 			55 - https://spaceflightnow.com/2021/05/15/two-blacksky-satellites-lost-on-rocket-lab-launch-failure/
 			60 - https://web.archive.org/web/20220406013827/http://www.spacelaunchreport.com/electron.html
 			60 - Electron Media Press Kit
@@ -196,7 +196,7 @@
 		Treating normally for launch emissions.
 		Adding payload reentries, dry mass reentry for all three stages.
 		Payload Mass:
-			90 - JSR
+			90 - GCAT
             "assumed to be small satellites" - https://www.seradata.com/irans-simorgh-has-apparent-unsuccessful-launch-with-three-small-satellite-payloads-not-quite-put-into-orbit/
 
     F04 - 23/06/2021 Simorgh.
@@ -215,7 +215,7 @@
         Adding payload reentries, dry mass reentry for all four stages.
         Payload mass:
             "The rocket's payload was not identified." - https://web.archive.org/web/20220406013821/http://www.spacelaunchreport.com/sqx.html
-            18 - JSR
+            18 - GCAT
             18 - https://new.qq.com/rain/a/20210529A03LLU00
 
     
@@ -228,7 +228,7 @@
         Adding Booster, S1 and S2 as normal. Not including S3 in missing emissions.
         Adding payload reentries, dry mass reentry for boosters and first and second stages. Wet mass reentry for third stage.
         Payload Mass:
-            1000 - JSR
+            1000 - GCAT
             2286 - https://www.nasaspaceflight.com/2021/08/eos-03-launch/
 
     
@@ -244,7 +244,7 @@
                 (https://www.nasaspaceflight.com/2021/08/astra-third-orbital-attempt-lv0006/)
         Video (https://astra.com/missions/lv0006/) shows 1st stage shutdown at 31 km.
         Adding S1 emissions up to 31km, not including S2 or adding S1/2 emissions to missing emissions.
-        JSR lists apogee for fairings/S1 as 100km, and payload/S2 as 47km, but surely they should all be the same? 
+        GCAT lists apogee for fairings/S1 as 100km, and payload/S2 as 47km, but surely they should all be the same? 
         If MECO was at 31km, assume no reentry as altitude not > 50km.
             
     F08 03/09/2021 Firefly Alpha
@@ -258,7 +258,7 @@
         Firefly - During the two minutes and twenty-five seconds of flight, ...
         According to manual, MECO occurs at 2:37, so only 12 seconds after the explosion.
         As there was an explosion, lets include S1 as normal, and ignore S2.
-        JSR lists apogee as 15km for all items, but MECO for Alpha is 69km. Lets stick with JSR and ignore all re-entries.
+        GCAT lists apogee as 15km for all items, but MECO for Alpha is 69km. Lets stick with GCAT and ignore all re-entries.
 
     F09 21/10/2021 Nuri
         Wiki - The third stage shut down 46 seconds prematurely, resulting in the vehicle falling short of orbital velocity. 
@@ -270,7 +270,7 @@
         Including S1 and S2 as normal, and including 92% of S3 in missing emissions.
         Adding payload reentries, dry mass reentry for first and second stages. Wet mass reentry for third stage (8% prop).
         Payload Mass:
-            1500 - JSR
+            1500 - GCAT
             1500 - https://www.nasaspaceflight.com/2021/10/kslv-nuri-maiden-launch/
             1500 - https://spacenews.com/south-koreas-1st-homegrown-space-rocket-reaches-space-but-fails-to-orbit-dummy-payload/
             1500 - https://web.archive.org/web/20220406013830/http://www.spacelaunchreport.com/kslv2.html
@@ -281,7 +281,7 @@
         Including S1 and S2 as normal, not including S3 in missing emissions.
         Adding payload reentries, dry mass reentry for first and second stages. Wet mass reentry for third and fourth stage.
         Payload Mass:
-            130  - JSR
+            130  - GCAT
             <300 - https://everydayastronaut.com/geesat-x2-kuaizhou-1a/
             130  - https://space.skyrocket.de/doc_sdat/geesat-1.htm
 
@@ -296,7 +296,7 @@
         Including as normal.
         Adding payload reentries, dry mass reentry for all three stages.
         Payload Mass:
-            90 - JSR
+            90 - GCAT
              
 2022
 
@@ -318,8 +318,8 @@
             30 (Total) - https://spacenews.com/three-companies-win-nasa-small-launch-contracts/
             3.8 (INCA) - https://www.nasaspaceflight.com/2022/02/astra-cape-canaveral-elana-41/
             3.8 (INCA) - https://space.skyrocket.de/doc_sdat/inca.htm
-            4,4,4,1 (BAMA-1,INCA,QubeSat,R5-S1) - JSR
-            No additional info so using JSR.
+            4,4,4,1 (BAMA-1,INCA,QubeSat,R5-S1) - GCAT
+            No additional info so using GCAT.
 
     F02 13/05/2022 Shuang Quxian-1   
         SLR - While official reports as of publication do not mention a reason for the failure, 
@@ -327,7 +327,7 @@
         Including S1 as normal, ignoring S2 emissions and not including S2/S3/S4 in missing emissions.
         Adding payload reentries, dry mass reentry for first stage and wet mass reentry for second, third and fourth stages.
         Payload Mass:
-            18 - JSR
+            18 - GCAT
             18 - https://space.skyrocket.de/doc_sdat/jilin-1-mofang-01a.htm
             18 - https://new.qq.com/rain/a/20210529A03LLU00
             18 - https://everydayastronaut.com/hyperbola-1-jilin-1-mofang-01ar-2/
@@ -341,7 +341,7 @@
         Including S1 and S2 as normal in GC, and only including 76%-prop already consumed of S2 in missing emissions.
         Adding payload reentries, dry mass reentry for first stage and wet mass rentry for second stage (24% prop).
         Payload Mass:
-            4    (Each) - JSR
+            4    (Each) - GCAT
             5.34 (Each) - https://tropics.ll.mit.edu/CMS/tropics/The-MicroMAS-2-Cubesat
 
     F04 08/08/2022 SSLV
@@ -352,7 +352,7 @@
         Including as normal in GC, not including S4 in missing emissions.
         Adding payload reentries, dry mass reentry for first three stages and wet mass reentry for fourth stage.
         Payload Mass:
-            130,8    (EOS-02,AzaadiSAT) - JSR
+            130,8    (EOS-02,AzaadiSAT) - GCAT
             135,7.3  (EOS-02,AzaadiSAT) - https://spaceflightnow.com/2022/08/07/indias-new-small-satellite-launcher-fails-to-put-satellites-into-correct-orbit/
             145,8    (EOS-02,AzaadiSAT) - https://web.archive.org/web/20220803133923/https://www.isro.gov.in/sites/default/files/sslvd1-eos2_-_mission_brochure.pdf
             135,8    (EOS-02,AzaadiSAT) - https://space.skyrocket.de/doc_lau/sslv.htm  
@@ -365,21 +365,21 @@
         Adding payload reentries, dry mass reentry for first two stages and wet mass reentry for third and fourth stage.
         Payload Masses:
             ESMS:
-                200 - JSR (I think this value has been obtained for the mass of a potential satellite, not the ESMS itself). However, we have no other info so have to use JSR.
+                200 - GCAT Guess for the mass of the ESMS structure, component not payload.
             RAISE-3
-                110 - JSR
+                110 - GCAT
                 110 - https://www.kenkai.jaxa.jp/kakushin/kakushin03.html#about
                 110 - https://www.nasaspaceflight.com/2022/10/epsilon-raise-3/
             MAGNARO/MITSUBA/KOSEN-2/WASEDA_SAT_ZERO/FSI-SAT
                 4.4(two)/1.7/2.7/1.2/1.4 - https://www.kenkai.jaxa.jp/library/pamphlets/pdf/kakushin_presskit_3.pdf
-                3 or 1.5/1.7/2.7/1.2/1.4 - JSR
+                3 or 1.5/1.7/2.7/1.2/1.4 - GCAT
             Amateru
-                150 (Each) - JSR
+                150 (Each) - GCAT
                 170 (Each) - https://spaceflightnow.com/2022/10/18/failure-of-japans-epsilon-rocket-blamed-on-attitude-control-system/
                 ~100       - https://space.skyrocket.de/doc_sdat/qps-sar-3.htm 
                 170 (Each) - https://prtimes.jp/main/html/rd/p/000000024.000049970.html
             E-SSOD
-                10 (Each) - JSR We have no other info so have to use JSR.
+                10 (Each) - GCAT We have no other info so have to use GCAT.
             KOYOH/PETREL/STARS-X launched later.
 
 
@@ -393,8 +393,8 @@
         Can definitely include as normal in GC, but clearly there was an early S2 shutdown of the 'vernier' engines. However, as 'SECO' was achieved, lets just include the emissions as normal.
         Adding payload reentries, dry mass reentry for first two stages.
         Payload Mass:
-           50/10 (Zhixing/Unknown) - JSR 
-           No info elsewhere so using JSR.
+           50/10 (Zhixing/Unknown) - GCAT 
+           No info elsewhere so using GCAT.
 
     F07 21/12/2022 Vega C
         Wiki - The Zefiro 40 second stage deviated from its intended trajectory following a loss of pressure, resulting in reentry about 917 km (570 mi) north of the launch site over the Atlantic.
@@ -406,8 +406,8 @@
         Including S1 and S2 as normal in GC, going to ignore S3/S4 in missing emissions. 
         Adding payload reentries, dry mass reentry for first two stages and wet mass reentry for third and fourth stages.
         Payload Mass:
-            895  (One)      - JSR
-            920  (One)      - JSR
+            895  (One)      - GCAT
+            920  (One)      - GCAT
             1977 (Combined) - https://www.space.com/arianespace-vega-c-launch-failure-december-2022
             920  (One)      - https://earth.esa.int/eogateway/missions/pleiades-neo/description
             

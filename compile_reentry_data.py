@@ -788,7 +788,10 @@ class build_reentry_list:
                             ]:
                 burnup = "Partial"
             elif jsr_name == "Electron Stage 1":
-                burnup = "Partial"
+                if jsr_id in ["2020-007","2020-085","2021-F02","2021-106","2022-047","2022-147"]:
+                    burnup = "Partial"
+                else:
+                    burnup = "Complete"   
             else:
                 burnup = "Complete"
                 
@@ -1021,17 +1024,19 @@ class build_reentry_list:
             jsr_id_list.append(reentry["id"])
         
         # Add time information from Aerospace Corp for any JSR entries missing time information.
-        ac_time_update_mass, ac_time_update_count = 0,0
+        ac_time_update_mass, ac_time_update_count, ac_uncertainty_list = 0,0,[]
         for reentry in (self.unique_reentry_list):
             if reentry["time"] == -1:
                 for reentry_count in range(len(aerospace_corp_data_year)): 
                     if aerospace_corp_data_year["International Designator"][reentry_count] == reentry["id"]:
+                        ac_uncertainty_list.append(aerospace_corp_data_year["Aerospace Stated Uncertainty 20% Rule (+/- hrs)"][reentry_count])
                         reentry_time = aerospace_corp_data_year["Aerospace Reentry Prediction (UTC)"][reentry_count][11:16]
                         reentry["time"] = np.float64(int(reentry_time[0:2]) + int(reentry_time[3:5]) / 60)
                         ac_time_update_mass += (reentry["abl_mass"] +reentry["other_mass"])
                         ac_time_update_count += 1
                         
         print(f"Time set by Aerospace Corp: {ac_time_update_mass},{ac_time_update_count}")
+        print(ac_uncertainty_list)
         
         # Now add any new entries.
         for reentry_count in range(len(aerospace_corp_data_year)):  
@@ -1048,19 +1053,17 @@ class build_reentry_list:
                 # 2020-050B, this is wildly wrong, should be 2019-073B. Modified AC csv file. SSN seems to be correct each time.
                 # 1977-010A , also wrong, should be 2020-064B. Modified AC csv file.
                 # 1010-012BF, typo, should be 2020-012BF. Modified AC csv file.
-                # 1998-067PU, according to JSR, this is a payload that was jettisoned due to a failed ISS disposal. https://www.planet4589.org/pipermail/jsr/2019-January/000134.html. Adding.
+                # 1998-067PU, this is traceable in GCAT using the JCAT. Should have correct COSPAR in GCAT now.
                 # 2021-024AS, extra spaces in AC csv file, fixed.    
                 # 2021-041K, STARLINK-2173, should be 2021-041H. Modified AC csv file.
                 # 1982-092AJF, debris on DISCOSweb, JSR and AC, ignoring.  
                 # 2021-125AE, this is already included in the 2021 reentry list, as JSR says it reentered on 28/12/21.
-                if aerospace_corp_data_year["International Designator"][reentry_count] in ["1992-021C","1998-067PU"]:
+                if aerospace_corp_data_year["International Designator"][reentry_count] in ["1992-021C"]:
                     print(f"Adding reentry from Aerospace Corp - {aerospace_corp_data_year['International Designator'][reentry_count]}") 
                     if aerospace_corp_data_year["International Designator"][reentry_count] == "1992-021C":
                         reentry_category = "S3"
                         abl_mass = 2080
-                    elif aerospace_corp_data_year["International Designator"][reentry_count] == "1998-067PU": 
-                        reentry_category = "P"
-                        abl_mass = 450
+                        inc = 3.98
                     else:
                         print("Added object not expected.")
                     # Extract the UTC time.     
@@ -1074,12 +1077,12 @@ class build_reentry_list:
                         "burnup"           : "Complete",
                         "time"             : time_utc,
                         "datestr"          : aerospace_corp_data_year["Aerospace Reentry Prediction (UTC)"][reentry_count][:10].replace("-",""),
-                        "lat"              : round(random.uniform(-90,90),2),
+                        "lat"              : round(random.uniform(-inc,inc),2),
                         "lon"              : round(random.uniform(-180, 180),2),
                         "abl_mass"         : abl_mass,
                         "other_mass"       : 0,
                         "attached_abl_mass": 0,
-                        "location"         : 7,
+                        "location"         : 6,
                         "apogee"           : 100,
                     }  
                     
@@ -1155,12 +1158,13 @@ class build_reentry_list:
                                "2022-094B", # Falcon Stage 2 # JSR has this has as deep space.
                                "2014-047H", # Debris.
                                "2021-110A", # Deorbited on Didymos.
+                               "1998-067NF",# Already in GCAT, tracable through JCAT.
+                               "1998-067PU",# Already in GCAT, tracable through JCAT.
                                ]
                 
                 # Included IDs: 
                 #               2020-022A https://www.n2yo.com/satellite/?s=45464     
                 #               2020-029B DDate = "2023 Jan?", DISCOSweb has 31st Dec, so it has reentered and we can include.   
-                #               1998-067NF https://www.n2yo.com/satellite/?s=42983
                 if found_stage == False and self.ds_dw['DISCOSweb_Reentry_ID'].values[reentry_count] not in skipped_ids:
                     print(f"Adding object with COSPAR ID {self.ds_dw['DISCOSweb_Reentry_ID'].values[reentry_count]}")          
                 
@@ -1177,11 +1181,9 @@ class build_reentry_list:
                         inc = 45.01
                     elif self.ds_dw["DISCOSweb_Reentry_ID"].values[reentry_count] == "2020-022A":
                         inc = 26.50
-                    elif self.ds_dw["DISCOSweb_Reentry_ID"].values[reentry_count] == "1998-067NF":
-                        inc = 51.64
                     else: 
                         inc = 0
-                        print("Added object not expected.")
+                        print(f"Added object not expected ({self.ds_dw['DISCOSweb_Reentry_ID'].values[reentry_count]}).")
                     lat = round(random.uniform(-inc, inc),2)
                     lon = round(random.uniform(-180, 180),2)
                     mass = self.ds_dw["DISCOSweb_Reentry_Mass"].values[reentry_count]

@@ -1,9 +1,9 @@
 All databases are in the databases/ folder.
 Generated here:
-    - launch_activity_data_2020_2022.nc
-    - reentry_activity_data_2020_2022.nc
-    - rocket_attributes_2020_2022.nc
-    - reentry/DISCOSweb/discosweb_reentries_2020_2022.nc
+    - launch_activity_data_2020-2022.nc
+    - reentry_activity_data_2020-2022.nc
+    - rocket_attributes_2020-2022.nc
+    - reentry/DISCOSweb/discosweb_reentries_2020-2022.nc
 Online databases:
     - reentry/General_SpaceX_Map_Raul.kml               https://www.google.com/maps/d/viewer?mid=1wvgFIPuOmI8da9EIB88tHo9vamo&ll=35.65567513480002%2C-102.24070473358057&z=4 
     - reentry/AerospaceCorp/AerospaceCorp_Reentries.csv https://aerospace.org/reentries 
