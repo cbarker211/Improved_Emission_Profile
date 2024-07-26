@@ -9,7 +9,7 @@ def calculate_bc_ei(height, bc_pei):
         https://nap.nationalacademies.org/catalog/26142/commercial-space-vehicle-emissions-modeling
 
     Args:
-        height (numpy.ma.core.MaskedArray)      : Altitude range (decreasing)
+        height (numpy.ma.core.MaskedArray)      : Altitude range.
         bc_pei (numpy.ndarray with single value): Primary emission index (combustion of propellant) for black carbon.
 
     Returns:
@@ -29,7 +29,7 @@ def calculate_nox_ei(height):
         https://nap.nationalacademies.org/catalog/26142/commercial-space-vehicle-emissions-modeling
 
     Args:
-        height (numpy.ma.core.MaskedArray)      : Altitude range (decreasing)
+        height (numpy.ma.core.MaskedArray)      : Altitude range.
 
     Returns:
         numpy.ma.core.MaskedArray: Secondary emission index (thermal heating) for NOx.
@@ -47,12 +47,12 @@ def calculate_co_ei(height, co_pei, co2_pei):
         https://nap.nationalacademies.org/catalog/26142/commercial-space-vehicle-emissions-modeling
 
     Args:
-        height (numpy.ma.core.MaskedArray)       : Altitude range (decreasing)
+        height (numpy.ma.core.MaskedArray)       : Altitude range.
         co_pei (numpy.ndarray with single value) : Primary emission index (combustion of propellant) for carbon monoxide.
         co2_pei (numpy.ndarray with single value): Primary emission index (combustion of propellant) for carbon dioxide.
 
     Returns:
-        numpy.ma.core.MaskedArray: Final emission index (combustion of propellant and afterburning effects) for carbon monoxide.
+        numpy.ma.core.MaskedArray: Final emission indices (combustion of propellant and afterburning effects) for carbon monoxide and carbon dioxide.
     """    
         
     ei_co = np.zeros_like(height)
@@ -72,8 +72,8 @@ def calculate_cl_ei(height, cly_pei):
         https://nap.nationalacademies.org/catalog/26142/commercial-space-vehicle-emissions-modeling
 
     Args:
-        height (numpy.ma.core.MaskedArray)       : Altitude range (decreasing)
-        cly_pei (numpy.ndarray with single value): Primary emission index (combustion of propellant) for carbon monoxide.
+        height (numpy.ma.core.MaskedArray)       : Altitude range.
+        cly_pei (numpy.ndarray with single value): Primary emission index (combustion of propellant) for Cly.
 
     Returns:
         numpy.ma.core.MaskedArray * 3: Final emission indices (combustion of propellant and afterburning effects) for atomic chlorine, hydrogen chloride and dichloride.
