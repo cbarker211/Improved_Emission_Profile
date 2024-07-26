@@ -81,7 +81,6 @@ def read_gc_box_height(gc_file,nlev):
     fk.close()
 
     # Calculate the top, mid, and bottom altitudes of each box.
-    # Only the middle altitude is actually used elsewhere.
     top_alt = np.zeros_like(box_height)
     bot_alt = np.zeros_like(box_height)
     mid_alt = np.zeros_like(box_height)
@@ -102,25 +101,23 @@ def get_ross_profiles():
     """
     # Centre altitude (km):
     # These are in 5-km increments, so 80-85, 75-80 and so on.
-    ross_alt = np.arange(102.5, 0, -5)
+    ross_alt = np.arange(2.5, 107.5, 5)
+    ross_alt_edge =  np.arange(0, 110, 5)
     
     # New values using webplotdigitizer. Percentages add to 79% so 21% unaccounted for, and must be emitted above 100 km.
     # So adding an extra bin at midpoint 102.5 containing 21% of emissions.    
     ross_prop_mass = np.asarray([21.0, 2.0, 2.1, 2.3, 2.4, 2.6, 2.7, 2.9, 3.5, 4.0, 3.2, 2.3, 2.5, 2.7, 3.0, 3.3, 3.9, 4.4, 5.0, 6.9, 17.3])
-    ross_prop_mass = ross_prop_mass / np.sum(ross_prop_mass) * 100
+    ross_prop_mass = ross_prop_mass[::-1] / np.sum(ross_prop_mass) * 100
     
     # Create cumulative distribution of propellant mass. 
     # This is used in the interp_prop_mass function to work out how much propellant is emitted above the gc limits.
-    ross_cumulative_mass = np.zeros_like(ross_prop_mass)
-    for i in range(0,len(ross_prop_mass)):
-        if i == 0:
-            ross_cumulative_mass[i] = 100
-        else:
-            ross_cumulative_mass[i] = ross_cumulative_mass[i-1] - ross_prop_mass[i-1]
+    ross_cumulative_mass = np.zeros((len(ross_prop_mass)+1))
+    for i in range(1,len(ross_prop_mass)+1):
+        ross_cumulative_mass[i] = ross_cumulative_mass[i-1] + ross_prop_mass[i-1]
             
-    return ross_alt, ross_prop_mass, ross_cumulative_mass
+    return ross_alt_edge, ross_prop_mass, ross_cumulative_mass
 
-def interp_prop_mass(bot_alt, mid_alt, top_alt, ross_alt, ross_cumulative_mass, ross_prop_mass, nlev, i, j):
+def interp_prop_mass(bot_alt, mid_alt, top_alt, ross_alt_edge, ross_cumulative_mass):
     
     """Interpolate proportional propellant mass burned from Ross and Sheaffer
         5-km incremental grid to desired vertical grid.
@@ -133,22 +130,15 @@ def interp_prop_mass(bot_alt, mid_alt, top_alt, ross_alt, ross_cumulative_mass, 
         j (numpy.int64): latitude index of model gridbox where launch occurs.
     """        
     # Interpolate the cumulative distribution to work out how much propellant is emitted above the top altitude.
-    propellant_in_model = np.interp(top_alt[-1,j,i]*1e-3, ross_alt[::-1], ross_cumulative_mass[::-1])
-    
+    propellant_in_model = np.interp(top_alt[-1]*1e-3, ross_alt_edge, ross_cumulative_mass)
     
     # Define array of percent distribution of propellant mass on model grid:
     # This sets up an array over number of model levels.
-    model_relative_mass = np.zeros_like(mid_alt[:,j,i])
-    # Loop over GEOS-Chem layers in reverse:
-    for l, h in enumerate(reversed(mid_alt[:,j,i])):
-        # Interpolate, and clip so that no values are above 17.3%.
-        model_relative_mass[l] = np.clip(np.interp(h*1e-3,ross_alt[::-1], ross_prop_mass[::-1]),None,17.3)
-        
-        # Now scale by the box height and the fact that the Ross altitude is in 5 km bins.
-        model_relative_mass[l] = model_relative_mass[l] / 5 * (top_alt[nlev-l-1,j,i]*1e-3 - bot_alt[nlev-l-1,j,i]*1e-3)
-        
-    
-    # ~ A portion of propellant is consumed above the model limits each time, so normalize to account for this.
-    model_relative_mass = model_relative_mass / np.sum(model_relative_mass) * propellant_in_model
+    model_relative_mass = np.zeros_like(mid_alt)
+    # Loop over model layers and interpolate the top and bottom cumulative mass of each bin:
+    for l, h in enumerate(mid_alt):
+        top_mass = np.interp(top_alt[l]*1e-3,ross_alt_edge, ross_cumulative_mass)
+        bot_mass = np.interp(bot_alt[l]*1e-3,ross_alt_edge, ross_cumulative_mass)
+        model_relative_mass[l] = top_mass - bot_mass
     
     return propellant_in_model, model_relative_mass
