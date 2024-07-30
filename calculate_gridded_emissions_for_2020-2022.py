@@ -1012,7 +1012,7 @@ class OutputEmis:
                                 time_index, 
                                 falcon_q, 
                                 falcon_p, 
-                                kg_to_kgm2s,
+                                self.area[falcon_q,falcon_p]*self.ts,
                                 total_vertical_propellant,
                                 5)
                     # Now the landing emissions.
@@ -1024,7 +1024,7 @@ class OutputEmis:
                                 time_index, 
                                 falcon_q, 
                                 falcon_p, 
-                                kg_to_kgm2s,
+                                self.area[falcon_q,falcon_p]*self.ts,
                                 total_vertical_propellant,
                                 5)
                 
@@ -1119,32 +1119,36 @@ class OutputEmis:
             # Work out vertical distribution for reentry emissions.
             #########################################################
             
-            if emis_type=='reentry':              
+            if emis_type=='reentry':
                 
-                reentry_ei_al2o3   = rocket_data.reentry_abl_deg[index[w]] * rocket_data.reentry_per_alu[index[w]]
-                if rocket_data.reentry_abl_deg[index[w]] == 0:
-                    reentry_ei_nox = 0.175
+                total_vertical_propellant = np.zeros((len(self.mid_alt[:,q,p]),10))
+                if np.ma.is_masked(rocket_data.reentry_abl_mass[index[w]]) or np.ma.is_masked(rocket_data.reentry_other_mass[index[w]]):
+                    pass
                 else:
-                    reentry_ei_nox = 0.4
+                
+                    reentry_ei_al2o3   = rocket_data.reentry_abl_deg[index[w]] * rocket_data.reentry_per_alu[index[w]]
+                    if rocket_data.reentry_abl_deg[index[w]] == 0:
+                        reentry_ei_nox = 0.175
+                    else:
+                        reentry_ei_nox = 0.4
+                        
+                    # Calculate the total mass surviving re-entry in kg
+                    if rocket_data.reentry_abl_deg[index[w]] != 0:
+                        self.mass_survive += ((rocket_data.reentry_abl_mass[index[w]] + rocket_data.reentry_other_mass[index[w]]) * (1-rocket_data.reentry_abl_deg[index[w]]))
+                     
+                    # For consistency with launch emissions, the totals are kept in g units. 
+                               
+                    t_nox_reentry = (rocket_data.reentry_abl_mass[index[w]] + rocket_data.reentry_other_mass[index[w]]) * reentry_ei_nox * 1000
+                    self.nox_reentry_total += t_nox_reentry
+                    self.rocket_reentry_nox[time_index,self.bot_reenter:self.top_reenter+1,q,p] += t_nox_reentry / self.n_reenter_levs * 1e-3 / kg_to_kgm2s
                     
-                # Calculate the total mass surviving re-entry in kg
-                if rocket_data.reentry_abl_deg[index[w]] != 0:
-                    self.mass_survive += ((rocket_data.reentry_abl_mass[index[w]] + rocket_data.reentry_other_mass[index[w]]) * (1-rocket_data.reentry_abl_deg[index[w]]))
-                 
-                # For consistency with launch emissions, the totals are kept in g units. 
-                           
-                t_nox_reentry = (rocket_data.reentry_abl_mass[index[w]] + rocket_data.reentry_other_mass[index[w]]) * reentry_ei_nox * 1000
-                self.nox_reentry_total += t_nox_reentry
-                self.rocket_reentry_nox[time_index,self.bot_reenter:self.top_reenter+1,q,p] += t_nox_reentry / self.n_reenter_levs * 1e-3 / kg_to_kgm2s
+                    t_al2o3_reentry = rocket_data.reentry_abl_mass[index[w]] * reentry_ei_al2o3 * 1000
+                    self.al2o3_reentry_total += t_al2o3_reentry
+                    self.rocket_reentry_al[time_index,self.bot_reenter:self.top_reenter+1,q,p] += t_al2o3_reentry / self.n_reenter_levs * 1e-3 / kg_to_kgm2s
                 
-                t_al2o3_reentry = rocket_data.reentry_abl_mass[index[w]] * reentry_ei_al2o3 * 1000
-                self.al2o3_reentry_total += t_al2o3_reentry
-                self.rocket_reentry_al[time_index,self.bot_reenter:self.top_reenter+1,q,p] += t_al2o3_reentry / self.n_reenter_levs * 1e-3 / kg_to_kgm2s
-                
-                total_vertical_propellant = np.zeros((len(self.mid_alt[:,q,p]),10))    
-                total_vertical_propellant[self.bot_reenter:self.top_reenter+1,3]   += np.full((self.n_reenter_levs),t_nox_reentry/self.n_reenter_levs)
-                total_vertical_propellant[self.bot_reenter:self.top_reenter+1,5]   += np.full((self.n_reenter_levs),t_al2o3_reentry/self.n_reenter_levs)
-                
+                    total_vertical_propellant[self.bot_reenter:self.top_reenter+1,3]   += np.full((self.n_reenter_levs),t_nox_reentry/self.n_reenter_levs)
+                    total_vertical_propellant[self.bot_reenter:self.top_reenter+1,5]   += np.full((self.n_reenter_levs),t_al2o3_reentry/self.n_reenter_levs)
+                    
                 for i in range(1,10):
                     self.output_csv_emis[self.csv_count_2,:] = total_vertical_propellant[:,i]
                     self.csv_count_2 += 1
