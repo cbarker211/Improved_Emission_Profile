@@ -401,16 +401,16 @@ class OutputEmis:
                 # Save file as NetCDF
                 ####################################
                 
-        #        if len(l_ind)>0 or len(r_ind)>0:
-        #            # If there are launches or reentries, then save file normally.
-        #            self.save_netcdf()
-        #        else:
-        #            # If there are no launches, create a dummy file to accommodate HEMCO file reading.
-        #            lat_ind=np.argmin(abs(self.lat-0))
-        #            self.qmin,self.qmax=int(lat_ind),int(lat_ind)
-        #            lon_ind=np.argmin(abs(self.lon-0))
-        #            self.pmin,self.pmax=int(lon_ind),int(lon_ind)
-        #            self.save_netcdf()
+                if len(l_ind)>0 or len(r_ind)>0:
+                    # If there are launches or reentries, then save file normally.
+                    self.save_netcdf()
+                else:
+                    # If there are no launches, create a dummy file to accommodate HEMCO file reading.
+                    lat_ind=np.argmin(abs(self.lat-0))
+                    self.qmin,self.qmax=int(lat_ind),int(lat_ind)
+                    lon_ind=np.argmin(abs(self.lon-0))
+                    self.pmin,self.pmax=int(lon_ind),int(lon_ind)
+                    self.save_netcdf()
         df = pd.DataFrame(self.output_for_csv)
         df_2 = pd.DataFrame(self.output_for_csv_2)
         #if len(months) == 12:
@@ -1219,8 +1219,8 @@ class OutputEmis:
                 self.rocket_reentry_al[time_index,self.bot_reenter:self.top_reenter+1,q,p] += t_al2o3_reentry / self.n_reenter_levs * 1e-3 / kg_to_kgm2s
                 
                 total_vertical_propellant = np.zeros((len(self.mid_alt[:,q,p]),10))    
-                total_vertical_propellant[self.bot_reenter:self.top_reenter+1,3]   += [t_nox_reentry/2, t_nox_reentry/2]
-                total_vertical_propellant[self.bot_reenter:self.top_reenter+1,5]   += [t_al2o3_reentry/2, t_al2o3_reentry/2]
+                total_vertical_propellant[self.bot_reenter:self.top_reenter+1,3]   += np.full((self.n_reenter_levs),t_nox_reentry/self.n_reenter_levs)
+                total_vertical_propellant[self.bot_reenter:self.top_reenter+1,5]   += np.full((self.n_reenter_levs),t_al2o3_reentry/self.n_reenter_levs)
                 
                 self.output_for_csv[self.csv_count,:] = 0
                 self.csv_count += 1
@@ -1493,7 +1493,7 @@ def check_total_emissions(year,dataset):
                                         total_missing_emis,percent_missing_emis, total_missing_prop, percent_missing_prop,0]}
     df = pd.DataFrame(data)
     print(df.round(2))    
-    df.to_csv(f"./Emission_Output/EmissionTotals_{year}_{dataset}.csv",sep=',')
+    #df.to_csv(f"./Emission_Output/EmissionTotals_{year}_{dataset}.csv",sep=',')
     print("Total propellant used for reusable stages: ", np.round(emis_data.total_landing_prop * 1e-6 / (total_inc_prop + total_missing_prop) * 100,2))
     
 # Main section of the program
@@ -1598,7 +1598,7 @@ if __name__ == "__main__":
     # Define paths dependent on resolution and levels. Errors should be handled above but included here just in case.
     # TODO: This path should be loaded in from file somehow. 
     if grid_res in ['2x2.5','4x5'] and levels in [47,72]:
-        gcdir = f'/home/ucfacb0/Scratch/StateMet/{grid_res}/'
+        gcdir = f'/home/ucfacb0/Scratch/StateMet/{grid_res}/{levels}/'
     else:
         sys.exit("Invalid grid resolution or number of levels.")    
     
@@ -1612,7 +1612,7 @@ if __name__ == "__main__":
             rocket_info_path  = path.join(datadir, f'rocket_info_{year}.nc')
             pei_path          = path.join(datadir, 'PEI_info.csv')
             reentry_path      = path.join(datadir, f'reentry_info_{year}_final_atlasbugfix.nc')
-            outdir            = f'/home/ucfacb0/Scratch/Emission_Inv/{year}/'    
+            outdir            = f'/home/ucfacb0/Scratch/Emission_Inv/{grid_res}/{levels}/{year}/' 
             rocket_data       = RocketData(launch_path, reentry_path, rocket_info_path, pei_path)
         
             # Go through process of gridding and saving rocket emissions:
