@@ -110,6 +110,7 @@ class RocketData:
         self.reentry_per_alu      = fg.variables['Percent_Aluminium'][:]
         self.reentry_other_mass   = fg.variables['Other_Mass'][:]
         self.reentry_smc          = fg.variables['Megaconstellation_Flag'][:]
+        self.reentry_apogee       = fg.variables['Apogee'][:]
         
         self.reentry_year, self.reentry_month, self.reentry_day = [], [], []
         for datestring in self.reentry_datestr:
@@ -1125,6 +1126,7 @@ class OutputEmis:
                 if np.ma.is_masked(rocket_data.reentry_abl_mass[index[w]]) or np.ma.is_masked(rocket_data.reentry_other_mass[index[w]]):
                     pass
                 else:
+                #elif rocket_data.reentry_apogee[index[w]] >= 100:
                 
                     reentry_ei_al2o3   = rocket_data.reentry_abl_deg[index[w]] * rocket_data.reentry_per_alu[index[w]]
                     if rocket_data.reentry_abl_deg[index[w]] == 0:
