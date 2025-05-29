@@ -211,9 +211,10 @@ class OutputEmis:
         # The smallest GEOS-Chem grid box has a height of 0.129 km, so setting find grid res to 0.1 km.
         # Setting maximum to 100 km, this is the top of the highest bin in the Ross distribution. 
         self.ross_alt_edge, self.ross_prop_mass, self.ross_cumulative_mass = get_ross_profiles()
-        self.fine_grid_bot_alt = np.arange(0,100,0.1)*1e3
-        self.fine_grid_mid_alt = np.arange(0.05,100,0.1)*1e3
-        self.fine_grid_top_alt = np.arange(0.1,100.1,0.1)*1e3
+        fine_grid_height = 0.001
+        self.fine_grid_bot_alt = np.arange(0,100,fine_grid_height)*1e3
+        self.fine_grid_mid_alt = np.arange(fine_grid_height/2,100,fine_grid_height)*1e3
+        self.fine_grid_top_alt = np.arange(fine_grid_height,100+fine_grid_height,fine_grid_height)*1e3
         self.prop_in_fine_grid, self.fine_grid_mass = interp_prop_mass(self.fine_grid_bot_alt, self.fine_grid_mid_alt, self.fine_grid_top_alt, 
                                                                          self.ross_alt_edge, self.ross_cumulative_mass)
 
@@ -674,7 +675,12 @@ class OutputEmis:
             total_vertical_propellant[i,7]           += np.sum(emis_full[bot_ind:top_ind,8]) 
             total_vertical_propellant[i,8]           += np.sum(emis_full[bot_ind:top_ind,9]) 
             total_vertical_propellant[i,9]           += np.sum(emis_full[bot_ind:top_ind,2]) 
-           
+        
+        print(np.sum(self.rocket_co2[time_index,:,q,p]))
+        plt.plot(self.rocket_h2o[time_index,:,q,p]/self.box_height[:,q,p],self.mid_alt[:,q,p])
+        #plt.plot(self.rocket_h2o[time_index,:,q,p],self.mid_alt[:,q,p])
+        plt.savefig("./test.png")
+        sys.exit()   
         if len(list(set(selected_alts))) != len(selected_alts):
             sys.exit("Error in fine grid indexing.")
             
